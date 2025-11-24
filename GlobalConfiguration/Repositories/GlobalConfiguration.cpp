@@ -16,29 +16,25 @@ namespace omnicore::repository
 
             if (config.ImagePath.has_value())
             {
-                if (!first) sQuery += ", ";
                 sQuery += "ImagePath = ?";
                 updateParams.emplace_back(type::MakeSQLParam(config.ImagePath.value()));
             }
 
             if (config.PDFPath.has_value())
             {
-                if (!first) sQuery += ", ";
-                sQuery += "PDFPath = ?";
+                sQuery += ", PDFPath = ?";
                 updateParams.emplace_back(type::MakeSQLParam(config.PDFPath.value()));
             }
 
             if (config.XMLPath.has_value())
             {
-                if (!first) sQuery += ", ";
-                sQuery += "XMLPath = ?";
+                sQuery += ", XMLPath = ?";
                 updateParams.emplace_back(type::MakeSQLParam(config.XMLPath.value()));
             }
 
             if (config.PasswordExpirationDays.has_value())
             {
-                if (!first) sQuery += ", ";
-                sQuery += "PasswordExpirationDays = ?";
+                sQuery += ", PasswordExpirationDays = ?";
                 updateParams.emplace_back(type::MakeSQLParam(config.PasswordExpirationDays.value()));
             }
 
