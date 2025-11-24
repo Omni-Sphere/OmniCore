@@ -1,0 +1,32 @@
+{
+    "configurations": [
+        {
+            "name": "Mac",
+            "includePath": [
+                "${workspaceFolder}",
+                "${workspaceFolder}/Database",
+                "${workspaceFolder}/Base",
+                "${workspaceFolder}/User",
+                "${workspaceFolder}/Session",
+                "${workspaceFolder}/Item",
+                "${workspaceFolder}/ItemGroup",
+                "${workspaceFolder}/ItemBrand",
+                "${workspaceFolder}/OmniUtils"
+            ],
+            "defines": [],
+            "macFrameworkPath": [
+                "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks"
+            ],
+            "compilerPath": "/usr/bin/clang",
+            "cStandard": "c23",
+            "cppStandard": "c++20",
+            "intelliSenseMode": "macos-clang-x64",
+            "browse": {
+                "path": [
+                    "${workspaceFolder}"
+                ]
+            }
+        }
+    ],
+    "version": 4
+}
