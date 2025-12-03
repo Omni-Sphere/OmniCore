@@ -1,2 +1,6 @@
 /build
+/OmniUtils
 .DS_Store
+*.dylib
+*.so
+*.dll
