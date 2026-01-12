@@ -46,17 +46,28 @@ target_include_directories(OmniCore
 find_library(SODIUM_LIB sodium REQUIRED)
 find_package(Boost REQUIRED COMPONENTS json)
 
-if(APPLE)
-target_link_libraries(OmniCore PUBLIC
-    ${SODIUM_LIB}
-    Boost::json
-    ${CMAKE_CURRENT_SOURCE_DIR}/libOmniUtils.dylib
+if(WIN32)
+    target_link_libraries(OmniCore PUBLIC
+        ${SODIUM_LIB}
+        Boost::json
+        ${CMAKE_CURRENT_SOURCE_DIR}/libOmniUtils.dll.a
+    )
+    add_custom_command(TARGET OmniCore POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_CURRENT_SOURCE_DIR}/libOmniUtils.dll"
+        "${DEST_LIB_DIR}/libOmniUtils.dll"
+    )
+elseif(APPLE)
+    target_link_libraries(OmniCore PUBLIC
+        ${SODIUM_LIB}
+        Boost::json
+        ${CMAKE_CURRENT_SOURCE_DIR}/libOmniUtils.dylib
     )
 else()
     target_link_libraries(OmniCore PUBLIC
-    ${SODIUM_LIB}
-    Boost::json
-    ${CMAKE_CURRENT_SOURCE_DIR}/libOmniUtils.so
+        ${SODIUM_LIB}
+        Boost::json
+        ${CMAKE_CURRENT_SOURCE_DIR}/libOmniUtils.so
     )
 endif()
 
