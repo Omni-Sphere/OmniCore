@@ -1,52 +1,58 @@
 #pragma once
 
 #include <iostream>
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
+#include <map>
 #include <sql.h>
 #include <sqlext.h>
 #include <stdexcept>
-#include <map>
+
 
 #include "DataTable.hpp"
 #include "SQLParams.hpp"
 
-namespace omnicore::service
-{
-    class Database
-    {
-    private:
-        SQLHENV henv;
-        SQLHDBC hdbc;
-        SQLHSTMT hstmt;
+namespace omnicore::service {
+class Database {
+private:
+  SQLHENV henv;
+  SQLHDBC hdbc;
+  SQLHSTMT hstmt;
 
-        std::string _ServerName;
-        std::string _DatabaseName;
-        std::string _UserName;
-        std::string _Password;
-        bool _TrustServerCertificate;
+  std::string _ServerName;
+  std::string _DatabaseName;
+  std::string _UserName;
+  std::string _Password;
+  bool _TrustServerCertificate;
 
-        void PrepareStatement(const std::string &);
-        std::string ExtractError(const char *, SQLHANDLE, SQLSMALLINT);
-        void RunQuery(const std::string &);
+  void PrepareStatement(const std::string &);
+  std::string ExtractError(const char *, SQLHANDLE, SQLSMALLINT);
+  void RunQuery(const std::string &);
 
-        std::vector<double> doubleStorage;
-        std::vector<std::string> stringStorage;
-        std::vector<std::vector<uint8_t>> binaryStorage;
-        std::vector<int> intStorage;
-        std::vector<SQLLEN> indStorage;
+  std::vector<double> doubleStorage;
+  std::vector<std::string> stringStorage;
+  std::vector<std::vector<uint8_t>> binaryStorage;
+  std::vector<int> intStorage;
+  std::vector<SQLLEN> indStorage;
 
-    public:
-        Database();
-        ~Database();
-        void ServerName(const std::string &serverName);
-        void DatabaseName(const std::string &dbName);
-        void UserName(const std::string &userName);
-        void Password(const std::string &password);
-        void TrustServerCertificate(const bool &trustedServerCertificate);
-        bool Connect();
-        bool RunStatement(const std::string &query);
+public:
+  Database();
+  ~Database();
+  void ServerName(const std::string &serverName);
+  void DatabaseName(const std::string &dbName);
+  void UserName(const std::string &userName);
+  void Password(const std::string &password);
+  void TrustServerCertificate(const bool &trustedServerCertificate);
+  bool Connect();
+  bool RunStatement(const std::string &query);
 
-        bool RunPrepared(const std::string &query, const std::vector<type::SQLParam> &params);
+  bool RunPrepared(const std::string &query,
+                   const std::vector<type::SQLParam> &params);
 
+<<<<<<< HEAD
         type::DataTable FetchPrepared(const std::string &query, const std::vector<type::SQLParam> &params);
         type::DataTable FetchPrepared(const std::string &query, const std::vector<std::string> &params);
         type::DataTable FetchPrepared(const std::string &query, const std::string &param);
@@ -55,8 +61,21 @@ namespace omnicore::service
         bool BeginTransaction();
         bool CommitTransaction();
         bool RollbackTransaction();
+=======
+  type::Datatable FetchPrepared(const std::string &query,
+                                const std::vector<type::SQLParam> &params);
+  type::Datatable FetchPrepared(const std::string &query,
+                                const std::vector<std::string> &params);
+  type::Datatable FetchPrepared(const std::string &query,
+                                const std::string &param);
+  type::Datatable FetchResults(const std::string &query);
+>>>>>>> 8a71a3c207fd72158104436a9171d429b97d6ee4
 
-        void Disconnect();
-    };
+  bool BeginTransaction();
+  bool CommitTransaction();
+  bool RollbackTransaction();
 
-}
+  void Disconnect();
+};
+
+} // namespace omnicore::service
