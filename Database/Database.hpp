@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <map>
 
-#include "Datatable.hpp"
+#include "DataTable.hpp"
 #include "SQLParams.hpp"
 
 namespace omnicore::service
@@ -47,10 +47,10 @@ namespace omnicore::service
 
         bool RunPrepared(const std::string &query, const std::vector<type::SQLParam> &params);
 
-        type::Datatable FetchPrepared(const std::string &query, const std::vector<type::SQLParam> &params);
-        type::Datatable FetchPrepared(const std::string &query, const std::vector<std::string> &params);
-        type::Datatable FetchPrepared(const std::string &query, const std::string &param);
-        type::Datatable FetchResults(const std::string &query);
+        type::DataTable FetchPrepared(const std::string &query, const std::vector<type::SQLParam> &params);
+        type::DataTable FetchPrepared(const std::string &query, const std::vector<std::string> &params);
+        type::DataTable FetchPrepared(const std::string &query, const std::string &param);
+        type::DataTable FetchResults(const std::string &query);
         
         bool BeginTransaction();
         bool CommitTransaction();

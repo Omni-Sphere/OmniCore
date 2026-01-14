@@ -63,7 +63,7 @@ namespace omnicore::repository
         {
             std::string sQuery = "SELECT ConfEntry, ImagePath, PDFPath, XMLPath, PasswordExpirationDays FROM GlobalConfiguration WHERE ConfEntry = ?";
             
-            type::Datatable data = database->FetchPrepared(sQuery, std::to_string(confEntry));
+            type::DataTable data = database->FetchPrepared(sQuery, std::to_string(confEntry));
 
             if (data.RowsCount() == 0)
             {

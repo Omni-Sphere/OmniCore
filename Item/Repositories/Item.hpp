@@ -19,9 +19,9 @@ namespace omnicore::repository
 
         bool Create(const dto::CreateItem &_item) const;
         bool Update(const dto::UpdateItem &_item) const;
-        type::Datatable Read(const dto::SearchItems &_item) const;
-        type::Datatable Read(const dto::GetItem &_item) const;
-        type::Datatable Read() const;
+        type::DataTable Read(const dto::SearchItems &_item) const;
+        type::DataTable Read(const dto::GetItem &_item) const;
+        type::DataTable Read() const;
 
 
     private:

@@ -13,7 +13,7 @@ else()
 endif()
 
 add_library(OmniCore SHARED
-    Database/Datatable.cpp
+    Database/DataTable.cpp
     Database/Database.cpp
     User/User.cpp
     User/Repositories/User.cpp
@@ -105,23 +105,17 @@ set(
     User/DTOs
     User/Models
     User/Enums
-    User/Repositories
     Session/DTOs
     Session/Enums
     Session/Models
-    Session/Repositories
     Item/Models
     Item/DTOs
-    Item/Repositories
     ItemGroup/Models
     ItemGroup/DTOs
-    ItemGroup/Repositories
     ItemBrand/Models
     ItemBrand/DTOs
-    ItemBrand/Repositories
     GlobalConfiguration/Models
     GlobalConfiguration/DTOs
-    GlobalConfiguration/Repositories
 )
 
 foreach(DIR ${HEADER_DIRS})

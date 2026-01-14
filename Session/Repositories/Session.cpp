@@ -73,7 +73,7 @@ int Session::GetCurrentSequence() const {
         "SELECT ISNULL(SessionSequence, 0) + 1 SessionSequence FROM Sequences "
         "WHERE SeqEntry = 1";
 
-    type::Datatable data = database->FetchResults(sQuery);
+    type::DataTable data = database->FetchResults(sQuery);
 
     if (data.RowsCount() == 1)
       return data[0]["SessionSequence"];
@@ -100,7 +100,7 @@ bool Session::UpdateSessionSequence() const {
   }
 };
 
-type::Datatable Session::Read(const dto::Login &login) const {
+type::DataTable Session::Read(const dto::Login &login) const {
   try {
     std::string sQuery = "SELECT "
                          "T0.SessionEntry, "
@@ -132,7 +132,7 @@ type::Datatable Session::Read(const dto::Login &login) const {
     sQuery += "AND T0.DeviceIP = '" + login.DeviceIP + "' AND T0.HostName = '" +
               login.HostName + "' AND T0.IsActive = 'Y'";
 
-    type::Datatable data = database->FetchResults(sQuery);
+    type::DataTable data = database->FetchResults(sQuery);
 
     return data;
   } catch (const std::exception &e) {
@@ -141,7 +141,7 @@ type::Datatable Session::Read(const dto::Login &login) const {
   }
 };
 
-type::Datatable Session::Read(const std::string &sessionUUID) const {
+type::DataTable Session::Read(const std::string &sessionUUID) const {
   try {
     std::string sQuery =
         "SELECT SessionUUID, StartDate, EndDate, DurationSeconds, Reason, "
@@ -153,12 +153,12 @@ type::Datatable Session::Read(const std::string &sessionUUID) const {
   }
 };
 
-type::Datatable Session::ExistsUUID(const std::string &sessionUUID) const {
+type::DataTable Session::ExistsUUID(const std::string &sessionUUID) const {
   try {
     std::string sQuery =
         "SELECT COUNT(*) Total FROM Sessions WHERE SessionUUID  = ?";
 
-    type::Datatable data = database->FetchPrepared(sQuery, sessionUUID);
+    type::DataTable data = database->FetchPrepared(sQuery, sessionUUID);
 
     return data;
   } catch (const std::exception &e) {
@@ -167,11 +167,11 @@ type::Datatable Session::ExistsUUID(const std::string &sessionUUID) const {
   }
 };
 
-type::Datatable Session::IsActive(const std::string &sessionUUID) const {
+type::DataTable Session::IsActive(const std::string &sessionUUID) const {
   try {
     std::string sQuery = "SELECT IsActive FROM Sessions WHERE SessionUUID  = ?";
 
-    type::Datatable data = database->FetchPrepared(sQuery, sessionUUID);
+    type::DataTable data = database->FetchPrepared(sQuery, sessionUUID);
 
     return data;
   } catch (const std::exception &e) {

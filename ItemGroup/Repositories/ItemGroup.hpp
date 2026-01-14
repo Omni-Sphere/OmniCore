@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-namespace omnicore::respository {
+namespace omnicore::repository {
 class ItemGroup {
 private:
   std::shared_ptr<service::Database> database;
@@ -22,7 +22,7 @@ public:
 
   bool Create(const dto::CreateItemGroup &createItemGroup) const;
   bool Update(const dto::UpdateItemGroup &updateItemGroup) const;
-  type::Datatable ReadAll() const;
-  type::Datatable Read(const dto::GetItemGroup) const;
+  type::DataTable ReadAll() const;
+  type::DataTable Read(const dto::GetItemGroup) const;
 };
-} // namespace omnicore::respository
+} // namespace omnicore::repository

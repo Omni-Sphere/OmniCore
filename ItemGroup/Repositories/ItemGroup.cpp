@@ -1,6 +1,6 @@
 #include "ItemGroup.hpp"
 
-namespace omnicore::respository {
+namespace omnicore::repository {
 ItemGroup::ItemGroup(std::shared_ptr<service::Database> Database)
     : database(std::move(Database)) {}
 
@@ -10,7 +10,7 @@ int ItemGroup::GetCurrentSequence() const {
         "SELECT ISNULL(ItemGroupsSequence, 0) + 1 ItemGroupsSequence FROM "
         "Sequences WHERE SeqEntry = 1";
 
-    type::Datatable data = database->FetchResults(sQuery);
+    type::DataTable data = database->FetchResults(sQuery);
 
     if (data.RowsCount() == 1)
       return data[0]["ItemGroupsSequence"];
@@ -84,13 +84,13 @@ bool ItemGroup::Update(const dto::UpdateItemGroup &updateItemGroup) const {
   }
 }
 
-type::Datatable ItemGroup::ReadAll() const {
+type::DataTable ItemGroup::ReadAll() const {
   try {
     std::string sQuery =
         "SELECT ItGEntry [Entry], Code, Name, CreatedBy, CreateDate, "
         "LastUpdatedBy, UpdateDate FROM ItemGroups";
 
-    type::Datatable data = database->FetchResults(sQuery);
+    type::DataTable data = database->FetchResults(sQuery);
 
     return {data};
   } catch (const std::exception &e) {
@@ -99,7 +99,7 @@ type::Datatable ItemGroup::ReadAll() const {
   }
 }
 
-type::Datatable ItemGroup::Read(const dto::GetItemGroup itemGroup) const {
+type::DataTable ItemGroup::Read(const dto::GetItemGroup itemGroup) const {
   try {
     std::string sQuery =
         "SELECT ItGEntry [Entry], Code, Name, CreatedBy, CreateDate, "
@@ -120,7 +120,7 @@ type::Datatable ItemGroup::Read(const dto::GetItemGroup itemGroup) const {
           "At least one filter must be provided to read ItemGroup");
     }
 
-    type::Datatable data = database->FetchPrepared(sQuery, params);
+    type::DataTable data = database->FetchPrepared(sQuery, params);
 
     return data;
   } catch (const std::exception &e) {
@@ -128,4 +128,4 @@ type::Datatable ItemGroup::Read(const dto::GetItemGroup itemGroup) const {
                              e.what());
   }
 }
-} // namespace omnicore::respository
+} // namespace omnicore::repository

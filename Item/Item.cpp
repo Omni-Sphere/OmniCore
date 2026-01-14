@@ -1,156 +1,171 @@
-#include "Item.hpp"
+#include "Item.hpp" // Keep the original header for the service class
+#include "DTOs/CreateItem.hpp"
+#include "DTOs/GetItem.hpp"
+#include "DTOs/SearchItems.hpp"
+#include "Database.hpp" // Add new include for database
+#include "DataTable.hpp"
+#include "Repositories/Item.hpp" // Add new include for repository
 
-namespace omnicore::service
-{
-    Item::Item(std::shared_ptr<service::Database> _database)
-    {
-        item = std::make_shared<repository::Item>(_database);
-    };
+namespace omnicore::service {
+// Define the Impl struct for Pimpl idiom
+struct Item::Impl {
+  std::shared_ptr<repository::Item> item;
+  explicit Impl(std::shared_ptr<service::Database> database)
+      : item(std::make_shared<repository::Item>(database)) {}
+};
 
-    Item::~Item() = default;
+// Update constructor to initialize pimpl
+Item::Item(std::shared_ptr<service::Database> database)
+    : pimpl(std::make_unique<Impl>(database)) {}
 
-    model::Item Item::Get(const dto::GetItem &_item) const
-    {
-        try
-        {
-            type::Datatable dataTable = item->Read(_item);
+// Define destructor
+Item::~Item() = default;
 
-            if (dataTable.RowsCount() == 0)
-                throw std::runtime_error("No items found");
+model::Item Item::Get(const dto::GetItem &_item) const {
+  try {
+    // Use pimpl to access the repository
+    type::DataTable data = pimpl->item->Read(_item);
 
-            if (dataTable.RowsCount() > 1)
-                throw std::runtime_error("Inconstence retreiving Items, more than one found");
+    if (data.RowsCount() == 0)
+      throw std::runtime_error("Item doesn't exists");
 
-            return model::Item{
-                dataTable[0]["ItemEntry"],
-                dataTable[0]["Code"],
-                dataTable[0]["Name"],
-                dataTable[0]["Description"].AsDBNull<std::string>(),
-                dataTable[0]["Image"].AsDBNull<std::string>(),
-                dataTable[0]["IsActive"],
-                dataTable[0]["PurchaseItem"],
-                dataTable[0]["SellItem"],
-                dataTable[0]["InventoryItem"],
-                dataTable[0]["Price"],
-                dataTable[0]["Brand"].AsDBNull<int>(),
-                dataTable[0]["Group"].AsDBNull<int>(),
-                dataTable[0]["OnHand"],
-                dataTable[0]["OnOrder"].AsDBNull<double>(),
-                dataTable[0]["OnRequest"].AsDBNull<double>(),
-                dataTable[0]["MinStock"].AsDBNull<double>(),
-                dataTable[0]["MaxStock"].AsDBNull<double>(),
-                dataTable[0]["MinOrder"].AsDBNull<double>(),
-                dataTable[0]["MaxOrder"].AsDBNull<double>(),
-                dataTable[0]["MinRequest"].AsDBNull<double>(),
-                dataTable[0]["MaxRequest"].AsDBNull<double>(),
-                dataTable[0]["CreatedBy"],
-                dataTable[0]["CreateDate"],
-                dataTable[0]["LastUpdatedBy"].AsDBNull<int>(),
-                dataTable[0]["UpdateDate"].AsDBNull<std::string>()};
-        }
-        catch (const std::exception &e)
-        {
-            throw std::runtime_error(std::string("[Item::Get Exception] ") + e.what());
-        }
-    };
+    model::Item item(
+        data[0]["ItemEntry"], data[0]["Code"], data[0]["Name"],
+        data[0]["Description"].GetOptional<std::string>(),
+        data[0]["Image"].GetOptional<std::string>(), data[0]["IsActive"],
+        data[0]["PurchaseItem"], data[0]["SellItem"], data[0]["InventoryItem"],
+        data[0]["Price"], data[0]["Brand"].GetOptional<int>(),
+        data[0]["Group"].GetOptional<int>(), data[0]["OnHand"],
+        data[0]["OnOrder"].GetOptional<double>(),
+        data[0]["OnRequest"].GetOptional<double>(),
+        data[0]["MinStock"].GetOptional<double>(),
+        data[0]["MaxStock"].GetOptional<double>(),
+        data[0]["MinOrder"].GetOptional<double>(),
+        data[0]["MaxOrder"].GetOptional<double>(),
+        data[0]["MinRequest"].GetOptional<double>(),
+        data[0]["MaxRequest"].GetOptional<double>(), data[0]["CreatedBy"],
+        data[0]["CreateDate"], data[0]["LastUpdatedBy"].GetOptional<int>(),
+        data[0]["UpdateDate"].GetOptional<std::string>());
 
-    std::vector<model::Item> Item::GetAll() const
-    {
-        try
-        {
-            type::Datatable dataTable = item->Read();
-            std::vector<model::Item> items;
+    return item;
+  } catch (const std::exception &e) {
+    throw std::runtime_error(std::string("[GetItem Exception] ") + e.what());
+  }
+};
 
-            if (dataTable.RowsCount() == 0)
-                return items;
+std::vector<model::Item> Item::GetAll() const {
+  try {
+    std::vector<model::Item> items;
+    // Use pimpl to access the repository and call Read (alias for ReadAll)
+    type::DataTable data = pimpl->item->Read();
 
-            for (size_t i = 0; i < dataTable.RowsCount(); ++i)
-            {
-                items.push_back(model::Item{
-                    dataTable[i]["ItemEntry"],
-                    dataTable[i]["Code"],
-                    dataTable[i]["Name"],
-                    dataTable[i]["Description"].AsDBNull<std::string>(),
-                    dataTable[i]["Image"].AsDBNull<std::string>(),
-                    dataTable[i]["IsActive"],
-                    dataTable[i]["PurchaseItem"],
-                    dataTable[i]["SellItem"],
-                    dataTable[i]["InventoryItem"],
-                    dataTable[i]["Price"],
-                    dataTable[i]["Brand"].AsDBNull<int>(),
-                    dataTable[i]["Group"].AsDBNull<int>(),
-                    dataTable[i]["OnHand"],
-                    dataTable[i]["OnOrder"],
-                    dataTable[i]["OnRequest"].AsDBNull<double>(),
-                    dataTable[i]["MinStock"].AsDBNull<double>(),
-                    dataTable[i]["MaxStock"].AsDBNull<double>(),
-                    dataTable[i]["MinOrder"].AsDBNull<double>(),
-                    dataTable[i]["MaxOrder"].AsDBNull<double>(),
-                    dataTable[i]["MinRequest"].AsDBNull<double>(),
-                    dataTable[i]["MaxRequest"].AsDBNull<double>(),
-                    dataTable[i]["CreatedBy"],
-                    dataTable[i]["CreateDate"],
-                    dataTable[i]["LastUpdatedBy"].AsDBNull<int>(),
-                    dataTable[i]["UpdateDate"].AsDBNull<std::string>()});
-            }
-
-            return items;
-        }
-        catch (const std::exception &e)
-        {
-            throw std::runtime_error(std::string("[Item::GetAll Exception] ") + e.what());
-        }
+    for (int i = 0; i < data.RowsCount(); i++) {
+      items.emplace_back(
+          data[i]["ItemEntry"], data[i]["Code"], data[i]["Name"],
+          data[i]["Description"].GetOptional<std::string>(),
+          data[i]["Image"].GetOptional<std::string>(), data[i]["IsActive"],
+          data[i]["PurchaseItem"], data[i]["SellItem"],
+          data[i]["InventoryItem"], data[i]["Price"],
+          data[i]["Brand"].GetOptional<int>(), data[i]["Group"].GetOptional<int>(),
+          data[i]["OnHand"], data[i]["OnOrder"].GetOptional<double>(),
+          data[i]["OnRequest"].GetOptional<double>(),
+          data[i]["MinStock"].GetOptional<double>(),
+          data[i]["MaxStock"].GetOptional<double>(),
+          data[i]["MinOrder"].GetOptional<double>(),
+          data[i]["MaxOrder"].GetOptional<double>(),
+          data[i]["MinRequest"].GetOptional<double>(),
+          data[i]["MaxRequest"].GetOptional<double>(), data[i]["CreatedBy"],
+          data[i]["CreateDate"], data[i]["LastUpdatedBy"].GetOptional<int>(),
+          data[i]["UpdateDate"].GetOptional<std::string>());
     }
 
-    std::vector<model::Item> Item::Search(dto::SearchItems &_item) const
-    {
-        try
-        {
-            std::vector<model::Item> items;
-            return items;
-        }
-        catch (const std::exception &e)
-        {
-            throw std::runtime_error(std::string("[Item::Search Exception] ") + e.what());
-        }
-    }
-
-    model::Item Item::Add(const dto::CreateItem &_item) const
-    {
-        try
-        {
-            if (!item->Create(_item))
-                throw std::runtime_error("Error creating Item");
-
-            dto::GetItem getItem;
-            getItem.Code = _item.Code;
-
-            return Get(getItem);
-        }
-        catch (const std::exception &e)
-        {
-            throw std::runtime_error(std::string("[Item::Add Exception] ") + e.what());
-        }
-    };
-
-    model::Item Item::Modify(const dto::UpdateItem &_item) const
-    {
-        try
-        {
-
-            if (!this->item->Update(_item))
-                throw std::runtime_error("Error updating Item");
-
-            dto::GetItem getItem;
-            getItem.Code = _item.Code;
-
-            model::Item item = Get(getItem);
-
-            return item;
-        }
-        catch (const std::exception &e)
-        {
-            throw std::runtime_error(std::string("[Item::Modify Exception] ") + e.what());
-        }
-    };
+    return items;
+  } catch (const std::exception &e) {
+    throw std::runtime_error(std::string("[GetAllItems Exception] ") +
+                             e.what());
+  }
 }
+
+std::vector<model::Item> Item::Search(dto::SearchItems &_item) const {
+  try {
+    std::vector<model::Item> items;
+    // Use pimpl to access the repository
+    type::DataTable data = pimpl->item->Read(_item);
+
+    for (int i = 0; i < data.RowsCount(); i++) {
+      items.emplace_back(
+          data[i]["ItemEntry"], data[i]["Code"], data[i]["Name"],
+          data[i]["Description"].GetOptional<std::string>(),
+          data[i]["Image"].GetOptional<std::string>(), data[i]["IsActive"],
+          data[i]["PurchaseItem"], data[i]["SellItem"],
+          data[i]["InventoryItem"], data[i]["Price"],
+          data[i]["Brand"].GetOptional<int>(), data[i]["Group"].GetOptional<int>(),
+          data[i]["OnHand"], data[i]["OnOrder"].GetOptional<double>(),
+          data[i]["OnRequest"].GetOptional<double>(),
+          data[i]["MinStock"].GetOptional<double>(),
+          data[i]["MaxStock"].GetOptional<double>(),
+          data[i]["MinOrder"].GetOptional<double>(),
+          data[i]["MaxOrder"].GetOptional<double>(),
+          data[i]["MinRequest"].GetOptional<double>(),
+          data[i]["MaxRequest"].GetOptional<double>(), data[i]["CreatedBy"],
+          data[i]["CreateDate"], data[i]["LastUpdatedBy"].GetOptional<int>(),
+          data[i]["UpdateDate"].GetOptional<std::string>());
+    }
+
+    return items;
+  } catch (const std::exception &e) {
+    throw std::runtime_error(std::string("[SearchItems Exception] ") +
+                             e.what());
+  }
+}
+
+model::Item Item::Add(const dto::CreateItem &_item) const {
+  try {
+    // Use pimpl to access the repository
+    if (pimpl->item->Create(_item)) {
+      // Read the newly created item using its code
+      dto::GetItem getItem;
+      getItem.Code = _item.Code;
+      type::DataTable data = pimpl->item->Read(getItem);
+
+      model::Item item(
+          data[0]["ItemEntry"], data[0]["Code"], data[0]["Name"],
+          data[0]["Description"].GetOptional<std::string>(),
+          data[0]["Image"].GetOptional<std::string>(), data[0]["IsActive"],
+          data[0]["PurchaseItem"], data[0]["SellItem"],
+          data[0]["InventoryItem"], data[0]["Price"],
+          data[0]["Brand"].GetOptional<int>(), data[0]["Group"].GetOptional<int>(),
+          data[0]["OnHand"], data[0]["OnOrder"].GetOptional<double>(),
+          data[0]["OnRequest"].GetOptional<double>(),
+          data[0]["MinStock"].GetOptional<double>(),
+          data[0]["MaxStock"].GetOptional<double>(),
+          data[0]["MinOrder"].GetOptional<double>(),
+          data[0]["MaxOrder"].GetOptional<double>(),
+          data[0]["MinRequest"].GetOptional<double>(),
+          data[0]["MaxRequest"].GetOptional<double>(), data[0]["CreatedBy"],
+          data[0]["CreateDate"], data[0]["LastUpdatedBy"].GetOptional<int>(),
+          data[0]["UpdateDate"].GetOptional<std::string>());
+
+      return item;
+    } else
+      throw std::runtime_error("Error creating item ");
+  } catch (const std::exception &e) {
+    throw std::runtime_error(std::string("[AddItem Exception] ") + e.what());
+  }
+};
+
+model::Item Item::Modify(const dto::UpdateItem &_item) const {
+  try {
+
+    dto::GetItem getItem;
+    getItem.Code = _item.Code;
+
+    model::Item item = Get(getItem);
+
+    return item;
+  } catch (const std::exception &e) {
+    throw std::runtime_error(std::string("[Item::Modify Exception] ") +
+                             e.what());
+  }
+};
+} // namespace omnicore::service

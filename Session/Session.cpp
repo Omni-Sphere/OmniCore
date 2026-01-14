@@ -1,64 +1,79 @@
 #include "Session.hpp"
 #include "JWT.hpp"
 
+#include "Database.hpp"
+#include "DataTable.hpp"
+#include "Enums/UserFilter.hpp"
+#include "Models/User.hpp"
+#include "Repositories/Session.hpp"
+#include "User.hpp"
+
 namespace omnicore::service {
-Session::Session(std::shared_ptr<service::Database> db) {
-  session = std::make_shared<repository::Session>(db);
-  user = std::make_shared<service::User>(db);
-}
+
+struct Session::Impl {
+  std::shared_ptr<repository::Session> session;
+  std::shared_ptr<service::User> user;
+
+  explicit Impl(std::shared_ptr<service::Database> db)
+      : session(std::make_shared<repository::Session>(db)),
+        user(std::make_shared<service::User>(db)) {}
+};
+
+Session::Session(std::shared_ptr<service::Database> db)
+    : pimpl(std::make_unique<Impl>(db)) {}
 
 Session::~Session() = default;
 
 model::AuthPayload Session::Login(const dto::Login &login) const {
   try {
     if (login.Code.has_value() &&
-        !user->Exists(enums::UserFilter::Code, login.Code.value()))
+        !pimpl->user->Exists(enums::UserFilter::Code, login.Code.value()))
       throw std::runtime_error("User Code doesn't exists");
 
     if (login.Email.has_value() &&
-        !user->Exists(enums::UserFilter::Email, login.Email.value()))
+        !pimpl->user->Exists(enums::UserFilter::Email, login.Email.value()))
       throw std::runtime_error("User Email doesn't exists");
 
     if (login.Phone.has_value() &&
-        !user->Exists(enums::UserFilter::Phone, login.Phone.value()))
+        !pimpl->user->Exists(enums::UserFilter::Phone, login.Phone.value()))
       throw std::runtime_error("User Phone doesn't exists");
 
     if (login.Code.has_value() &&
-        !user->CheckPassword(enums::UserFilter::Code, login.Code.value(),
-                             login.Password))
+        !pimpl->user->CheckPassword(enums::UserFilter::Code, login.Code.value(),
+                                    login.Password))
       throw std::runtime_error("Wrong password");
 
     if (login.Email.has_value() &&
-        !user->CheckPassword(enums::UserFilter::Email, login.Email.value(),
-                             login.Password))
+        !pimpl->user->CheckPassword(enums::UserFilter::Email,
+                                    login.Email.value(), login.Password))
       throw std::runtime_error("Wrong password");
 
     if (login.Phone.has_value() &&
-        !user->CheckPassword(enums::UserFilter::Phone, login.Phone.value(),
-                             login.Password))
+        !pimpl->user->CheckPassword(enums::UserFilter::Phone,
+                                    login.Phone.value(), login.Password))
       throw std::runtime_error("Wrong password");
 
-    session->Create(login);
+    pimpl->session->Create(login);
 
-    type::Datatable data;
+    type::DataTable data;
     model::AuthPayload authPayload;
 
-    data = session->Read(login);
+    data = pimpl->session->Read(login);
 
     authPayload.SessionUUID = std::string(data[0]["SessionUUID"]);
     authPayload.AccessToken = JWT::GenerateToken(data[0]["SessionUUID"], 86400);
 
     if (login.Code.has_value())
       authPayload.User = std::make_shared<model::User>(
-          user->Get(enums::UserFilter::Code, data[0]["UserCode"]));
+          pimpl->user->Get(enums::UserFilter::Code, data[0]["UserCode"]));
 
     if (login.Email.has_value())
       authPayload.User = std::make_shared<model::User>(
-          user->Get(enums::UserFilter::Email, data[0]["UserEmail"]));
+          pimpl->user->Get(enums::UserFilter::Email, data[0]["UserEmail"]));
 
     if (login.Phone.has_value())
       authPayload.User = std::make_shared<model::User>(
-          user->Get(enums::UserFilter::Phone, data[0]["UserPhone"]));
+          pimpl->user->Get(enums::UserFilter::Phone, data[0]["UserPhone"]));
 
     return authPayload;
   } catch (const std::exception &e) {
@@ -68,7 +83,7 @@ model::AuthPayload Session::Login(const dto::Login &login) const {
 
 bool Session::Active(const std::string &sessionUUID) const {
   try {
-    type::Datatable data = session->IsActive(sessionUUID);
+    type::DataTable data = pimpl->session->IsActive(sessionUUID);
 
     const bool sessionActive = data[0]["IsActive"];
 
@@ -87,7 +102,7 @@ bool Session::Active(const std::string &sessionUUID) const {
 
 bool Session::Exists(const std::string &sessionUUID) const {
   try {
-    type::Datatable data = session->ExistsUUID(sessionUUID);
+    type::DataTable data = pimpl->session->ExistsUUID(sessionUUID);
 
     const int sessionCount = data[0]["Total"];
 
@@ -116,10 +131,10 @@ model::LogoutPayload Session::Logout(const dto::Logout &logout) const {
     if (!Active(logout.SessionUUID))
       throw std::runtime_error("Session is not active");
 
-    if (!session->Close(logout))
+    if (!pimpl->session->Close(logout))
       throw std::runtime_error("Session could not be closed.");
 
-    type::Datatable data = session->Read(logout.SessionUUID);
+    type::DataTable data = pimpl->session->Read(logout.SessionUUID);
 
     model::LogoutPayload logoutModel{
         data[0]["SessionUUID"],
@@ -127,7 +142,7 @@ model::LogoutPayload Session::Logout(const dto::Logout &logout) const {
         data[0]["EndDate"],
         data[0]["DurationSeconds"],
         data[0]["Reason"],
-        data[0]["LogoutMessage"].AsDBNull<std::string>()};
+        data[0]["LogoutMessage"].GetOptional<std::string>()};
 
     return logoutModel;
   } catch (const std::exception &e) {
