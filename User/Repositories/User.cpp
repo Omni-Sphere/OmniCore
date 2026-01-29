@@ -1,5 +1,6 @@
 #include "User.hpp"
 #include "Hasher.hpp"
+#include <functional>
 
 namespace omnicore::repository {
 User::User(std::shared_ptr<service::Database> _database)
