@@ -1,71 +1,41 @@
 #pragma once
 
-#include "Database.hpp"
+#include <memory>
+#include <vector>
 
-#include "Repositories/Item.hpp"
-
-#include "Models/Item.hpp"
-#include "DTOs/SearchItems.hpp"
-#include "DTOs/CreateItem.hpp"
-#include "DTOs/UpdateItem.hpp"
-#include "DTOs/GetItem.hpp"
-
-namespace omnicore::service
-{
-    /**
-     * @brief Service class for managing items
-     * 
-     * This service provides methods for item CRUD operations and search.
-     */
-    class Item
-    {
-    public:
-        /**
-         * @brief Constructs an Item service
-         * @param database Shared pointer to the database service
-         */
-        explicit Item(std::shared_ptr<service::Database> database);
-        
-        /**
-         * @brief Destructor
-         */
-        ~Item();
-
-        /**
-         * @brief Retrieves a specific item
-         * @param _item DTO containing item identification criteria
-         * @return Item model
-         */
-        model::Item Get(const dto::GetItem &_item) const;
-        
-        /**
-         * @brief Retrieves all items
-         * @return Vector of all item models
-         */
-        std::vector<model::Item> GetAll() const;
-        
-        /**
-         * @brief Searches for items based on criteria
-         * @param _item DTO containing search criteria
-         * @return Vector of item models matching the criteria
-         */
-        std::vector<model::Item> Search(dto::SearchItems &_item) const;
-        
-        /**
-         * @brief Creates a new item
-         * @param _item DTO containing item creation data
-         * @return Created item model
-         */
-        model::Item Add(const dto::CreateItem &_item) const;
-        
-        /**
-         * @brief Updates an existing item
-         * @param _item DTO containing item update data
-         * @return Updated item model
-         */
-        model::Item Modify(const dto::UpdateItem &_item) const;
-
-    private:
-        std::shared_ptr<repository::Item> item; ///< Repository instance for data access
-    };
+namespace omnicore::service {
+class Database;
 }
+namespace omnicore::repository {
+class Item;
+}
+
+#include "DTOs/CreateItem.hpp"
+#include "DTOs/GetItem.hpp"
+#include "DTOs/SearchItems.hpp"
+#include "DTOs/UpdateItem.hpp"
+#include "Models/Item.hpp"
+
+namespace omnicore::service {
+
+class Item {
+public:
+  explicit Item(std::shared_ptr<service::Database> database);
+
+  ~Item();
+
+  model::Item Get(const dto::GetItem &_item) const;
+
+  std::vector<model::Item> GetAll() const;
+
+  std::vector<model::Item> Search(dto::SearchItems &_item) const;
+
+  model::Item Add(const dto::CreateItem &_item) const;
+
+  model::Item Modify(const dto::UpdateItem &_item) const;
+
+private:
+  struct Impl;
+  std::unique_ptr<Impl> pimpl;
+};
+} // namespace omnicore::service

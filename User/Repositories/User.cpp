@@ -87,7 +87,7 @@ int User::GetCurrentSequence() const {
     const std::string sQuery = "SELECT ISNULL(UserSequence, 0) + 1 "
                                "UserSequence FROM Sequences WHERE SeqEntry = 1";
 
-    type::Datatable data = database->FetchResults(sQuery);
+    type::DataTable data = database->FetchResults(sQuery);
 
     if (data.RowsCount() == 1)
       return data[0]["UserSequence"];
@@ -184,7 +184,7 @@ bool User::UpdatePassword(const enums::UserFilter &filter,
   }
 };
 
-type::Datatable User::Read(const enums::UserFilter &filter,
+type::DataTable User::Read(const enums::UserFilter &filter,
                            const std::string &value) const {
   try {
     std::string sQuery = "SELECT "
@@ -237,7 +237,7 @@ type::Datatable User::Read(const enums::UserFilter &filter,
       break;
     }
 
-    type::Datatable dataTable = database->FetchPrepared(sQuery, value);
+    type::DataTable dataTable = database->FetchPrepared(sQuery, value);
 
     return dataTable;
   } catch (const std::exception &e) {
@@ -246,7 +246,7 @@ type::Datatable User::Read(const enums::UserFilter &filter,
   }
 };
 
-type::Datatable User::Read(const dto::SearchUsers &filter) const {
+type::DataTable User::Read(const dto::SearchUsers &filter) const {
   try {
     std::string baseQuery = "SELECT "
                             "[UserEntry], "
@@ -268,19 +268,20 @@ type::Datatable User::Read(const dto::SearchUsers &filter) const {
     std::vector<std::string> conditions;
     std::vector<std::string> parameters;
 
-    auto addCondition = [&](const std::string &field,
-                            const std::optional<std::string> &value) {
-      if (value.has_value()) {
-        // TODO Implements LIKE condition
-        //  if (filter.ExactValues) {
-        conditions.push_back(field + " = ?");
-        parameters.emplace_back(value.value());
-        //}  else {
-        //    conditions.push_back(field + " LIKE ?");
-        //    parameters.emplace_back("%" + value.value() + "%");
-        //}
-      }
-    };
+    std::function<void(const std::string &, const std::optional<std::string> &)>
+        addCondition = [&](const std::string &field,
+                           const std::optional<std::string> &value) {
+          if (value.has_value()) {
+            // TODO Implements LIKE condition
+            //  if (filter.ExactValues) {
+            conditions.push_back(field + " = ?");
+            parameters.emplace_back(value.value());
+            //}  else {
+            //    conditions.push_back(field + " LIKE ?");
+            //    parameters.emplace_back("%" + value.value() + "%");
+            //}
+          }
+        };
 
     std::string query = baseQuery;
 
@@ -293,7 +294,7 @@ type::Datatable User::Read(const dto::SearchUsers &filter) const {
         );
     } */
 
-    type::Datatable dataTable = database->FetchPrepared(baseQuery, parameters);
+    type::DataTable dataTable = database->FetchPrepared(baseQuery, parameters);
 
     return dataTable;
   } catch (const std::exception &e) {
@@ -324,7 +325,7 @@ bool User::ValidatePassword(const enums::UserFilter &searchFilter,
       break;
     }
 
-    type::Datatable data = database->FetchPrepared(sQuery, filterValue);
+    type::DataTable data = database->FetchPrepared(sQuery, filterValue);
 
     if (data.RowsCount() == 0)
       throw std::runtime_error("No records found");
@@ -347,7 +348,7 @@ bool User::ExistsEntry(const int &entry) const {
     const std::string sQuery =
         "SELECT ISNULL(COUNT(*), 0) Total FROM Users WHERE UserEntry = ?";
 
-    type::Datatable data =
+    type::DataTable data =
         database->FetchPrepared(sQuery, std::to_string(entry));
 
     if (data.RowsCount() == 0)
@@ -364,7 +365,7 @@ bool User::ExistsCode(const std::string &code) const {
     const std::string sQuery =
         "SELECT ISNULL(COUNT(*), 0) Total FROM Users WHERE [Code] = ?";
 
-    type::Datatable data = database->FetchPrepared(sQuery, code);
+    type::DataTable data = database->FetchPrepared(sQuery, code);
 
     if (data.RowsCount() == 0)
       return false;

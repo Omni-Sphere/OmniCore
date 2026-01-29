@@ -1,6 +1,6 @@
 #include "ItemBrand.hpp"
 
-namespace omnicore::respository {
+namespace omnicore::repository {
 ItemBrand::ItemBrand(std::shared_ptr<service::Database> _database)
     : database(std::move(_database)) {}
 
@@ -10,7 +10,7 @@ int ItemBrand::GetCurrentSequence() const {
         "SELECT ISNULL(ItemBrandsSequence, 0) + 1 ItemBrandsSequence FROM "
         "Sequences WHERE SeqEntry = 1";
 
-    type::Datatable data = database->FetchResults(sQuery);
+    type::DataTable data = database->FetchResults(sQuery);
 
     if (data.RowsCount() == 1)
       return data[0]["ItemBrandsSequence"];
@@ -84,7 +84,7 @@ bool ItemBrand::Update(const dto::UpdateItemBrand &updateItemBrand) const {
   }
 }
 
-type::Datatable ItemBrand::ReadAll() const {
+type::DataTable ItemBrand::ReadAll() const {
   try {
     std::string sQuery = "SELECT "
                          "ItBEntry [Entry], "
@@ -96,7 +96,7 @@ type::Datatable ItemBrand::ReadAll() const {
                          "UpdateDate "
                          "FROM ItemBrands";
 
-    type::Datatable dataTable = database->FetchResults(sQuery);
+    type::DataTable dataTable = database->FetchResults(sQuery);
 
     return dataTable;
   } catch (const std::exception &e) {
@@ -105,7 +105,7 @@ type::Datatable ItemBrand::ReadAll() const {
   }
 }
 
-type::Datatable ItemBrand::Read(const dto::GetItemBrand itemBrand) const {
+type::DataTable ItemBrand::Read(const dto::GetItemBrand itemBrand) const {
   try {
     std::string sQuery = "SELECT "
                          "ItBEntry [Entry], "
@@ -134,7 +134,7 @@ type::Datatable ItemBrand::Read(const dto::GetItemBrand itemBrand) const {
       parameters.emplace_back(type::MakeSQLParam(itemBrand.Name.value()));
     }
 
-    type::Datatable dataTable = database->FetchPrepared(sQuery, parameters);
+    type::DataTable dataTable = database->FetchPrepared(sQuery, parameters);
 
     return dataTable;
   } catch (const std::exception &e) {
@@ -142,4 +142,4 @@ type::Datatable ItemBrand::Read(const dto::GetItemBrand itemBrand) const {
                              e.what());
   }
 }
-} // namespace omnicore::respository
+} // namespace omnicore::repository

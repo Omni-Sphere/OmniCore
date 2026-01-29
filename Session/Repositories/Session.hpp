@@ -19,9 +19,9 @@ namespace omnicore::repository
 
         bool Create(const dto::Login &login) const;
         bool Close(const dto::Logout &logout) const;
-        type::Datatable ExistsUUID(const std::string &sessionUUID) const;
-        type::Datatable Read(const std::string &) const;
-        type::Datatable Read(const dto::Login &) const;
-        type::Datatable IsActive(const std::string &) const;
+        type::DataTable ExistsUUID(const std::string &sessionUUID) const;
+        type::DataTable Read(const std::string &) const;
+        type::DataTable Read(const dto::Login &) const;
+        type::DataTable IsActive(const std::string &) const;
     };
 }

@@ -127,9 +127,9 @@ bool Item::Update(const dto::UpdateItem &item) const {
   }
 }
 
-type::Datatable Item::Read(const dto::SearchItems &filter) const {
+type::DataTable Item::Read(const dto::SearchItems &filter) const {
   try {
-    type::Datatable datatable;
+    type::DataTable datatable;
 
     std::string sQuery = "SELECT "
                          "[ItemEntry], "
@@ -205,9 +205,9 @@ type::Datatable Item::Read(const dto::SearchItems &filter) const {
   }
 }
 
-type::Datatable Item::Read(const dto::GetItem &filter) const {
+type::DataTable Item::Read(const dto::GetItem &filter) const {
   try {
-    type::Datatable datatable;
+    type::DataTable datatable;
 
     std::string sQuery = "SELECT "
                          "[ItemEntry], "
@@ -254,9 +254,9 @@ type::Datatable Item::Read(const dto::GetItem &filter) const {
   }
 }
 
-type::Datatable Item::Read() const {
+type::DataTable Item::Read() const {
   try {
-    type::Datatable datatable;
+    type::DataTable datatable;
 
     std::string sQuery = "SELECT "
                          "[ItemEntry], "
@@ -298,7 +298,7 @@ int Item::GetCurrentSequence() const {
     const std::string sQuery = "SELECT ISNULL(ItemSequence, 0) + 1 "
                                "ItemSequence FROM Sequences WHERE SeqEntry = 1";
 
-    type::Datatable data = Database->FetchResults(sQuery);
+    type::DataTable data = Database->FetchResults(sQuery);
 
     if (data.RowsCount() == 1)
       return data[0]["ItemSequence"];

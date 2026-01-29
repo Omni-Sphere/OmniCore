@@ -261,77 +261,76 @@ bool Database::RunPrepared(const std::string &query,
 
     SQLUSMALLINT paramIndex = 1;
 
-    for (const auto &param : params) {
-      retcode = std::visit(
-          [&](auto &&value) -> SQLRETURN {
-            using T = std::decay_t<decltype(value)>;
+    struct ParamVisitor {
+      SQLHSTMT hstmt;
+      SQLUSMALLINT paramIndex;
+      std::vector<SQLLEN> &indStorage;
+      std::vector<int> &intStorage;
+      std::vector<double> &doubleStorage;
+      std::vector<std::string> &stringStorage;
+      std::vector<std::vector<uint8_t>> &binaryStorage;
 
-            SQLPOINTER dataPtr = nullptr;
+      SQLRETURN operator()(const std::monostate &) const {
+        static char dummy = 0;
+        indStorage[paramIndex - 1] = SQL_NULL_DATA;
+        return SQLBindParameter(hstmt, paramIndex, SQL_PARAM_INPUT, SQL_C_CHAR,
+                                SQL_VARCHAR, 0, 0, &dummy, 0,
+                                &indStorage[paramIndex - 1]);
+      }
 
-            if constexpr (std::is_same_v<T, std::monostate>) {
-              static char dummy = 0;
-              dataPtr = &dummy;
-              indStorage[paramIndex - 1] = SQL_NULL_DATA;
+      SQLRETURN operator()(const int &value) const {
+        intStorage.push_back(value);
+        indStorage[paramIndex - 1] = sizeof(int);
+        return SQLBindParameter(hstmt, paramIndex, SQL_PARAM_INPUT, SQL_C_SLONG,
+                                SQL_INTEGER, 0, 0, &intStorage.back(), 0,
+                                &indStorage[paramIndex - 1]);
+      }
 
-              return SQLBindParameter(hstmt, paramIndex, SQL_PARAM_INPUT,
-                                      SQL_C_CHAR, SQL_VARCHAR, 0, 0, dataPtr, 0,
-                                      &indStorage[paramIndex - 1]);
-            } else if constexpr (std::is_same_v<T, int>) {
-              intStorage.push_back(value);
-              dataPtr = &intStorage.back();
-              indStorage[paramIndex - 1] = sizeof(int);
+      SQLRETURN operator()(const double &value) const {
+        doubleStorage.push_back(value);
+        indStorage[paramIndex - 1] = sizeof(double);
+        return SQLBindParameter(
+            hstmt, paramIndex, SQL_PARAM_INPUT, SQL_C_DOUBLE, SQL_DOUBLE, 0, 0,
+            &doubleStorage.back(), 0, &indStorage[paramIndex - 1]);
+      }
 
-              return SQLBindParameter(hstmt, paramIndex, SQL_PARAM_INPUT,
-                                      SQL_C_SLONG, SQL_INTEGER, 0, 0, dataPtr,
-                                      0, &indStorage[paramIndex - 1]);
-            } else if constexpr (std::is_same_v<T, double>) {
-              doubleStorage.push_back(value);
-              dataPtr = &doubleStorage.back();
-              indStorage[paramIndex - 1] = sizeof(double);
+      SQLRETURN operator()(const std::string &value) const {
+        stringStorage.emplace_back(value);
+        std::string &storedStr = stringStorage.back();
+        indStorage[paramIndex - 1] = static_cast<SQLLEN>(storedStr.size());
+        return SQLBindParameter(hstmt, paramIndex, SQL_PARAM_INPUT, SQL_C_CHAR,
+                                SQL_VARCHAR, indStorage[paramIndex - 1], 0,
+                                (SQLPOINTER)storedStr.c_str(), 0,
+                                &indStorage[paramIndex - 1]);
+      }
 
-              return SQLBindParameter(hstmt, paramIndex, SQL_PARAM_INPUT,
-                                      SQL_C_DOUBLE, SQL_DOUBLE, 0, 0, dataPtr,
-                                      0, &indStorage[paramIndex - 1]);
-            } else if constexpr (std::is_same_v<T, std::string>) {
-              stringStorage.emplace_back(value);
-              auto &storedStr = stringStorage.back();
+      SQLRETURN operator()(const std::vector<uint8_t> &value) const {
+        binaryStorage.push_back(value);
+        std::vector<uint8_t> &storedBin = binaryStorage.back();
+        indStorage[paramIndex - 1] = static_cast<SQLLEN>(storedBin.size());
+        return SQLBindParameter(
+            hstmt, paramIndex, SQL_PARAM_INPUT, SQL_C_BINARY, SQL_VARBINARY,
+            indStorage[paramIndex - 1], 0, (SQLPOINTER)storedBin.data(),
+            indStorage[paramIndex - 1], &indStorage[paramIndex - 1]);
+      }
 
-              dataPtr = (SQLPOINTER)storedStr.c_str();
-              indStorage[paramIndex - 1] =
-                  static_cast<SQLLEN>(storedStr.size());
+      SQLRETURN operator()(const bool &value) const {
+        std::string ynValue = value ? "Y" : "N";
+        stringStorage.emplace_back(ynValue);
+        std::string &storedStr = stringStorage.back();
+        indStorage[paramIndex - 1] = static_cast<SQLLEN>(storedStr.size());
+        return SQLBindParameter(hstmt, paramIndex, SQL_PARAM_INPUT, SQL_C_CHAR,
+                                SQL_VARCHAR, indStorage[paramIndex - 1], 0,
+                                (SQLPOINTER)storedStr.c_str(), 0,
+                                &indStorage[paramIndex - 1]);
+      }
+    };
 
-              return SQLBindParameter(hstmt, paramIndex, SQL_PARAM_INPUT,
-                                      SQL_C_CHAR, SQL_VARCHAR,
-                                      indStorage[paramIndex - 1], 0, dataPtr, 0,
-                                      &indStorage[paramIndex - 1]);
-            } else if constexpr (std::is_same_v<T, std::vector<uint8_t>>) {
-              binaryStorage.push_back(value);
-              dataPtr = (SQLPOINTER)binaryStorage.back().data();
-              indStorage[paramIndex - 1] =
-                  static_cast<SQLLEN>(binaryStorage.back().size());
-
-              return SQLBindParameter(
-                  hstmt, paramIndex, SQL_PARAM_INPUT, SQL_C_BINARY,
-                  SQL_VARBINARY, indStorage[paramIndex - 1], 0, dataPtr,
-                  indStorage[paramIndex - 1], &indStorage[paramIndex - 1]);
-            } else if constexpr (std::is_same_v<T, bool>) {
-              std::string ynValue = value ? "Y" : "N";
-              stringStorage.emplace_back(ynValue);
-              auto &storedStr = stringStorage.back();
-
-              dataPtr = (SQLPOINTER)storedStr.c_str();
-              indStorage[paramIndex - 1] =
-                  static_cast<SQLLEN>(storedStr.size());
-
-              return SQLBindParameter(hstmt, paramIndex, SQL_PARAM_INPUT,
-                                      SQL_C_CHAR, SQL_VARCHAR,
-                                      indStorage[paramIndex - 1], 0, dataPtr, 0,
-                                      &indStorage[paramIndex - 1]);
-            } else {
-              throw std::runtime_error("Unsupported SQL parameter type");
-            }
-          },
-          param);
+    for (const type::SQLParam &param : params) {
+      ParamVisitor visitor{hstmt,        paramIndex,    indStorage,
+                           intStorage,   doubleStorage, stringStorage,
+                           binaryStorage};
+      retcode = std::visit(visitor, param);
 
       if (retcode != SQL_SUCCESS && retcode != SQL_SUCCESS_WITH_INFO) {
         std::string errMsg =
@@ -365,8 +364,8 @@ bool Database::RunPrepared(const std::string &query,
   }
 }
 
-type::Datatable Database::FetchResults(const std::string &query) {
-  type::Datatable dataTable;
+type::DataTable Database::FetchResults(const std::string &query) {
+  type::DataTable dataTable;
 
   try {
     if (hstmt != SQL_NULL_HSTMT) {
@@ -403,12 +402,10 @@ type::Datatable Database::FetchResults(const std::string &query) {
           std::string(reinterpret_cast<char *>(columnName), columnNameLength);
     }
 
-    std::vector<type::Datatable::Row> rows;
+    std::vector<type::DataTable::Row> rows;
 
     while (SQLFetch(hstmt) == SQL_SUCCESS) {
-      type::Datatable::Row row;
-      row.SetColumns(columnNames);
-
+      type::DataTable::Row row;
       for (SQLUSMALLINT i = 1; i <= columnCount; ++i) {
         SQLLEN indicator = 0;
         SQLSMALLINT nativeType = nativeTypes[i - 1];
@@ -507,10 +504,10 @@ type::Datatable Database::FetchResults(const std::string &query) {
   }
 }
 
-type::Datatable
+type::DataTable
 Database::FetchPrepared(const std::string &query,
                         const std::vector<std::string> &params) {
-  type::Datatable dataTable;
+  type::DataTable dataTable;
 
   try {
     PrepareStatement(query);
@@ -549,16 +546,15 @@ Database::FetchPrepared(const std::string &query,
           std::string(reinterpret_cast<char *>(columnName), columnNameLength);
     }
 
-    std::vector<type::Datatable::Row> rows;
+    std::vector<type::DataTable::Row> rows;
 
     while (SQLFetch(hstmt) == SQL_SUCCESS) {
-      type::Datatable::Row row;
-      row.SetColumns(columnNames);
+      type::DataTable::Row row; // Moved here
 
       for (SQLUSMALLINT i = 1; i <= columnCount; ++i) {
         SQLLEN indicator = 0;
         SQLSMALLINT nativeType = nativeTypes[i - 1];
-        const std::string &colName = columnNames[i - 1];
+        const std::string &colName = columnNames[i - 1]; // Added back
 
         if (nativeType == SQL_VARBINARY || nativeType == SQL_BINARY) {
           std::vector<uint8_t> buffer(512);
@@ -642,7 +638,7 @@ Database::FetchPrepared(const std::string &query,
   }
 }
 
-type::Datatable Database::FetchPrepared(const std::string &query,
+type::DataTable Database::FetchPrepared(const std::string &query,
                                         const std::string &param) {
   try {
     return FetchPrepared(query, std::vector<std::string>{param});
@@ -652,10 +648,10 @@ type::Datatable Database::FetchPrepared(const std::string &query,
   }
 }
 
-type::Datatable
+type::DataTable
 Database::FetchPrepared(const std::string &query,
                         const std::vector<type::SQLParam> &params) {
-  type::Datatable dataTable;
+  type::DataTable dataTable;
 
   try {
     if (hstmt != SQL_NULL_HSTMT) {
@@ -681,68 +677,76 @@ Database::FetchPrepared(const std::string &query,
 
     SQLUSMALLINT paramIndex = 1;
 
-    for (const auto &param : params) {
-      retcode = std::visit(
-          [&](auto &&value) -> SQLRETURN {
-            using T = std::decay_t<decltype(value)>;
-            SQLPOINTER dataPtr = nullptr;
+    struct ParamVisitor {
+      SQLHSTMT hstmt;
+      SQLUSMALLINT paramIndex;
+      std::vector<SQLLEN> &indStorage;
+      std::vector<int> &intStorage;
+      std::vector<double> &doubleStorage;
+      std::vector<std::string> &stringStorage;
+      std::vector<std::vector<uint8_t>> &binaryStorage;
 
-            if constexpr (std::is_same_v<T, std::monostate>) {
-              static char dummy = 0;
-              dataPtr = &dummy;
-              indStorage[paramIndex - 1] = SQL_NULL_DATA;
-              return SQLBindParameter(hstmt, paramIndex, SQL_PARAM_INPUT,
-                                      SQL_C_CHAR, SQL_VARCHAR, 0, 0, dataPtr, 0,
-                                      &indStorage[paramIndex - 1]);
-            } else if constexpr (std::is_same_v<T, int>) {
-              intStorage.push_back(value);
-              dataPtr = &intStorage.back();
-              indStorage[paramIndex - 1] = sizeof(int);
-              return SQLBindParameter(hstmt, paramIndex, SQL_PARAM_INPUT,
-                                      SQL_C_SLONG, SQL_INTEGER, 0, 0, dataPtr,
-                                      0, &indStorage[paramIndex - 1]);
-            } else if constexpr (std::is_same_v<T, std::string>) {
-              stringStorage.emplace_back(value);
-              auto &storedStr = stringStorage.back();
-              dataPtr = (SQLPOINTER)storedStr.c_str();
-              indStorage[paramIndex - 1] =
-                  static_cast<SQLLEN>(storedStr.size());
-              return SQLBindParameter(hstmt, paramIndex, SQL_PARAM_INPUT,
-                                      SQL_C_CHAR, SQL_VARCHAR,
-                                      indStorage[paramIndex - 1], 0, dataPtr, 0,
-                                      &indStorage[paramIndex - 1]);
-            } else if constexpr (std::is_same_v<T, std::vector<uint8_t>>) {
-              binaryStorage.push_back(value);
-              dataPtr = (SQLPOINTER)binaryStorage.back().data();
-              indStorage[paramIndex - 1] =
-                  static_cast<SQLLEN>(binaryStorage.back().size());
-              return SQLBindParameter(
-                  hstmt, paramIndex, SQL_PARAM_INPUT, SQL_C_BINARY,
-                  SQL_VARBINARY, indStorage[paramIndex - 1], 0, dataPtr,
-                  indStorage[paramIndex - 1], &indStorage[paramIndex - 1]);
-            } else if constexpr (std::is_same_v<T, bool>) {
-              std::string ynValue = value ? "Y" : "N";
-              stringStorage.emplace_back(ynValue);
-              auto &storedStr = stringStorage.back();
-              dataPtr = (SQLPOINTER)storedStr.c_str();
-              indStorage[paramIndex - 1] =
-                  static_cast<SQLLEN>(storedStr.size());
-              return SQLBindParameter(hstmt, paramIndex, SQL_PARAM_INPUT,
-                                      SQL_C_CHAR, SQL_VARCHAR,
-                                      indStorage[paramIndex - 1], 0, dataPtr, 0,
-                                      &indStorage[paramIndex - 1]);
-            } else if constexpr (std::is_same_v<T, double>) {
-              double *pVal = new double(value);
-              dataPtr = pVal;
-              indStorage[paramIndex - 1] = sizeof(double);
-              return SQLBindParameter(hstmt, paramIndex, SQL_PARAM_INPUT,
-                                      SQL_C_DOUBLE, SQL_DOUBLE, 0, 0, dataPtr,
-                                      0, &indStorage[paramIndex - 1]);
-            } else {
-              throw std::runtime_error("Unsupported SQL parameter type");
-            }
-          },
-          param);
+      SQLRETURN operator()(const std::monostate &) const {
+        static char dummy = 0;
+        indStorage[paramIndex - 1] = SQL_NULL_DATA;
+        return SQLBindParameter(hstmt, paramIndex, SQL_PARAM_INPUT, SQL_C_CHAR,
+                                SQL_VARCHAR, 0, 0, &dummy, 0,
+                                &indStorage[paramIndex - 1]);
+      }
+
+      SQLRETURN operator()(const int &value) const {
+        intStorage.push_back(value);
+        indStorage[paramIndex - 1] = sizeof(int);
+        return SQLBindParameter(hstmt, paramIndex, SQL_PARAM_INPUT, SQL_C_SLONG,
+                                SQL_INTEGER, 0, 0, &intStorage.back(), 0,
+                                &indStorage[paramIndex - 1]);
+      }
+
+      SQLRETURN operator()(const double &value) const {
+        doubleStorage.push_back(value);
+        indStorage[paramIndex - 1] = sizeof(double);
+        return SQLBindParameter(
+            hstmt, paramIndex, SQL_PARAM_INPUT, SQL_C_DOUBLE, SQL_DOUBLE, 0, 0,
+            &doubleStorage.back(), 0, &indStorage[paramIndex - 1]);
+      }
+
+      SQLRETURN operator()(const std::string &value) const {
+        stringStorage.emplace_back(value);
+        std::string &storedStr = stringStorage.back();
+        indStorage[paramIndex - 1] = static_cast<SQLLEN>(storedStr.size());
+        return SQLBindParameter(hstmt, paramIndex, SQL_PARAM_INPUT, SQL_C_CHAR,
+                                SQL_VARCHAR, indStorage[paramIndex - 1], 0,
+                                (SQLPOINTER)storedStr.c_str(), 0,
+                                &indStorage[paramIndex - 1]);
+      }
+
+      SQLRETURN operator()(const std::vector<uint8_t> &value) const {
+        binaryStorage.push_back(value);
+        std::vector<uint8_t> &storedBin = binaryStorage.back();
+        indStorage[paramIndex - 1] = static_cast<SQLLEN>(storedBin.size());
+        return SQLBindParameter(
+            hstmt, paramIndex, SQL_PARAM_INPUT, SQL_C_BINARY, SQL_VARBINARY,
+            indStorage[paramIndex - 1], 0, (SQLPOINTER)storedBin.data(),
+            indStorage[paramIndex - 1], &indStorage[paramIndex - 1]);
+      }
+
+      SQLRETURN operator()(const bool &value) const {
+        std::string ynValue = value ? "Y" : "N";
+        stringStorage.emplace_back(ynValue);
+        std::string &storedStr = stringStorage.back();
+        indStorage[paramIndex - 1] = static_cast<SQLLEN>(storedStr.size());
+        return SQLBindParameter(hstmt, paramIndex, SQL_PARAM_INPUT, SQL_C_CHAR,
+                                SQL_VARCHAR, indStorage[paramIndex - 1], 0,
+                                (SQLPOINTER)storedStr.c_str(), 0,
+                                &indStorage[paramIndex - 1]);
+      }
+    };
+
+    for (const type::SQLParam &param : params) {
+      ParamVisitor visitor{hstmt,        paramIndex,    indStorage,
+                           intStorage,   doubleStorage, stringStorage,
+                           binaryStorage};
+      retcode = std::visit(visitor, param);
 
       if (!SQL_SUCCEEDED(retcode))
         throw std::runtime_error(
@@ -774,16 +778,16 @@ Database::FetchPrepared(const std::string &query,
           std::string(reinterpret_cast<char *>(columnName), columnNameLength);
     }
 
-    std::vector<type::Datatable::Row> rows;
+    std::vector<type::DataTable::Row> rows;
 
     while (SQLFetch(hstmt) == SQL_SUCCESS) {
-      type::Datatable::Row row;
-      row.SetColumns(columnNames);
+      type::DataTable::Row row; // Moved here
 
       for (SQLUSMALLINT i = 1; i <= columnCount; ++i) {
         SQLLEN indicator = 0;
         SQLSMALLINT nativeType = nativeTypes[i - 1];
-
+        // const std::string &colName = columnNames[i - 1]; // This line is
+        // missing in the instruction's snippet, but should remain.
         if (nativeType == SQL_VARBINARY || nativeType == SQL_BINARY) {
           std::vector<uint8_t> buffer(512);
           SQLRETURN ret = SQLGetData(hstmt, i, SQL_C_BINARY, buffer.data(),
