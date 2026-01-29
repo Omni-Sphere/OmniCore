@@ -71,27 +71,47 @@ public:
         return GetOptional<T>();
       }
 
-      template <typename T, typename = std::enable_if_t<!std::is_enum_v<T>>>
-      operator T() const {
-        if (IsNull())
-          throw std::runtime_error("DataTable: Value is null");
-
-        if (const T *val = std::get_if<T>(&valuePtr_->value()))
-          return *val;
-
-        // Support numeric promotions
-        if constexpr (std::is_same_v<T, double>) {
-          if (const int *ival = std::get_if<int>(&valuePtr_->value()))
-            return static_cast<double>(*ival);
-        } else if constexpr (std::is_same_v<T, int>) {
-          if (const double *dval = std::get_if<double>(&valuePtr_->value()))
-            return static_cast<int>(*dval);
+      template <typename T> operator T() const {
+        if (IsNull()) {
+          if constexpr (std::is_enum_v<T>) {
+            return static_cast<T>(-1);
+          } else {
+            throw std::runtime_error("DataTable: Value is null");
+          }
         }
 
         const Row::Data &v = valuePtr_->value();
-        throw std::runtime_error("DataTable: Cannot convert actual type '" +
-                                 GetTypeName(v) + "' to requested type '" +
-                                 Demangle(typeid(T).name()) + "'");
+
+        if constexpr (std::is_enum_v<T>) {
+          if (const int *val = std::get_if<int>(&v))
+            return static_cast<T>(*val);
+          if (const double *dval = std::get_if<double>(&v))
+            return static_cast<T>(static_cast<int>(*dval));
+          if (const std::string *sval = std::get_if<std::string>(&v)) {
+            try {
+              return static_cast<T>(std::stoi(*sval));
+            } catch (...) {
+              return static_cast<T>(-1);
+            }
+          }
+          return static_cast<T>(-1);
+        } else {
+          if (const T *val = std::get_if<T>(&v))
+            return *val;
+
+          // Support numeric promotions
+          if constexpr (std::is_same_v<T, double>) {
+            if (const int *ival = std::get_if<int>(&v))
+              return static_cast<double>(*ival);
+          } else if constexpr (std::is_same_v<T, int>) {
+            if (const double *dval = std::get_if<double>(&v))
+              return static_cast<int>(*dval);
+          }
+
+          throw std::runtime_error("DataTable: Cannot convert actual type '" +
+                                   GetTypeName(v) + "' to requested type '" +
+                                   Demangle(typeid(T).name()) + "'");
+        }
       }
 
       operator bool() const {
@@ -119,28 +139,6 @@ public:
 
         throw std::runtime_error("DataTable: Unsupported type '" +
                                  GetTypeName(v) + "' for bool conversion");
-      }
-
-      template <typename EnumType,
-                typename = std::enable_if_t<std::is_enum_v<EnumType>>>
-      operator EnumType() const {
-        if (IsNull())
-          return static_cast<EnumType>(-1);
-
-        const Row::Data &v = valuePtr_->value();
-        if (const int *val = std::get_if<int>(&v))
-          return static_cast<EnumType>(*val);
-        if (const double *dval = std::get_if<double>(&v))
-          return static_cast<EnumType>(static_cast<int>(*dval));
-        if (const std::string *sval = std::get_if<std::string>(&v)) {
-          try {
-            return static_cast<EnumType>(std::stoi(*sval));
-          } catch (...) {
-            return static_cast<EnumType>(-1);
-          }
-        }
-
-        return static_cast<EnumType>(-1);
       }
 
       bool IsNull() const { return !valuePtr_ || !valuePtr_->has_value(); }
