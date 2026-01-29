@@ -12,8 +12,13 @@ else()
     set(DEST_DIR ${CMAKE_BINARY_DIR}/Linux)
 endif()
 
-set(DEST_LIB_DIR "${DEST_DIR}/Libs")
 set(DEST_INCLUDE_DIR "${DEST_DIR}/Include")
+
+if(WIN32)
+    set(DEST_LIB_DIR "${DEST_DIR}/Libs")
+else()
+    set(DEST_LIB_DIR "${DEST_DIR}")
+endif()
 
 add_library(OmniCore SHARED
     Database/DataTable.cpp
@@ -74,11 +79,19 @@ elseif(APPLE)
         Boost::json
         ${CMAKE_CURRENT_SOURCE_DIR}/OmniUtils/Libs/libOmniUtils.dylib
     )
+    add_custom_command(TARGET OmniCore POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_INCLUDE_DIR}"
+    )
 else()
     target_link_libraries(OmniCore PUBLIC
         ${SODIUM_LIB}
         Boost::json
         ${CMAKE_CURRENT_SOURCE_DIR}/OmniUtils/Libs/libOmniUtils.so
+    )
+    add_custom_command(TARGET OmniCore POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_INCLUDE_DIR}"
     )
 endif()
 
