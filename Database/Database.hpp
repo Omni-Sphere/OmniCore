@@ -52,24 +52,13 @@ public:
   bool RunPrepared(const std::string &query,
                    const std::vector<type::SQLParam> &params);
 
-<<<<<<< HEAD
-        type::DataTable FetchPrepared(const std::string &query, const std::vector<type::SQLParam> &params);
-        type::DataTable FetchPrepared(const std::string &query, const std::vector<std::string> &params);
-        type::DataTable FetchPrepared(const std::string &query, const std::string &param);
-        type::DataTable FetchResults(const std::string &query);
-        
-        bool BeginTransaction();
-        bool CommitTransaction();
-        bool RollbackTransaction();
-=======
-  type::Datatable FetchPrepared(const std::string &query,
+  type::DataTable FetchPrepared(const std::string &query,
                                 const std::vector<type::SQLParam> &params);
-  type::Datatable FetchPrepared(const std::string &query,
+  type::DataTable FetchPrepared(const std::string &query,
                                 const std::vector<std::string> &params);
-  type::Datatable FetchPrepared(const std::string &query,
+  type::DataTable FetchPrepared(const std::string &query,
                                 const std::string &param);
-  type::Datatable FetchResults(const std::string &query);
->>>>>>> 8a71a3c207fd72158104436a9171d429b97d6ee4
+  type::DataTable FetchResults(const std::string &query);
 
   bool BeginTransaction();
   bool CommitTransaction();

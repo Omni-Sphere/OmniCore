@@ -72,7 +72,7 @@ elseif(APPLE)
     target_link_libraries(OmniCore PUBLIC
         ${SODIUM_LIB}
         Boost::json
-        ${CMAKE_CURRENT_SOURCE_DIR}/libOmniUtils.dylib
+        ${CMAKE_CURRENT_SOURCE_DIR}/OmniUtils/Libs/libOmniUtils.dylib
     )
 else()
     target_link_libraries(OmniCore PUBLIC
