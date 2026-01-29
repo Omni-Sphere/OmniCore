@@ -5,12 +5,15 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(WIN32)
-    set(DEST_LIB_DIR ${CMAKE_CURRENT_BINARY_DIR}/Win64)
+    set(DEST_DIR ${CMAKE_BINARY_DIR}/OmniCore)
 elseif(APPLE)
-    set(DEST_LIB_DIR ${CMAKE_CURRENT_BINARY_DIR}/macOS)
+    set(DEST_DIR ${CMAKE_BINARY_DIR}/macOS)
 else()
-    set(DEST_LIB_DIR ${CMAKE_CURRENT_BINARY_DIR}/Linux)
+    set(DEST_DIR ${CMAKE_BINARY_DIR}/Linux)
 endif()
+
+set(DEST_LIB_DIR "${DEST_DIR}/Libs")
+set(DEST_INCLUDE_DIR "${DEST_DIR}/Include")
 
 add_library(OmniCore SHARED
     Database/Datatable.cpp
@@ -40,7 +43,8 @@ target_include_directories(OmniCore
         ${CMAKE_CURRENT_SOURCE_DIR}/ItemBrand
         ${CMAKE_CURRENT_SOURCE_DIR}/GlobalConfiguration
     PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/OmniUtils
+        ${CMAKE_CURRENT_SOURCE_DIR}/OmniUtils/Include
+        ${CMAKE_CURRENT_SOURCE_DIR}/OmniUtils/Include/OmniUtils
 )
 
 find_library(SODIUM_LIB sodium REQUIRED)
@@ -50,12 +54,19 @@ if(WIN32)
     target_link_libraries(OmniCore PUBLIC
         ${SODIUM_LIB}
         Boost::json
-        ${CMAKE_CURRENT_SOURCE_DIR}/libOmniUtils.dll.a
+        ${CMAKE_CURRENT_SOURCE_DIR}/OmniUtils/Libs/libOmniUtils.dll.a
     )
     add_custom_command(TARGET OmniCore POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_LIB_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_INCLUDE_DIR}"
+        # Copy DLLs to Root of OmniCore
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_CURRENT_SOURCE_DIR}/libOmniUtils.dll"
-        "${DEST_LIB_DIR}/libOmniUtils.dll"
+            "${CMAKE_CURRENT_SOURCE_DIR}/libboost_json-mt.dll"
+            "${DEST_DIR}/libboost_json-mt.dll"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/libsodium-26.dll"
+            "${DEST_DIR}/libsodium-26.dll"
     )
 elseif(APPLE)
     target_link_libraries(OmniCore PUBLIC
@@ -82,7 +93,7 @@ else()
 endif()
 
 set_target_properties(OmniCore PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${DEST_LIB_DIR}
+    RUNTIME_OUTPUT_DIRECTORY ${DEST_DIR}
     LIBRARY_OUTPUT_DIRECTORY ${DEST_LIB_DIR}
     ARCHIVE_OUTPUT_DIRECTORY ${DEST_LIB_DIR}
 )
@@ -100,11 +111,11 @@ set(PUBLIC_HEADERS
 
 foreach(HDR ${PUBLIC_HEADERS})
     file(RELATIVE_PATH REL_PATH "${CMAKE_CURRENT_SOURCE_DIR}" "${HDR}")
-    set(DEST_PATH "${DEST_LIB_DIR}/OmniCore/${REL_PATH}")
+    set(DEST_PATH "${DEST_INCLUDE_DIR}/OmniCore/${REL_PATH}")
 
-    get_filename_component(DEST_DIR "${DEST_PATH}" DIRECTORY)
+    get_filename_component(DEST_INC_DIR "${DEST_PATH}" DIRECTORY)
     add_custom_command(TARGET OmniCore POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_INC_DIR}"
         COMMAND ${CMAKE_COMMAND} -E copy "${HDR}" "${DEST_PATH}"
     )
 endforeach()
@@ -139,11 +150,11 @@ foreach(DIR ${HEADER_DIRS})
     file(GLOB_RECURSE HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.hpp")
     foreach(HDR ${HEADERS})
         file(RELATIVE_PATH REL_PATH "${CMAKE_CURRENT_SOURCE_DIR}" "${HDR}")
-        set(DEST_PATH "${DEST_LIB_DIR}/OmniCore/${REL_PATH}")
+        set(DEST_PATH "${DEST_INCLUDE_DIR}/OmniCore/${REL_PATH}")
 
-        get_filename_component(DEST_DIR "${DEST_PATH}" DIRECTORY)
+        get_filename_component(DEST_INC_DIR "${DEST_PATH}" DIRECTORY)
         add_custom_command(TARGET OmniCore POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_DIR}"
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_INC_DIR}"
             COMMAND ${CMAKE_COMMAND} -E copy "${HDR}" "${DEST_PATH}"
         )
     endforeach()
