@@ -9,7 +9,7 @@ if(WIN32)
 elseif(APPLE)
     set(DEST_DIR ${CMAKE_BINARY_DIR}/macOS)
 else()
-    set(DEST_DIR ${CMAKE_BINARY_DIR}/Linux)
+    set(DEST_DIR ${CMAKE_BINARY_DIR}/OmniCore)
 endif()
 
 set(DEST_INCLUDE_DIR "${DEST_DIR}/Include")
