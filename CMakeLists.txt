@@ -67,13 +67,6 @@ if(WIN32)
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${CMAKE_CURRENT_SOURCE_DIR}/libsodium-26.dll"
             "${DEST_DIR}/libsodium-26.dll"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${CMAKE_CURRENT_SOURCE_DIR}/../OmniUtils/build/OmniUtils/Libs/libOmniUtils.dll"
-            "${DEST_DIR}/libOmniUtils.dll"
-        # Copy import library (.dll.a) to Libs
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${CMAKE_CURRENT_SOURCE_DIR}/../OmniUtils/build/OmniUtils/libOmniUtils.dll.a"
-            "${DEST_LIB_DIR}/libOmniUtils.dll.a"
     )
 elseif(APPLE)
     target_link_libraries(OmniCore PUBLIC
@@ -85,10 +78,6 @@ elseif(APPLE)
         COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_DIR}"
         COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_LIB_DIR}"
         COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_INCLUDE_DIR}"
-        # Copy OmniUtils dylib
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${CMAKE_CURRENT_SOURCE_DIR}/../OmniUtils/build/OmniUtils/Libs/libOmniUtils.dylib"
-            "${DEST_LIB_DIR}/libOmniUtils.dylib"
     )
 else()
     target_link_libraries(OmniCore PUBLIC
@@ -100,10 +89,6 @@ else()
         COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_DIR}"
         COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_LIB_DIR}"
         COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_INCLUDE_DIR}"
-        # Copy OmniUtils shared library
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${CMAKE_CURRENT_SOURCE_DIR}/../OmniUtils/build/OmniUtils/Libs/libOmniUtils.so"
-            "${DEST_LIB_DIR}/libOmniUtils.so"
     )
 endif()
 
