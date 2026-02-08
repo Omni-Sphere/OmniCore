@@ -14,11 +14,7 @@ endif()
 
 set(DEST_INCLUDE_DIR "${DEST_DIR}/Include")
 
-if(WIN32)
-    set(DEST_LIB_DIR "${DEST_DIR}/Libs")
-else()
-    set(DEST_LIB_DIR "${DEST_DIR}")
-endif()
+set(DEST_LIB_DIR "${DEST_DIR}/Libs")
 
 add_library(OmniCore SHARED
     Database/DataTable.cpp
@@ -48,8 +44,7 @@ target_include_directories(OmniCore
         ${CMAKE_CURRENT_SOURCE_DIR}/ItemBrand
         ${CMAKE_CURRENT_SOURCE_DIR}/GlobalConfiguration
     PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/OmniUtils/Include
-        ${CMAKE_CURRENT_SOURCE_DIR}/OmniUtils/Include/OmniUtils
+        ${CMAKE_CURRENT_SOURCE_DIR}/../OmniUtils/build/OmniUtils/Include
 )
 
 find_library(SODIUM_LIB sodium REQUIRED)
@@ -59,7 +54,7 @@ if(WIN32)
     target_link_libraries(OmniCore PUBLIC
         ${SODIUM_LIB}
         Boost::json
-        ${CMAKE_CURRENT_SOURCE_DIR}/OmniUtils/Libs/libOmniUtils.dll.a
+        ${CMAKE_CURRENT_SOURCE_DIR}/../OmniUtils/build/OmniUtils/libOmniUtils.dll.a
     )
     add_custom_command(TARGET OmniCore POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_DIR}"
@@ -72,26 +67,43 @@ if(WIN32)
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${CMAKE_CURRENT_SOURCE_DIR}/libsodium-26.dll"
             "${DEST_DIR}/libsodium-26.dll"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/../OmniUtils/build/OmniUtils/Libs/libOmniUtils.dll"
+            "${DEST_DIR}/libOmniUtils.dll"
+        # Copy import library (.dll.a) to Libs
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/../OmniUtils/build/OmniUtils/libOmniUtils.dll.a"
+            "${DEST_LIB_DIR}/libOmniUtils.dll.a"
     )
 elseif(APPLE)
     target_link_libraries(OmniCore PUBLIC
         ${SODIUM_LIB}
         Boost::json
-        ${CMAKE_CURRENT_SOURCE_DIR}/OmniUtils/Libs/libOmniUtils.dylib
+        ${CMAKE_CURRENT_SOURCE_DIR}/../OmniUtils/build/OmniUtils/Libs/libOmniUtils.dylib
     )
     add_custom_command(TARGET OmniCore POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_LIB_DIR}"
         COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_INCLUDE_DIR}"
+        # Copy OmniUtils dylib
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/../OmniUtils/build/OmniUtils/Libs/libOmniUtils.dylib"
+            "${DEST_LIB_DIR}/libOmniUtils.dylib"
     )
 else()
     target_link_libraries(OmniCore PUBLIC
         ${SODIUM_LIB}
         Boost::json
-        ${CMAKE_CURRENT_SOURCE_DIR}/OmniUtils/Libs/libOmniUtils.so
+        ${CMAKE_CURRENT_SOURCE_DIR}/../OmniUtils/build/OmniUtils/Libs/libOmniUtils.so
     )
     add_custom_command(TARGET OmniCore POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_LIB_DIR}"
         COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_INCLUDE_DIR}"
+        # Copy OmniUtils shared library
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/../OmniUtils/build/OmniUtils/Libs/libOmniUtils.so"
+            "${DEST_LIB_DIR}/libOmniUtils.so"
     )
 endif()
 
@@ -166,3 +178,46 @@ foreach(DIR ${HEADER_DIRS})
         )
     endforeach()
 endforeach()
+
+# Installation rules for Linux
+if(UNIX AND NOT APPLE)
+    # Install shared library to /usr/local/lib/OmniSphere/
+    install(TARGETS OmniCore
+        LIBRARY DESTINATION /usr/local/lib/OmniSphere
+        ARCHIVE DESTINATION /usr/local/lib/OmniSphere
+    )
+    
+    # Install OmniUtils dependency
+    install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../OmniUtils/build/OmniUtils/Libs/libOmniUtils.so"
+        DESTINATION /usr/local/lib/OmniSphere
+    )
+    
+    # Install public headers to /usr/local/include/OmniSphere/OmniCore/
+    foreach(HDR ${PUBLIC_HEADERS})
+        file(RELATIVE_PATH REL_PATH "${CMAKE_CURRENT_SOURCE_DIR}" "${HDR}")
+        get_filename_component(HDR_DIR "${REL_PATH}" DIRECTORY)
+        install(FILES "${HDR}"
+            DESTINATION "/usr/local/include/OmniSphere/OmniCore/${HDR_DIR}"
+        )
+    endforeach()
+    
+    # Install additional headers from HEADER_DIRS
+    foreach(DIR ${HEADER_DIRS})
+        file(GLOB_RECURSE HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/${DIR}/*.hpp")
+        foreach(HDR ${HEADERS})
+            file(RELATIVE_PATH REL_PATH "${CMAKE_CURRENT_SOURCE_DIR}" "${HDR}")
+            get_filename_component(HDR_DIR "${REL_PATH}" DIRECTORY)
+            install(FILES "${HDR}"
+                DESTINATION "/usr/local/include/OmniSphere/OmniCore/${HDR_DIR}"
+            )
+        endforeach()
+    endforeach()
+    
+    # Configure dynamic linker automatically
+    install(CODE "
+        file(WRITE \"/etc/ld.so.conf.d/omnisphere.conf\" \"/usr/local/lib/OmniSphere\\n\")
+        execute_process(COMMAND ldconfig)
+        message(STATUS \"Configured dynamic linker for OmniSphere libraries\")
+    ")
+endif()
+
