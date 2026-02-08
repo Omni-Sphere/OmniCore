@@ -172,11 +172,6 @@ if(UNIX AND NOT APPLE)
         ARCHIVE DESTINATION /usr/local/lib/OmniSphere
     )
     
-    # Install OmniUtils dependency
-    install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../OmniUtils/build/OmniUtils/Libs/libOmniUtils.so"
-        DESTINATION /usr/local/lib/OmniSphere
-    )
-    
     # Install public headers to /usr/local/include/OmniSphere/OmniCore/
     foreach(HDR ${PUBLIC_HEADERS})
         file(RELATIVE_PATH REL_PATH "${CMAKE_CURRENT_SOURCE_DIR}" "${HDR}")
