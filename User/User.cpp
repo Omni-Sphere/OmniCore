@@ -1,6 +1,6 @@
 #include "User.hpp"
-#include "Database.hpp"
-#include "DataTable.hpp"
+#include "Database/DataTable.hpp"
+#include "Database/Database.hpp"
 #include "Repositories/User.hpp"
 
 namespace omnicore::service {

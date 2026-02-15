@@ -1,5 +1,6 @@
 /build
 /OmniUtils
+/OmniData
 .DS_Store
 *.dylib
 *.so

@@ -1,6 +1,6 @@
 #pragma once
 #include "DTOs/UpdateGlobalConfiguration.hpp"
-#include "Database.hpp"
+#include "Database/Database.hpp"
 #include "Models/GlobalConfiguration.hpp"
 #include <memory>
 

@@ -1,6 +1,6 @@
 #include "GlobalConfiguration.hpp"
 #include "DTOs/UpdateGlobalConfiguration.hpp"
-#include "Database.hpp"
+#include "Database/Database.hpp"
 #include "Models/GlobalConfiguration.hpp"
 #include "Repositories/GlobalConfiguration.hpp"
 

@@ -1,8 +1,8 @@
 #include "Session.hpp"
 #include "JWT.hpp"
 
-#include "Database.hpp"
-#include "DataTable.hpp"
+#include "Database/DataTable.hpp"
+#include "Database/Database.hpp"
 #include "Enums/UserFilter.hpp"
 #include "Models/User.hpp"
 #include "Repositories/Session.hpp"
