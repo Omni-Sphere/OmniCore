@@ -3,13 +3,7 @@
 #include <memory>
 #include <string>
 
-namespace omnicore::service {
-class Database;
-class User;
-} // namespace omnicore::service
-namespace omnicore::repository {
-class Session;
-}
+#include "Database.hpp"
 
 #include "Models/AuthPayload.hpp"
 #include "Models/LogoutPayload.hpp"

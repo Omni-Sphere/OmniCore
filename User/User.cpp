@@ -1,7 +1,6 @@
 #include "User.hpp"
-#include "Database/DataTable.hpp"
-#include "Database/Database.hpp"
 #include "Repositories/User.hpp"
+#include <stdexcept>
 
 namespace omnicore::service {
 
@@ -88,16 +87,26 @@ model::User User::Modify(const dto::UpdateUser &uUser) const {
 
 bool User::ModifyPassword(const dto::ChangePassword &userDTO) const {
   try {
-    if (userDTO.Code.has_value() &&
-        !CheckPassword(enums::UserFilter::Code, userDTO.Code.value(),
-                       userDTO.OldPassword))
-      throw std::invalid_argument("Wrong password");
+    if (userDTO.Code.has_value()) {
+      if (!CheckPassword(enums::UserFilter::Code, userDTO.Code.value(),
+                         userDTO.OldPassword))
+        throw std::invalid_argument("Wrong password");
 
-    if (userDTO.Code.has_value() &&
-        !pimpl->user->UpdatePassword(enums::UserFilter::Code,
-                                     userDTO.Code.value(), userDTO.OldPassword,
-                                     userDTO.NewPassword))
-      return false;
+      if (!pimpl->user->UpdatePassword(
+              enums::UserFilter::Code, userDTO.Code.value(),
+              userDTO.OldPassword, userDTO.NewPassword))
+        return false;
+    } else if (userDTO.Entry.has_value()) {
+      if (!CheckPassword(enums::UserFilter::Entry,
+                         std::to_string(userDTO.Entry.value()),
+                         userDTO.OldPassword))
+        throw std::invalid_argument("Wrong password");
+
+      if (!pimpl->user->UpdatePassword(
+              enums::UserFilter::Entry, std::to_string(userDTO.Entry.value()),
+              userDTO.OldPassword, userDTO.NewPassword))
+        return false;
+    }
 
     return true;
   } catch (const std::exception &e) {

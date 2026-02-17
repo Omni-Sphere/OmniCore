@@ -1,10 +1,8 @@
 #include "GlobalConfiguration.hpp"
-#include "DTOs/UpdateGlobalConfiguration.hpp"
-#include "Database/Database.hpp"
-#include "Models/GlobalConfiguration.hpp"
 #include "Repositories/GlobalConfiguration.hpp"
 
 namespace omnicore::service {
+
 struct GlobalConfiguration::Impl {
   std::shared_ptr<repository::GlobalConfiguration> repository;
   explicit Impl(std::shared_ptr<service::Database> database)

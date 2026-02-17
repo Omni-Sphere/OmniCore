@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Database/Database.hpp"
+#include "Database.hpp"
 
 #include "DTOs/ChangePassword.hpp"
 #include "DTOs/CreateUser.hpp"

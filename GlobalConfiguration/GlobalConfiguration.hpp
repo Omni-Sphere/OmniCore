@@ -2,17 +2,9 @@
 
 #include <memory>
 
-namespace omnicore::service {
-class Database;
-}
-
-namespace omnicore::dto {
-class UpdateGlobalConfiguration;
-}
-
-namespace omnicore::model {
-class GlobalConfiguration;
-}
+#include "DTOs/UpdateGlobalConfiguration.hpp"
+#include "Database.hpp"
+#include "Models/GlobalConfiguration.hpp"
 
 namespace omnicore::service {
 

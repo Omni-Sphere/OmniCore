@@ -1,7 +1,5 @@
 #include "Session.hpp"
 
-#include "Hasher.hpp"
-
 namespace omnicore::repository {
 Session::Session(std::shared_ptr<service::Database> _database) {
   database = std::move(_database);
@@ -117,22 +115,28 @@ type::DataTable Session::Read(const dto::Login &login) const {
                          "FROM Sessions T0 "
                          "JOIN Users T1 ON ";
 
-    if (login.Code.has_value())
-      sQuery += "T0.UserCode = T1.[Code] WHERE T1.[Code] = '" +
-                login.Code.value() + "' ";
+    std::vector<type::SQLParam> vParams;
 
-    if (login.Email.has_value())
-      sQuery += "T0.UserEmail = T1.Email WHERE T1.Email = '" +
-                login.Email.value() + "' ";
+    if (login.Code.has_value()) {
+      sQuery += "T0.UserCode = T1.[Code] WHERE T1.[Code] = ? ";
+      vParams.emplace_back(type::MakeSQLParam(login.Code.value()));
+    }
 
-    if (login.Phone.has_value())
-      sQuery += "T0.UserPhone = T1.Phone WHRE T1.Phone = '" +
-                login.Phone.value() + "' ";
+    if (login.Email.has_value()) {
+      sQuery += "T0.UserEmail = T1.Email WHERE T1.Email = ? ";
+      vParams.emplace_back(type::MakeSQLParam(login.Email.value()));
+    }
 
-    sQuery += "AND T0.DeviceIP = '" + login.DeviceIP + "' AND T0.HostName = '" +
-              login.HostName + "' AND T0.IsActive = 'Y'";
+    if (login.Phone.has_value()) {
+      sQuery += "T0.UserPhone = T1.Phone WHERE T1.Phone = ? ";
+      vParams.emplace_back(type::MakeSQLParam(login.Phone.value()));
+    }
 
-    type::DataTable data = database->FetchResults(sQuery);
+    sQuery += "AND T0.DeviceIP = ? AND T0.HostName = ? AND T0.IsActive = 'Y'";
+    vParams.emplace_back(type::MakeSQLParam(login.DeviceIP));
+    vParams.emplace_back(type::MakeSQLParam(login.HostName));
+
+    type::DataTable data = database->FetchPrepared(sQuery, vParams);
 
     return data;
   } catch (const std::exception &e) {

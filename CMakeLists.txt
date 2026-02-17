@@ -43,12 +43,6 @@ if(WIN32)
         COMMAND ${CMAKE_COMMAND} -E make_directory "${LIBS_DIR}"
         COMMAND ${CMAKE_COMMAND} -E make_directory "${INCLUDE_DIR}"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${CMAKE_CURRENT_SOURCE_DIR}/libboost_json-mt.dll"
-            "${LIBS_DIR}/libboost_json-mt.dll"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${CMAKE_CURRENT_SOURCE_DIR}/libsodium-26.dll"
-            "${LIBS_DIR}/libsodium-26.dll"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${CMAKE_CURRENT_SOURCE_DIR}/OmniData/Libs/libOmniData.dll"
             "${LIBS_DIR}/libOmniData.dll"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different

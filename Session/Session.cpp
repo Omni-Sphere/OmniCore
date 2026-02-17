@@ -1,11 +1,11 @@
 #include "Session.hpp"
 #include "JWT.hpp"
+#include <memory>
+#include <stdexcept>
 
-#include "Database/DataTable.hpp"
-#include "Database/Database.hpp"
+#include "DataTable.hpp"
 #include "Enums/UserFilter.hpp"
 #include "Models/User.hpp"
-#include "Repositories/Session.hpp"
 #include "User.hpp"
 
 namespace omnicore::service {
@@ -38,6 +38,20 @@ model::AuthPayload Session::Login(const dto::Login &login) const {
         !pimpl->user->Exists(enums::UserFilter::Phone, login.Phone.value()))
       throw std::runtime_error("User Phone doesn't exists");
 
+    // Add lockout check
+    model::User userModel;
+    if (login.Code.has_value())
+      userModel = pimpl->user->Get(enums::UserFilter::Code, login.Code.value());
+    else if (login.Email.has_value())
+      userModel =
+          pimpl->user->Get(enums::UserFilter::Email, login.Email.value());
+    else if (login.Phone.has_value())
+      userModel =
+          pimpl->user->Get(enums::UserFilter::Phone, login.Phone.value());
+
+    if (userModel.IsLocked)
+      throw std::runtime_error("Account is locked");
+
     if (login.Code.has_value() &&
         !pimpl->user->CheckPassword(enums::UserFilter::Code, login.Code.value(),
                                     login.Password))
@@ -61,7 +75,11 @@ model::AuthPayload Session::Login(const dto::Login &login) const {
     data = pimpl->session->Read(login);
 
     authPayload.SessionUUID = std::string(data[0]["SessionUUID"]);
-    authPayload.AccessToken = JWT::GenerateToken(data[0]["SessionUUID"], 86400);
+
+    boost::json::object payload;
+    payload["SessionUUID"] = authPayload.SessionUUID;
+
+    authPayload.AccessToken = JWT::GenerateToken(payload, 86400);
 
     if (login.Code.has_value())
       authPayload.User = std::make_shared<model::User>(
@@ -81,22 +99,22 @@ model::AuthPayload Session::Login(const dto::Login &login) const {
   }
 };
 
-bool Session::Active(const std::string &sessionUUID) const {
+bool Session::Active(const std::string &token) const {
   try {
+    boost::json::object payload = JWT::ValidateToken(token);
+
+    std::string sessionUUID = payload["SessionUUID"].as_string().c_str();
+
     type::DataTable data = pimpl->session->IsActive(sessionUUID);
+
+    if (data.RowsCount() == 0)
+      return false;
 
     const bool sessionActive = data[0]["IsActive"];
 
-    if (data.RowsCount() == 0)
-      throw std::runtime_error("Session doesn't exists");
-
-    if (!sessionActive)
-      return false;
-
-    return true;
-  } catch (const std::exception &e) {
-    throw std::runtime_error(std::string("[ActiveSession Exception] ") +
-                             e.what());
+    return sessionActive;
+  } catch (const std::exception &) {
+    return false;
   }
 }
 

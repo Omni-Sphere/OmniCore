@@ -1,8 +1,9 @@
 #pragma once
 #include "DTOs/UpdateGlobalConfiguration.hpp"
-#include "Database/Database.hpp"
+#include "Database.hpp"
 #include "Models/GlobalConfiguration.hpp"
 #include <memory>
+
 
 namespace omnicore::repository {
 

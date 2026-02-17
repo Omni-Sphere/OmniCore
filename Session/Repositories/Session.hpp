@@ -2,8 +2,7 @@
 
 #include "DTOs/Login.hpp"
 #include "DTOs/Logout.hpp"
-#include "Database/Database.hpp"
-
+#include "Database.hpp"
 
 namespace omnicore::repository {
 class Session {

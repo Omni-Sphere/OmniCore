@@ -2,7 +2,7 @@
 #include "DTOs/CreateUser.hpp"
 #include "DTOs/SearchUsers.hpp"
 #include "DTOs/UpdateUser.hpp"
-#include "Database/Database.hpp"
+#include "Database.hpp"
 #include "Enums/UserFilter.hpp"
 #include "Models/User.hpp"
 #include <memory>
