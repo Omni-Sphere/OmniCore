@@ -4,20 +4,21 @@
 #include "Models/GlobalConfiguration.hpp"
 #include <memory>
 
-
-namespace omnicore::repository {
+namespace omnisphere::omnicore::repositories {
 
 class GlobalConfiguration {
 private:
-  std::shared_ptr<service::Database> database;
+  std::shared_ptr<omnidata::services::Database> database;
 
 public:
-  explicit GlobalConfiguration(std::shared_ptr<service::Database> database);
+  explicit GlobalConfiguration(
+      std::shared_ptr<omnidata::services::Database> database);
 
   ~GlobalConfiguration() = default;
 
-  bool Update(const dto::UpdateGlobalConfiguration &config) const;
+  bool Update(const omnisphere::omnicore::dtos::UpdateGlobalConfiguration
+                  &config) const;
 
-  model::GlobalConfiguration Get(int confEntry) const;
+  omnisphere::omnicore::models::GlobalConfiguration Get(int confEntry) const;
 };
-} // namespace omnicore::repository
+} // namespace omnisphere::omnicore::repositories

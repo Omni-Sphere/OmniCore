@@ -2,7 +2,7 @@
 #include <optional>
 #include <string>
 
-namespace omnicore::model {
+namespace omnisphere::omnicore::models {
 
 class User {
 public:
@@ -22,4 +22,4 @@ public:
   std::optional<int> LastUpdatedBy;
   std::optional<std::string> UpdateDate;
 };
-} // namespace omnicore::model
+} // namespace omnisphere::omnicore::models

@@ -3,7 +3,7 @@
 #include <memory>
 #include <string>
 
-#include "Database.hpp"
+#include "../OmniData/Include/Database.hpp"
 
 #include "Models/AuthPayload.hpp"
 #include "Models/LogoutPayload.hpp"
@@ -11,17 +11,19 @@
 #include "DTOs/Login.hpp"
 #include "DTOs/Logout.hpp"
 
-namespace omnicore::service {
+namespace omnisphere::omnicore::services {
 
 class Session {
 public:
-  explicit Session(std::shared_ptr<service::Database> database);
+  explicit Session(std::shared_ptr<omnidata::services::Database> database);
 
   ~Session();
 
-  model::AuthPayload Login(const dto::Login &login) const;
+  omnisphere::omnicore::models::AuthPayload
+  Login(const omnisphere::omnicore::dtos::Login &login) const;
 
-  model::LogoutPayload Logout(const dto::Logout &logout) const;
+  omnisphere::omnicore::models::LogoutPayload
+  Logout(const omnisphere::omnicore::dtos::Logout &logout) const;
 
   bool Exists(const std::string &token) const;
 
@@ -31,4 +33,4 @@ private:
   struct Impl;
   std::unique_ptr<Impl> pimpl;
 };
-} // namespace omnicore::service
+} // namespace omnisphere::omnicore::services

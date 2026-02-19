@@ -1,27 +1,30 @@
 #include "GlobalConfiguration.hpp"
 #include "Repositories/GlobalConfiguration.hpp"
 
-namespace omnicore::service {
+namespace omnisphere::omnicore::services {
 
 struct GlobalConfiguration::Impl {
-  std::shared_ptr<repository::GlobalConfiguration> repository;
-  explicit Impl(std::shared_ptr<service::Database> database)
-      : repository(
-            std::make_shared<repository::GlobalConfiguration>(database)) {}
+  std::shared_ptr<omnisphere::omnicore::repositories::GlobalConfiguration>
+      repository;
+  explicit Impl(std::shared_ptr<omnidata::services::Database> database)
+      : repository(std::make_shared<
+                   omnisphere::omnicore::repositories::GlobalConfiguration>(
+            database)) {}
 };
 
 GlobalConfiguration::GlobalConfiguration(
-    std::shared_ptr<service::Database> database)
+    std::shared_ptr<omnidata::services::Database> database)
     : pimpl(std::make_unique<Impl>(database)) {}
 
 GlobalConfiguration::~GlobalConfiguration() = default;
 
 bool GlobalConfiguration::Modify(
-    const dto::UpdateGlobalConfiguration &config) const {
+    const omnisphere::omnicore::dtos::UpdateGlobalConfiguration &config) const {
   return pimpl->repository->Update(config);
 }
 
-model::GlobalConfiguration GlobalConfiguration::Get(int confEntry) const {
+omnisphere::omnicore::models::GlobalConfiguration
+GlobalConfiguration::Get(int confEntry) const {
   return pimpl->repository->Get(confEntry);
 }
-} // namespace omnicore::service
+} // namespace omnisphere::omnicore::services

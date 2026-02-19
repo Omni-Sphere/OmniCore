@@ -2,13 +2,11 @@
 
 #include <string>
 
-namespace omnicore::model
-{
-class Payload
-{
+namespace omnisphere::omnicore::models {
+class Payload {
 public:
-    uint64_t ExpiresAt;
-    uint64_t IssuedAt;
-    std::string SessionUUID;        
+  uint64_t ExpiresAt;
+  uint64_t IssuedAt;
+  std::string SessionUUID;
 };
-}
+} // namespace omnisphere::omnicore::models

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Database.hpp"
+#include "../OmniData/Include/Database.hpp"
 
 #include "DTOs/ChangePassword.hpp"
 #include "DTOs/CreateUser.hpp"
@@ -9,37 +9,40 @@
 #include "Enums/UserFilter.hpp"
 #include "Models/User.hpp"
 
-namespace omnicore::service {
+namespace omnisphere::omnicore::services {
 
 class User {
 public:
-  explicit User(std::shared_ptr<service::Database> database);
+  explicit User(std::shared_ptr<omnidata::services::Database> database);
 
   ~User();
 
-  bool Add(const dto::CreateUser &user) const;
+  bool Add(const omnisphere::omnicore::dtos::CreateUser &user) const;
 
-  model::User Modify(const dto::UpdateUser &user) const;
+  omnisphere::omnicore::models::User
+  Modify(const omnisphere::omnicore::dtos::UpdateUser &user) const;
 
-  bool ModifyPassword(const dto::ChangePassword &) const;
+  bool ModifyPassword(const omnisphere::omnicore::dtos::ChangePassword &) const;
 
-  bool CheckPassword(const enums::UserFilter &filter,
+  bool CheckPassword(const omnisphere::omnicore::enums::UserFilter &filter,
                      const std::string &oldPassword,
                      const std::string &newPassword) const;
 
-  bool LockUnlockUser(const enums::UserFilter &, const std::string &value,
-                      const bool &lock) const;
+  bool LockUnlockUser(const omnisphere::omnicore::enums::UserFilter &,
+                      const std::string &value, const bool &lock) const;
 
-  std::vector<model::User> Search(const dto::SearchUsers &user) const;
+  std::vector<omnisphere::omnicore::models::User>
+  Search(const omnisphere::omnicore::dtos::SearchUsers &user) const;
 
-  model::User Get(const enums::UserFilter &filter,
-                  const std::string &value) const;
+  omnisphere::omnicore::models::User
+  Get(const omnisphere::omnicore::enums::UserFilter &filter,
+      const std::string &value) const;
 
-  bool Exists(const enums::UserFilter &filter, const std::string &value) const;
+  bool Exists(const omnisphere::omnicore::enums::UserFilter &filter,
+              const std::string &value) const;
 
 private:
   struct Impl;
   std::unique_ptr<Impl> pimpl;
 };
-} // namespace omnicore::service
-  // namespace omnicore::service
+} // namespace omnisphere::omnicore::services

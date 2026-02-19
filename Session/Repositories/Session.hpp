@@ -1,25 +1,27 @@
 #pragma once
 
-#include "DTOs/Login.hpp"
-#include "DTOs/Logout.hpp"
-#include "Database.hpp"
+#include "../../OmniData/Include/Database.hpp"
+#include "../DTOs/Login.hpp"
+#include "../DTOs/Logout.hpp"
 
-namespace omnicore::repository {
+
+namespace omnisphere::omnicore::repositories {
 class Session {
 private:
-  std::shared_ptr<service::Database> database;
+  std::shared_ptr<omnidata::services::Database> database;
   int GetCurrentSequence() const;
   bool UpdateSessionSequence() const;
 
 public:
-  explicit Session(std::shared_ptr<service::Database> Database);
+  explicit Session(std::shared_ptr<omnidata::services::Database> Database);
   ~Session() {};
 
-  bool Create(const dto::Login &login) const;
-  bool Close(const dto::Logout &logout) const;
-  type::DataTable ExistsUUID(const std::string &sessionUUID) const;
-  type::DataTable Read(const std::string &) const;
-  type::DataTable Read(const dto::Login &) const;
-  type::DataTable IsActive(const std::string &) const;
+  bool Create(const omnisphere::omnicore::dtos::Login &login) const;
+  bool Close(const omnisphere::omnicore::dtos::Logout &logout) const;
+  omnidata::types::DataTable ExistsUUID(const std::string &sessionUUID) const;
+  omnidata::types::DataTable Read(const std::string &) const;
+  omnidata::types::DataTable
+  Read(const omnisphere::omnicore::dtos::Login &) const;
+  omnidata::types::DataTable IsActive(const std::string &) const;
 };
-} // namespace omnicore::repository
+} // namespace omnisphere::omnicore::repositories

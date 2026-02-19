@@ -1,11 +1,11 @@
 #include "Session.hpp"
 
-namespace omnicore::repository {
-Session::Session(std::shared_ptr<service::Database> _database) {
+namespace omnisphere::omnicore::repositories {
+Session::Session(std::shared_ptr<omnidata::services::Database> _database) {
   database = std::move(_database);
 }
 
-bool Session::Create(const dto::Login &login) const {
+bool Session::Create(const omnisphere::omnicore::dtos::Login &login) const {
   try {
     std::string sQuery = "INSERT INTO Sessions ("
                          "SessionEntry, "
@@ -31,22 +31,22 @@ bool Session::Create(const dto::Login &login) const {
               "?, "
               "?)";
 
-    std::vector<type::SQLParam> vParams;
+    std::vector<omnidata::types::SQLParam> vParams;
 
-    vParams.emplace_back(type::MakeSQLParam(GetCurrentSequence()));
+    vParams.emplace_back(omnidata::types::MakeSQLParam(GetCurrentSequence()));
 
     if (login.Code.has_value())
-      vParams.emplace_back(type::MakeSQLParam(login.Code.value()));
+      vParams.emplace_back(omnidata::types::MakeSQLParam(login.Code.value()));
 
     if (login.Email.has_value())
-      vParams.emplace_back(type::MakeSQLParam(login.Email.value()));
+      vParams.emplace_back(omnidata::types::MakeSQLParam(login.Email.value()));
 
     if (login.Phone.has_value())
-      vParams.emplace_back(type::MakeSQLParam(login.Phone.value()));
+      vParams.emplace_back(omnidata::types::MakeSQLParam(login.Phone.value()));
 
-    vParams.emplace_back(type::MakeSQLParam(login.StartDate));
-    vParams.emplace_back(type::MakeSQLParam(login.DeviceIP));
-    vParams.emplace_back(type::MakeSQLParam(login.HostName));
+    vParams.emplace_back(omnidata::types::MakeSQLParam(login.StartDate));
+    vParams.emplace_back(omnidata::types::MakeSQLParam(login.DeviceIP));
+    vParams.emplace_back(omnidata::types::MakeSQLParam(login.HostName));
 
     database->BeginTransaction();
 
@@ -71,7 +71,7 @@ int Session::GetCurrentSequence() const {
         "SELECT ISNULL(SessionSequence, 0) + 1 SessionSequence FROM Sequences "
         "WHERE SeqEntry = 1";
 
-    type::DataTable data = database->FetchResults(sQuery);
+    omnidata::types::DataTable data = database->FetchResults(sQuery);
 
     if (data.RowsCount() == 1)
       return data[0]["SessionSequence"];
@@ -98,7 +98,8 @@ bool Session::UpdateSessionSequence() const {
   }
 };
 
-type::DataTable Session::Read(const dto::Login &login) const {
+omnidata::types::DataTable
+Session::Read(const omnisphere::omnicore::dtos::Login &login) const {
   try {
     std::string sQuery = "SELECT "
                          "T0.SessionEntry, "
@@ -115,28 +116,28 @@ type::DataTable Session::Read(const dto::Login &login) const {
                          "FROM Sessions T0 "
                          "JOIN Users T1 ON ";
 
-    std::vector<type::SQLParam> vParams;
+    std::vector<omnidata::types::SQLParam> vParams;
 
     if (login.Code.has_value()) {
       sQuery += "T0.UserCode = T1.[Code] WHERE T1.[Code] = ? ";
-      vParams.emplace_back(type::MakeSQLParam(login.Code.value()));
+      vParams.emplace_back(omnidata::types::MakeSQLParam(login.Code.value()));
     }
 
     if (login.Email.has_value()) {
       sQuery += "T0.UserEmail = T1.Email WHERE T1.Email = ? ";
-      vParams.emplace_back(type::MakeSQLParam(login.Email.value()));
+      vParams.emplace_back(omnidata::types::MakeSQLParam(login.Email.value()));
     }
 
     if (login.Phone.has_value()) {
       sQuery += "T0.UserPhone = T1.Phone WHERE T1.Phone = ? ";
-      vParams.emplace_back(type::MakeSQLParam(login.Phone.value()));
+      vParams.emplace_back(omnidata::types::MakeSQLParam(login.Phone.value()));
     }
 
     sQuery += "AND T0.DeviceIP = ? AND T0.HostName = ? AND T0.IsActive = 'Y'";
-    vParams.emplace_back(type::MakeSQLParam(login.DeviceIP));
-    vParams.emplace_back(type::MakeSQLParam(login.HostName));
+    vParams.emplace_back(omnidata::types::MakeSQLParam(login.DeviceIP));
+    vParams.emplace_back(omnidata::types::MakeSQLParam(login.HostName));
 
-    type::DataTable data = database->FetchPrepared(sQuery, vParams);
+    omnidata::types::DataTable data = database->FetchPrepared(sQuery, vParams);
 
     return data;
   } catch (const std::exception &e) {
@@ -145,7 +146,7 @@ type::DataTable Session::Read(const dto::Login &login) const {
   }
 };
 
-type::DataTable Session::Read(const std::string &sessionUUID) const {
+omnidata::types::DataTable Session::Read(const std::string &sessionUUID) const {
   try {
     std::string sQuery =
         "SELECT SessionUUID, StartDate, EndDate, DurationSeconds, Reason, "
@@ -157,12 +158,14 @@ type::DataTable Session::Read(const std::string &sessionUUID) const {
   }
 };
 
-type::DataTable Session::ExistsUUID(const std::string &sessionUUID) const {
+omnidata::types::DataTable
+Session::ExistsUUID(const std::string &sessionUUID) const {
   try {
     std::string sQuery =
         "SELECT COUNT(*) Total FROM Sessions WHERE SessionUUID  = ?";
 
-    type::DataTable data = database->FetchPrepared(sQuery, sessionUUID);
+    omnidata::types::DataTable data =
+        database->FetchPrepared(sQuery, sessionUUID);
 
     return data;
   } catch (const std::exception &e) {
@@ -171,11 +174,13 @@ type::DataTable Session::ExistsUUID(const std::string &sessionUUID) const {
   }
 };
 
-type::DataTable Session::IsActive(const std::string &sessionUUID) const {
+omnidata::types::DataTable
+Session::IsActive(const std::string &sessionUUID) const {
   try {
     std::string sQuery = "SELECT IsActive FROM Sessions WHERE SessionUUID  = ?";
 
-    type::DataTable data = database->FetchPrepared(sQuery, sessionUUID);
+    omnidata::types::DataTable data =
+        database->FetchPrepared(sQuery, sessionUUID);
 
     return data;
   } catch (const std::exception &e) {
@@ -184,25 +189,25 @@ type::DataTable Session::IsActive(const std::string &sessionUUID) const {
   }
 };
 
-bool Session::Close(const dto::Logout &logout) const {
+bool Session::Close(const omnisphere::omnicore::dtos::Logout &logout) const {
   try {
     std::string sQuery =
         "UPDATE Sessions SET IsActive = 'N', EndDate = ?, DurationSeconds = ? ";
-    std::vector<type::SQLParam> vParams;
+    std::vector<omnidata::types::SQLParam> vParams;
 
     if (logout.Message.has_value())
       sQuery += ", LogoutMessage = ? ";
 
     sQuery += ", Reason = ? WHERE SessionUUID  = ? AND IsActive = 'Y'";
 
-    vParams.emplace_back(type::MakeSQLParam(logout.EndDate));
-    vParams.emplace_back(type::MakeSQLParam(3600));
+    vParams.emplace_back(omnidata::types::MakeSQLParam(logout.EndDate));
+    vParams.emplace_back(omnidata::types::MakeSQLParam(3600));
 
     if (logout.Message.has_value())
-      vParams.emplace_back(type::MakeSQLParam(logout.Message));
+      vParams.emplace_back(omnidata::types::MakeSQLParam(logout.Message));
 
-    vParams.emplace_back(type::MakeSQLParam(logout.Reason));
-    vParams.emplace_back(type::MakeSQLParam(logout.SessionUUID));
+    vParams.emplace_back(omnidata::types::MakeSQLParam(logout.Reason));
+    vParams.emplace_back(omnidata::types::MakeSQLParam(logout.SessionUUID));
 
     database->BeginTransaction();
     database->RunPrepared(sQuery, vParams);
@@ -214,4 +219,4 @@ bool Session::Close(const dto::Logout &logout) const {
                              e.what());
   }
 };
-} // namespace omnicore::repository
+} // namespace omnisphere::omnicore::repositories

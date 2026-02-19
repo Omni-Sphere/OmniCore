@@ -1,55 +1,56 @@
 #pragma once
-#include <string>
 #include <optional>
 #include <regex>
 #include <stdexcept>
+#include <string>
 
-namespace omnicore::model
-{
-    class BaseModel
-    {
-    public:
-        BaseModel(
-            int _Entry,std::string _Code,std::string _Name,int _CreatedBy,std::string _CreateDate,std::optional<int> _LastUpdatedBy,std::optional<std::string> _UpdateDate)
-            : Entry(_Entry),Code(std::move(_Code)),Name(std::move(_Name)),CreatedBy(_CreatedBy),CreateDate(std::move(_CreateDate)),LastUpdatedBy(_LastUpdatedBy),UpdateDate(std::move(_UpdateDate))
-        {
-            Validate();
-        }
 
-        const int Entry;
-        const std::string Code;
-        const std::string Name;
-        const int CreatedBy;
-        const std::string CreateDate;
-        const std::optional<int> LastUpdatedBy;
-        const std::optional<std::string> UpdateDate;
+namespace omnisphere::omnicore::models {
+class BaseModel {
+public:
+  BaseModel(int _Entry, std::string _Code, std::string _Name, int _CreatedBy,
+            std::string _CreateDate, std::optional<int> _LastUpdatedBy,
+            std::optional<std::string> _UpdateDate)
+      : Entry(_Entry), Code(std::move(_Code)), Name(std::move(_Name)),
+        CreatedBy(_CreatedBy), CreateDate(std::move(_CreateDate)),
+        LastUpdatedBy(_LastUpdatedBy), UpdateDate(std::move(_UpdateDate)) {
+    Validate();
+  }
 
-    protected:
-        void Validate()
-        {
-            if (Code.size() < 3)
-                throw std::runtime_error("Code demasiado corto");
+  const int Entry;
+  const std::string Code;
+  const std::string Name;
+  const int CreatedBy;
+  const std::string CreateDate;
+  const std::optional<int> LastUpdatedBy;
+  const std::optional<std::string> UpdateDate;
 
-            if (Code.size() > 20)
-                throw std::runtime_error("Code demasiado largo");
+protected:
+  void Validate() {
+    if (Code.size() < 3)
+      throw std::runtime_error("Code demasiado corto");
 
-            if (Code.find(' ') != std::string::npos)
-                throw std::runtime_error("Code no puede contener espacios");
+    if (Code.size() > 20)
+      throw std::runtime_error("Code demasiado largo");
 
-            if (!std::regex_match(Code, alphaNumRegex))
-                throw std::runtime_error("Code solo puede contener caracteres alfanuméricos");
+    if (Code.find(' ') != std::string::npos)
+      throw std::runtime_error("Code no puede contener espacios");
 
-            if (Name.size() < 3)
-                throw std::runtime_error("Name demasiado corto");
+    if (!std::regex_match(Code, alphaNumRegex))
+      throw std::runtime_error(
+          "Code solo puede contener caracteres alfanuméricos");
 
-            if (Name.size() > 50)
-                throw std::runtime_error("Name demasiado largo");
+    if (Name.size() < 3)
+      throw std::runtime_error("Name demasiado corto");
 
-            if (CreatedBy <= 0)
-                throw std::runtime_error("CreatedBy inválido");
-        }
+    if (Name.size() > 50)
+      throw std::runtime_error("Name demasiado largo");
 
-    private:
-        const std::regex alphaNumRegex{"^[A-Za-z0-9]+$"};
-    };
-}
+    if (CreatedBy <= 0)
+      throw std::runtime_error("CreatedBy inválido");
+  }
+
+private:
+  const std::regex alphaNumRegex{"^[A-Za-z0-9]+$"};
+};
+} // namespace omnisphere::omnicore::models

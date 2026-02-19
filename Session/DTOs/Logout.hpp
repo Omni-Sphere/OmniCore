@@ -1,17 +1,16 @@
 #pragma once
 
-#include <string>
 #include <optional>
+#include <string>
+
 
 #include "Enums/LogoutReason.hpp"
 
-namespace omnicore::dto
-{
-    struct Logout
-    {
-        std::string SessionUUID;
-        std::string EndDate;
-        enums::LogoutReason Reason;
-        std::optional<std::string> Message;
-    };
-}
+namespace omnisphere::omnicore::dtos {
+struct Logout {
+  std::string SessionUUID;
+  std::string EndDate;
+  omnisphere::omnicore::enums::LogoutReason Reason;
+  std::optional<std::string> Message;
+};
+} // namespace omnisphere::omnicore::dtos

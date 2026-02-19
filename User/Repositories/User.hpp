@@ -1,17 +1,18 @@
 #pragma once
+#include "../../OmniData/Include/Database.hpp"
 #include "DTOs/CreateUser.hpp"
 #include "DTOs/SearchUsers.hpp"
 #include "DTOs/UpdateUser.hpp"
-#include "Database.hpp"
 #include "Enums/UserFilter.hpp"
 #include "Models/User.hpp"
 #include <memory>
 
-namespace omnicore::repository {
+
+namespace omnisphere::omnicore::repositories {
 
 class User {
 private:
-  std::shared_ptr<service::Database> database;
+  std::shared_ptr<omnidata::services::Database> database;
   int _UserEntry = -1;
 
   bool UpdateUserSequence() const;
@@ -19,29 +20,31 @@ private:
   int GetCurrentSequence() const;
 
 public:
-  explicit User(std::shared_ptr<service::Database> database);
+  explicit User(std::shared_ptr<omnidata::services::Database> database);
 
   ~User() {};
 
-  bool Create(const dto::CreateUser &user) const;
+  bool Create(const omnisphere::omnicore::dtos::CreateUser &user) const;
 
-  bool Update(const dto::UpdateUser &user) const;
+  bool Update(const omnisphere::omnicore::dtos::UpdateUser &user) const;
 
-  type::DataTable Read(const dto::SearchUsers &user) const;
+  omnidata::types::DataTable
+  Read(const omnisphere::omnicore::dtos::SearchUsers &user) const;
 
-  type::DataTable Read(const enums::UserFilter &filter,
-                       const std::string &value) const;
+  omnidata::types::DataTable
+  Read(const omnisphere::omnicore::enums::UserFilter &filter,
+       const std::string &value) const;
 
   bool ExistsEntry(const int &entry) const;
 
   bool ExistsCode(const std::string &code) const;
 
-  bool UpdatePassword(const enums::UserFilter &filter, const std::string &value,
-                      const std::string &oldPassword,
+  bool UpdatePassword(const omnisphere::omnicore::enums::UserFilter &filter,
+                      const std::string &value, const std::string &oldPassword,
                       const std::string &newPassword) const;
 
-  bool ValidatePassword(const enums::UserFilter &filter,
+  bool ValidatePassword(const omnisphere::omnicore::enums::UserFilter &filter,
                         const std::string &value,
                         const std::string &password) const;
 };
-} // namespace omnicore::repository
+} // namespace omnisphere::omnicore::repositories
