@@ -7,12 +7,11 @@
 #include "Models/User.hpp"
 #include <memory>
 
-
 namespace omnisphere::omnicore::repositories {
 
 class User {
 private:
-  std::shared_ptr<omnidata::services::Database> database;
+  std::shared_ptr<omnisphere::omnidata::services::Database> database;
   int _UserEntry = -1;
 
   bool UpdateUserSequence() const;
@@ -20,7 +19,8 @@ private:
   int GetCurrentSequence() const;
 
 public:
-  explicit User(std::shared_ptr<omnidata::services::Database> database);
+  explicit User(
+      std::shared_ptr<omnisphere::omnidata::services::Database> database);
 
   ~User() {};
 
@@ -28,10 +28,10 @@ public:
 
   bool Update(const omnisphere::omnicore::dtos::UpdateUser &user) const;
 
-  omnidata::types::DataTable
+  omnisphere::omnidata::types::DataTable
   Read(const omnisphere::omnicore::dtos::SearchUsers &user) const;
 
-  omnidata::types::DataTable
+  omnisphere::omnidata::types::DataTable
   Read(const omnisphere::omnicore::enums::UserFilter &filter,
        const std::string &value) const;
 

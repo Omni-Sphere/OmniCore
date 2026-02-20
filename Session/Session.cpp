@@ -16,13 +16,13 @@ struct Session::Impl {
   std::shared_ptr<omnisphere::omnicore::repositories::Session> session;
   std::shared_ptr<omnisphere::omnicore::services::User> user;
 
-  explicit Impl(std::shared_ptr<omnidata::services::Database> db)
+  explicit Impl(std::shared_ptr<omnisphere::omnidata::services::Database> db)
       : session(
             std::make_shared<omnisphere::omnicore::repositories::Session>(db)),
         user(std::make_shared<omnisphere::omnicore::services::User>(db)) {}
 };
 
-Session::Session(std::shared_ptr<omnidata::services::Database> db)
+Session::Session(std::shared_ptr<omnisphere::omnidata::services::Database> db)
     : pimpl(std::make_unique<Impl>(db)) {}
 
 Session::~Session() = default;
@@ -84,7 +84,7 @@ Session::Login(const omnisphere::omnicore::dtos::Login &login) const {
 
     pimpl->session->Create(login);
 
-    omnidata::types::DataTable data;
+    omnisphere::omnidata::types::DataTable data;
     omnisphere::omnicore::models::AuthPayload authPayload;
 
     data = pimpl->session->Read(login);
@@ -124,7 +124,8 @@ bool Session::Active(const std::string &token) const {
 
     std::string sessionUUID = payload["SessionUUID"].as_string().c_str();
 
-    omnidata::types::DataTable data = pimpl->session->IsActive(sessionUUID);
+    omnisphere::omnidata::types::DataTable data =
+        pimpl->session->IsActive(sessionUUID);
 
     if (data.RowsCount() == 0)
       return false;
@@ -139,7 +140,8 @@ bool Session::Active(const std::string &token) const {
 
 bool Session::Exists(const std::string &sessionUUID) const {
   try {
-    omnidata::types::DataTable data = pimpl->session->ExistsUUID(sessionUUID);
+    omnisphere::omnidata::types::DataTable data =
+        pimpl->session->ExistsUUID(sessionUUID);
 
     const int sessionCount = data[0]["Total"];
 
@@ -172,7 +174,8 @@ Session::Logout(const omnisphere::omnicore::dtos::Logout &logout) const {
     if (!pimpl->session->Close(logout))
       throw std::runtime_error("Session could not be closed.");
 
-    omnidata::types::DataTable data = pimpl->session->Read(logout.SessionUUID);
+    omnisphere::omnidata::types::DataTable data =
+        pimpl->session->Read(logout.SessionUUID);
 
     omnisphere::omnicore::models::LogoutPayload logoutModel;
     logoutModel.SessionUUID = std::string(data[0]["SessionUUID"]);

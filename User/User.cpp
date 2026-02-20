@@ -6,12 +6,13 @@ namespace omnisphere::omnicore::services {
 
 struct User::Impl {
   std::shared_ptr<omnisphere::omnicore::repositories::User> user;
-  explicit Impl(std::shared_ptr<omnidata::services::Database> _database)
+  explicit Impl(
+      std::shared_ptr<omnisphere::omnidata::services::Database> _database)
       : user(std::make_shared<omnisphere::omnicore::repositories::User>(
             _database)) {}
 };
 
-User::User(std::shared_ptr<omnidata::services::Database> _database)
+User::User(std::shared_ptr<omnisphere::omnidata::services::Database> _database)
     : pimpl(std::make_unique<Impl>(_database)) {}
 
 User::~User() = default;
@@ -69,7 +70,7 @@ User::Modify(const omnisphere::omnicore::dtos::UpdateUser &uUser) const {
       throw std::runtime_error("UserPhone already exists");
 
     if (pimpl->user->Update(uUser)) {
-      omnidata::types::DataTable data;
+      omnisphere::omnidata::types::DataTable data;
 
       if (uUser.Where.Code.has_value())
         data = pimpl->user->Read(omnisphere::omnicore::enums::UserFilter::Code,
@@ -130,7 +131,7 @@ std::vector<omnisphere::omnicore::models::User>
 User::Search(const omnisphere::omnicore::dtos::SearchUsers &filter) const {
   try {
     std::vector<omnisphere::omnicore::models::User> users;
-    omnidata::types::DataTable data = pimpl->user->Read(filter);
+    omnisphere::omnidata::types::DataTable data = pimpl->user->Read(filter);
 
     if (data.RowsCount() == 0) {
       users.emplace_back(-1, "", "", std::nullopt, std::nullopt, -1, false,
@@ -162,7 +163,7 @@ omnisphere::omnicore::models::User
 User::Get(const omnisphere::omnicore::enums::UserFilter &filter,
           const std::string &value) const {
   try {
-    omnidata::types::DataTable data;
+    omnisphere::omnidata::types::DataTable data;
     omnisphere::omnicore::models::User userDef(
         -1, "", "", std::nullopt, std::nullopt, -1, false, false, false, false,
         false, -1, "", std::nullopt, std::nullopt);
@@ -197,7 +198,8 @@ User::Get(const omnisphere::omnicore::enums::UserFilter &filter,
 bool User::Exists(const omnisphere::omnicore::enums::UserFilter &filter,
                   const std::string &value) const {
   try {
-    omnidata::types::DataTable data = pimpl->user->Read(filter, value);
+    omnisphere::omnidata::types::DataTable data =
+        pimpl->user->Read(filter, value);
 
     if (data.RowsCount() > 1)
       throw std::runtime_error(

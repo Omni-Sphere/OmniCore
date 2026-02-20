@@ -13,7 +13,8 @@ namespace omnisphere::omnicore::services {
 
 class User {
 public:
-  explicit User(std::shared_ptr<omnidata::services::Database> database);
+  explicit User(
+      std::shared_ptr<omnisphere::omnidata::services::Database> database);
 
   ~User();
 

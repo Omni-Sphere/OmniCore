@@ -8,11 +8,11 @@ namespace omnisphere::omnicore::repositories {
 
 class GlobalConfiguration {
 private:
-  std::shared_ptr<omnidata::services::Database> database;
+  std::shared_ptr<omnisphere::omnidata::services::Database> database;
 
 public:
   explicit GlobalConfiguration(
-      std::shared_ptr<omnidata::services::Database> database);
+      std::shared_ptr<omnisphere::omnidata::services::Database> database);
 
   ~GlobalConfiguration() = default;
 

@@ -15,7 +15,8 @@ namespace omnisphere::omnicore::services {
 
 class Session {
 public:
-  explicit Session(std::shared_ptr<omnidata::services::Database> database);
+  explicit Session(
+      std::shared_ptr<omnisphere::omnidata::services::Database> database);
 
   ~Session();
 

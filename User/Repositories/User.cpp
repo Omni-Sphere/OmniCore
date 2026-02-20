@@ -3,7 +3,7 @@
 #include <functional>
 
 namespace omnisphere::omnicore::repositories {
-User::User(std::shared_ptr<omnidata::services::Database> _database)
+User::User(std::shared_ptr<omnisphere::omnidata::services::Database> _database)
     : database(std::move(_database)) {}
 
 bool User::Create(const omnisphere::omnicore::dtos::CreateUser &user) const {
@@ -33,21 +33,21 @@ bool User::Create(const omnisphere::omnicore::dtos::CreateUser &user) const {
                          ") "
                          "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-    const std::vector<omnidata::types::SQLParam> params = {
-        omnidata::types::MakeSQLParam(GetCurrentSequence()),
-        omnidata::types::MakeSQLParam(user.Code),
-        omnidata::types::MakeSQLParam(user.Name),
-        omnidata::types::MakeSQLParam(user.Email),
-        omnidata::types::MakeSQLParam(user.Phone),
-        omnidata::types::MakeSQLParam(user.Employee),
-        omnidata::types::MakeSQLParam(user.SuperUser),
-        omnidata::types::MakeSQLParam(false),
-        omnidata::types::MakeSQLParam(true),
-        omnidata::types::MakeSQLParam(hashedPassword),
-        omnidata::types::MakeSQLParam(user.PasswordNeverExpires),
-        omnidata::types::MakeSQLParam(user.ChangePasswordNextLogin),
-        omnidata::types::MakeSQLParam(user.CreatedBy),
-        omnidata::types::MakeSQLParam(user.CreateDate)};
+    const std::vector<omnisphere::omnidata::types::SQLParam> params = {
+        omnisphere::omnidata::types::MakeSQLParam(GetCurrentSequence()),
+        omnisphere::omnidata::types::MakeSQLParam(user.Code),
+        omnisphere::omnidata::types::MakeSQLParam(user.Name),
+        omnisphere::omnidata::types::MakeSQLParam(user.Email),
+        omnisphere::omnidata::types::MakeSQLParam(user.Phone),
+        omnisphere::omnidata::types::MakeSQLParam(user.Employee),
+        omnisphere::omnidata::types::MakeSQLParam(user.SuperUser),
+        omnisphere::omnidata::types::MakeSQLParam(false),
+        omnisphere::omnidata::types::MakeSQLParam(true),
+        omnisphere::omnidata::types::MakeSQLParam(hashedPassword),
+        omnisphere::omnidata::types::MakeSQLParam(user.PasswordNeverExpires),
+        omnisphere::omnidata::types::MakeSQLParam(user.ChangePasswordNextLogin),
+        omnisphere::omnidata::types::MakeSQLParam(user.CreatedBy),
+        omnisphere::omnidata::types::MakeSQLParam(user.CreateDate)};
 
     if (!database->RunPrepared(sQuery, params)) {
       database->RollbackTransaction();
@@ -89,7 +89,8 @@ int User::GetCurrentSequence() const {
     const std::string sQuery = "SELECT ISNULL(UserSequence, 0) + 1 "
                                "UserSequence FROM Sequences WHERE SeqEntry = 1";
 
-    omnidata::types::DataTable data = database->FetchResults(sQuery);
+    omnisphere::omnidata::types::DataTable data =
+        database->FetchResults(sQuery);
 
     if (data.RowsCount() == 1)
       return data[0]["UserSequence"];
@@ -104,42 +105,42 @@ int User::GetCurrentSequence() const {
 bool User::Update(const omnisphere::omnicore::dtos::UpdateUser &user) const {
   try {
     std::string sQuery = "UPDATE Users SET ";
-    std::vector<omnidata::types::SQLParam> updateParams;
+    std::vector<omnisphere::omnidata::types::SQLParam> updateParams;
 
     if (user.Data.Name.has_value()) {
       sQuery += "Name = ?, ";
       updateParams.emplace_back(
-          omnidata::types::MakeSQLParam(user.Data.Name.value()));
+          omnisphere::omnidata::types::MakeSQLParam(user.Data.Name.value()));
     }
 
     if (user.Data.Email.has_value()) {
       sQuery += "Email = ?, ";
       updateParams.emplace_back(
-          omnidata::types::MakeSQLParam(user.Data.Email.value()));
+          omnisphere::omnidata::types::MakeSQLParam(user.Data.Email.value()));
     }
 
     if (user.Data.Email.has_value()) {
       sQuery += "Phone = ?, ";
       updateParams.emplace_back(
-          omnidata::types::MakeSQLParam(user.Data.Phone.value()));
+          omnisphere::omnidata::types::MakeSQLParam(user.Data.Phone.value()));
     }
 
     if (user.Data.Employee.has_value()) {
       sQuery += "EmployeeEntry = ?, ";
-      updateParams.emplace_back(
-          omnidata::types::MakeSQLParam(user.Data.Employee.value()));
+      updateParams.emplace_back(omnisphere::omnidata::types::MakeSQLParam(
+          user.Data.Employee.value()));
     }
 
     if (user.Where.Entry.has_value()) {
       sQuery += "WHERE UserEntry = ?";
       updateParams.emplace_back(
-          omnidata::types::MakeSQLParam(user.Where.Entry.value()));
+          omnisphere::omnidata::types::MakeSQLParam(user.Where.Entry.value()));
     }
 
     if (user.Where.Code.has_value()) {
       sQuery += "WHERE Code = ?";
       updateParams.emplace_back(
-          omnidata::types::MakeSQLParam(user.Where.Code.value()));
+          omnisphere::omnidata::types::MakeSQLParam(user.Where.Code.value()));
     }
 
     database->BeginTransaction();
@@ -166,13 +167,13 @@ bool User::UpdatePassword(const omnisphere::omnicore::enums::UserFilter &filter,
     const std::vector<uint8_t> hashedPassword =
         omnisphere::utils::Hasher::HashPassword(newPassword);
 
-    std::vector<omnidata::types::SQLParam> vParams = {
-        omnidata::types::MakeSQLParam(hashedPassword)};
+    std::vector<omnisphere::omnidata::types::SQLParam> vParams = {
+        omnisphere::omnidata::types::MakeSQLParam(hashedPassword)};
 
     switch (filter) {
     case omnisphere::omnicore::enums::UserFilter::Code:
       sQuery += "Code = ?";
-      vParams.push_back(omnidata::types::MakeSQLParam(value));
+      vParams.push_back(omnisphere::omnidata::types::MakeSQLParam(value));
       break;
 
     default:
@@ -215,7 +216,7 @@ User::Read(const omnisphere::omnicore::enums::UserFilter &filter,
                          "UpdateDate "
                          "FROM Users WHERE ";
 
-    std::vector<omnidata::types::SQLParam> vParams;
+    std::vector<omnisphere::omnidata::types::SQLParam> vParams;
 
     switch (filter) {
 
@@ -247,7 +248,7 @@ User::Read(const omnisphere::omnicore::enums::UserFilter &filter,
       break;
     }
 
-    omnidata::types::DataTable dataTable =
+    omnisphere::omnidata::types::DataTable dataTable =
         database->FetchPrepared(sQuery, value);
 
     return dataTable;
@@ -306,7 +307,7 @@ User::Read(const omnisphere::omnicore::dtos::SearchUsers &filter) const {
         );
     } */
 
-    omnidata::types::DataTable dataTable =
+    omnisphere::omnidata::types::DataTable dataTable =
         database->FetchPrepared(baseQuery, parameters);
 
     return dataTable;
@@ -338,7 +339,7 @@ bool User::ValidatePassword(
       break;
     }
 
-    omnidata::types::DataTable data =
+    omnisphere::omnidata::types::DataTable data =
         database->FetchPrepared(sQuery, filterValue);
 
     if (data.RowsCount() == 0)
@@ -362,7 +363,7 @@ bool User::ExistsEntry(const int &entry) const {
     const std::string sQuery =
         "SELECT ISNULL(COUNT(*), 0) Total FROM Users WHERE UserEntry = ?";
 
-    omnidata::types::DataTable data =
+    omnisphere::omnidata::types::DataTable data =
         database->FetchPrepared(sQuery, std::to_string(entry));
 
     if (data.RowsCount() == 0)
@@ -379,7 +380,8 @@ bool User::ExistsCode(const std::string &code) const {
     const std::string sQuery =
         "SELECT ISNULL(COUNT(*), 0) Total FROM Users WHERE [Code] = ?";
 
-    omnidata::types::DataTable data = database->FetchPrepared(sQuery, code);
+    omnisphere::omnidata::types::DataTable data =
+        database->FetchPrepared(sQuery, code);
 
     if (data.RowsCount() == 0)
       return false;

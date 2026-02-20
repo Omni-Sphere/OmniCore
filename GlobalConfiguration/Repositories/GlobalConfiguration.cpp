@@ -4,20 +4,20 @@
 
 namespace omnisphere::omnicore::repositories {
 GlobalConfiguration::GlobalConfiguration(
-    std::shared_ptr<omnidata::services::Database> _database)
+    std::shared_ptr<omnisphere::omnidata::services::Database> _database)
     : database(std::move(_database)) {}
 
 bool GlobalConfiguration::Update(
     const omnisphere::omnicore::dtos::UpdateGlobalConfiguration &config) const {
   try {
     std::string sQuery = "UPDATE GlobalConfiguration SET ";
-    std::vector<omnidata::types::SQLParam> updateParams;
+    std::vector<omnisphere::omnidata::types::SQLParam> updateParams;
     bool firstField = true;
 
     if (config.ImagePath.has_value()) {
       sQuery += "ImagePath = ?";
       updateParams.emplace_back(
-          omnidata::types::MakeSQLParam(config.ImagePath.value()));
+          omnisphere::omnidata::types::MakeSQLParam(config.ImagePath.value()));
       firstField = false;
     }
 
@@ -26,7 +26,7 @@ bool GlobalConfiguration::Update(
         sQuery += ", ";
       sQuery += "PDFPath = ?";
       updateParams.emplace_back(
-          omnidata::types::MakeSQLParam(config.PDFPath.value()));
+          omnisphere::omnidata::types::MakeSQLParam(config.PDFPath.value()));
       firstField = false;
     }
 
@@ -35,7 +35,7 @@ bool GlobalConfiguration::Update(
         sQuery += ", ";
       sQuery += "XMLPath = ?";
       updateParams.emplace_back(
-          omnidata::types::MakeSQLParam(config.XMLPath.value()));
+          omnisphere::omnidata::types::MakeSQLParam(config.XMLPath.value()));
       firstField = false;
     }
 
@@ -43,8 +43,8 @@ bool GlobalConfiguration::Update(
       if (!firstField)
         sQuery += ", ";
       sQuery += "PasswordExpirationDays = ?";
-      updateParams.emplace_back(
-          omnidata::types::MakeSQLParam(config.PasswordExpirationDays.value()));
+      updateParams.emplace_back(omnisphere::omnidata::types::MakeSQLParam(
+          config.PasswordExpirationDays.value()));
       firstField = false;
     }
 
@@ -76,7 +76,7 @@ GlobalConfiguration::Get(int confEntry) const {
         "SELECT ConfEntry, ImagePath, PDFPath, XMLPath, "
         "PasswordExpirationDays FROM GlobalConfiguration WHERE ConfEntry = ?";
 
-    omnidata::types::DataTable data =
+    omnisphere::omnidata::types::DataTable data =
         database->FetchPrepared(sQuery, std::to_string(confEntry));
 
     if (data.RowsCount() == 0) {

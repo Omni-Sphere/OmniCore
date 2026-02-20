@@ -11,7 +11,7 @@ namespace omnisphere::omnicore::services {
 class GlobalConfiguration {
 public:
   explicit GlobalConfiguration(
-      std::shared_ptr<omnidata::services::Database> database);
+      std::shared_ptr<omnisphere::omnidata::services::Database> database);
 
   ~GlobalConfiguration();
 
