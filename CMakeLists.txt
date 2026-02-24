@@ -5,9 +5,14 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
-
-set(LIBS_DIR "${CMAKE_BINARY_DIR}/OmniCore/Libs")
 set(INCLUDE_DIR "${CMAKE_BINARY_DIR}/OmniCore/Include")
+set(LIBS_DIR "${CMAKE_BINARY_DIR}/OmniCore")
+
+if(WIN32)
+    set(ARCHIVE_DIR "${CMAKE_BINARY_DIR}/OmniCore/Libs")
+else()
+    set(ARCHIVE_DIR "${LIBS_DIR}")
+endif()
 
 add_library(OmniCore SHARED
     User/User.cpp
@@ -42,19 +47,13 @@ if(WIN32)
     add_custom_command(TARGET OmniCore POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "${LIBS_DIR}"
         COMMAND ${CMAKE_COMMAND} -E make_directory "${INCLUDE_DIR}"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${CMAKE_CURRENT_SOURCE_DIR}/OmniData/Libs/libOmniData.dll"
-            "${LIBS_DIR}/libOmniData.dll"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${CMAKE_CURRENT_SOURCE_DIR}/OmniUtils/Libs/libOmniUtils.dll"
-            "${LIBS_DIR}/libOmniUtils.dll"
     )
 elseif(APPLE)
     target_link_libraries(OmniCore PUBLIC
         ${SODIUM_LIB}
         Boost::json
-        ${CMAKE_CURRENT_SOURCE_DIR}/OmniUtils/Libs/libOmniUtils.dylib
-        ${CMAKE_CURRENT_SOURCE_DIR}/OmniData/Libs/libOmniData.dylib
+        ${CMAKE_CURRENT_SOURCE_DIR}/OmniUtils/libOmniUtils.dylib
+        ${CMAKE_CURRENT_SOURCE_DIR}/OmniData/libOmniData.dylib
     )
     add_custom_command(TARGET OmniCore POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "${LIBS_DIR}"
@@ -64,8 +63,8 @@ else()
     target_link_libraries(OmniCore PUBLIC
         ${SODIUM_LIB}
         Boost::json
-        ${CMAKE_CURRENT_SOURCE_DIR}/OmniUtils/Libs/libOmniUtils.so
-        ${CMAKE_CURRENT_SOURCE_DIR}/OmniData/Libs/libOmniData.so
+        ${CMAKE_CURRENT_SOURCE_DIR}/OmniUtils/libOmniUtils.so
+        ${CMAKE_CURRENT_SOURCE_DIR}/OmniData/libOmniData.so
     )
     add_custom_command(TARGET OmniCore POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "${LIBS_DIR}"
@@ -111,7 +110,7 @@ foreach(HDR ${PUBLIC_HEADERS})
     get_filename_component(DEST_INC_DIR "${DEST_PATH}" DIRECTORY)
     add_custom_command(TARGET OmniCore POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_INC_DIR}"
-        COMMAND ${CMAKE_COMMAND} -E copy "${HDR}" "${DEST_PATH}"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${HDR}" "${DEST_PATH}"
     )
 endforeach()
 
@@ -137,13 +136,12 @@ foreach(DIR ${HEADER_DIRS})
         get_filename_component(DEST_INC_DIR "${DEST_PATH}" DIRECTORY)
         add_custom_command(TARGET OmniCore POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_INC_DIR}"
-            COMMAND ${CMAKE_COMMAND} -E copy "${HDR}" "${DEST_PATH}"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${HDR}" "${DEST_PATH}"
         )
     endforeach()
 endforeach()
 
-
-if(UNIX AND NOT APPLE)
+if(UNIX)
     install(TARGETS OmniCore
         LIBRARY DESTINATION lib/OmniSphere
         ARCHIVE DESTINATION lib/OmniSphere
@@ -181,4 +179,3 @@ if(UNIX AND NOT APPLE)
         message(STATUS \"Configured ldconfig for OmniSphere libraries\")
     ")
 endif()
-
