@@ -41,8 +41,8 @@ if(WIN32)
     target_link_libraries(OmniCore PUBLIC
         ${SODIUM_LIB}
         Boost::json
-        ${CMAKE_CURRENT_SOURCE_DIR}/OmniUtils/libOmniUtils.dll.a
-        ${CMAKE_CURRENT_SOURCE_DIR}/OmniData/libOmniData.dll.a
+        ${CMAKE_CURRENT_SOURCE_DIR}/OmniUtils/Libs/libOmniUtils.dll.a
+        ${CMAKE_CURRENT_SOURCE_DIR}/OmniData/Libs/libOmniData.dll.a
     )
     add_custom_command(TARGET OmniCore POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "${LIBS_DIR}"
@@ -87,7 +87,7 @@ if(WIN32)
     set_target_properties(OmniCore PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${LIBS_DIR}"
         LIBRARY_OUTPUT_DIRECTORY "${LIBS_DIR}"
-        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/OmniCore"
+        ARCHIVE_OUTPUT_DIRECTORY "${ARCHIVE_DIR}"
     )
 else()
     set_target_properties(OmniCore PROPERTIES
