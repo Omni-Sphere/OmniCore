@@ -2,8 +2,7 @@
 #include <optional>
 #include <string>
 
-
-namespace omnisphere::omnicore::dtos {
+namespace omnisphere::dtos {
 struct SearchUsers {
   std::optional<std::string> CodeEqualsTo;
   std::optional<std::string> CodeContains;
@@ -14,4 +13,4 @@ struct SearchUsers {
   std::optional<std::string> PhoneEqualsTo;
   std::optional<std::string> PhoneContains;
 };
-} // namespace omnisphere::omnicore::dtos
+} // namespace omnisphere::dtos

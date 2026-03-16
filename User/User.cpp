@@ -2,39 +2,34 @@
 #include "Repositories/User.hpp"
 #include <stdexcept>
 
-namespace omnisphere::omnicore::services {
+namespace omnisphere::services {
 
 struct User::Impl {
-  std::shared_ptr<omnisphere::omnicore::repositories::User> user;
-  explicit Impl(
-      std::shared_ptr<omnisphere::omnidata::services::Database> _database)
-      : user(std::make_shared<omnisphere::omnicore::repositories::User>(
-            _database)) {}
+  std::shared_ptr<omnisphere::repositories::User> user;
+  explicit Impl(std::shared_ptr<omnisphere::services::Database> _database)
+      : user(std::make_shared<omnisphere::repositories::User>(_database)) {}
 };
 
-User::User(std::shared_ptr<omnisphere::omnidata::services::Database> _database)
+User::User(std::shared_ptr<omnisphere::services::Database> _database)
     : pimpl(std::make_unique<Impl>(_database)) {}
 
 User::~User() = default;
 
-bool User::Add(const omnisphere::omnicore::dtos::CreateUser &newUser) const {
+bool User::Add(const omnisphere::dtos::CreateUser &newUser) const {
   try {
-    if (Exists(omnisphere::omnicore::enums::UserFilter::Code, newUser.Code))
+    if (Exists(omnisphere::enums::UserFilter::Code, newUser.Code))
       throw std::runtime_error("Code already exists");
 
     if (newUser.Name.has_value() &&
-        Exists(omnisphere::omnicore::enums::UserFilter::Name,
-               newUser.Name.value()))
+        Exists(omnisphere::enums::UserFilter::Name, newUser.Name.value()))
       throw std::runtime_error("Name already exists");
 
     if (newUser.Phone.has_value() &&
-        Exists(omnisphere::omnicore::enums::UserFilter::Phone,
-               newUser.Phone.value()))
+        Exists(omnisphere::enums::UserFilter::Phone, newUser.Phone.value()))
       throw std::runtime_error("Phone already exists");
 
     if (newUser.Email.has_value() &&
-        Exists(omnisphere::omnicore::enums::UserFilter::Email,
-               newUser.Email.value()))
+        Exists(omnisphere::enums::UserFilter::Email, newUser.Email.value()))
       throw std::runtime_error("Email already exists");
 
     if (pimpl->user->Create(newUser))
@@ -46,37 +41,33 @@ bool User::Add(const omnisphere::omnicore::dtos::CreateUser &newUser) const {
   }
 };
 
-omnisphere::omnicore::models::User
-User::Modify(const omnisphere::omnicore::dtos::UpdateUser &uUser) const {
+omnisphere::models::User
+User::Modify(const omnisphere::dtos::UpdateUser &uUser) const {
   try {
     if (uUser.Where.Code.has_value() &&
-        !Exists(omnisphere::omnicore::enums::UserFilter::Code,
-                uUser.Where.Code.value()))
+        !Exists(omnisphere::enums::UserFilter::Code, uUser.Where.Code.value()))
       throw std::invalid_argument("User Code doesn't exists");
 
     if (uUser.Data.Email.has_value() &&
-        Exists(omnisphere::omnicore::enums::UserFilter::Email,
-               uUser.Data.Email.value()))
+        Exists(omnisphere::enums::UserFilter::Email, uUser.Data.Email.value()))
       throw std::runtime_error("UserEmail already exists");
 
     if (uUser.Data.Name.has_value() &&
-        Exists(omnisphere::omnicore::enums::UserFilter::Name,
-               uUser.Data.Name.value()))
+        Exists(omnisphere::enums::UserFilter::Name, uUser.Data.Name.value()))
       throw std::runtime_error("UserName already exists");
 
     if (uUser.Data.Phone.has_value() &&
-        Exists(omnisphere::omnicore::enums::UserFilter::Phone,
-               uUser.Data.Phone.value()))
+        Exists(omnisphere::enums::UserFilter::Phone, uUser.Data.Phone.value()))
       throw std::runtime_error("UserPhone already exists");
 
     if (pimpl->user->Update(uUser)) {
-      omnisphere::omnidata::types::DataTable data;
+      omnisphere::types::DataTable data;
 
       if (uUser.Where.Code.has_value())
-        data = pimpl->user->Read(omnisphere::omnicore::enums::UserFilter::Code,
+        data = pimpl->user->Read(omnisphere::enums::UserFilter::Code,
                                  uUser.Where.Code.value());
 
-      omnisphere::omnicore::models::User user(
+      omnisphere::models::User user(
           data[0]["UserEntry"], data[0]["Code"],
           data[0]["Name"].GetOptional<std::string>(),
           data[0]["Email"].GetOptional<std::string>(),
@@ -96,27 +87,27 @@ User::Modify(const omnisphere::omnicore::dtos::UpdateUser &uUser) const {
 };
 
 bool User::ModifyPassword(
-    const omnisphere::omnicore::dtos::ChangePassword &userDTO) const {
+    const omnisphere::dtos::ChangePassword &userDTO) const {
   try {
     if (userDTO.Code.has_value()) {
-      if (!CheckPassword(omnisphere::omnicore::enums::UserFilter::Code,
+      if (!CheckPassword(omnisphere::enums::UserFilter::Code,
                          userDTO.Code.value(), userDTO.OldPassword))
         throw std::invalid_argument("Wrong password");
 
       if (!pimpl->user->UpdatePassword(
-              omnisphere::omnicore::enums::UserFilter::Code,
-              userDTO.Code.value(), userDTO.OldPassword, userDTO.NewPassword))
+              omnisphere::enums::UserFilter::Code, userDTO.Code.value(),
+              userDTO.OldPassword, userDTO.NewPassword))
         return false;
     } else if (userDTO.Entry.has_value()) {
-      if (!CheckPassword(omnisphere::omnicore::enums::UserFilter::Entry,
+      if (!CheckPassword(omnisphere::enums::UserFilter::Entry,
                          std::to_string(userDTO.Entry.value()),
                          userDTO.OldPassword))
         throw std::invalid_argument("Wrong password");
 
-      if (!pimpl->user->UpdatePassword(
-              omnisphere::omnicore::enums::UserFilter::Entry,
-              std::to_string(userDTO.Entry.value()), userDTO.OldPassword,
-              userDTO.NewPassword))
+      if (!pimpl->user->UpdatePassword(omnisphere::enums::UserFilter::Entry,
+                                       std::to_string(userDTO.Entry.value()),
+                                       userDTO.OldPassword,
+                                       userDTO.NewPassword))
         return false;
     }
 
@@ -127,11 +118,11 @@ bool User::ModifyPassword(
   }
 };
 
-std::vector<omnisphere::omnicore::models::User>
-User::Search(const omnisphere::omnicore::dtos::SearchUsers &filter) const {
+std::vector<omnisphere::models::User>
+User::Search(const omnisphere::dtos::SearchUsers &filter) const {
   try {
-    std::vector<omnisphere::omnicore::models::User> users;
-    omnisphere::omnidata::types::DataTable data = pimpl->user->Read(filter);
+    std::vector<omnisphere::models::User> users;
+    omnisphere::types::DataTable data = pimpl->user->Read(filter);
 
     if (data.RowsCount() == 0) {
       users.emplace_back(-1, "", "", std::nullopt, std::nullopt, -1, false,
@@ -159,14 +150,13 @@ User::Search(const omnisphere::omnicore::dtos::SearchUsers &filter) const {
   }
 };
 
-omnisphere::omnicore::models::User
-User::Get(const omnisphere::omnicore::enums::UserFilter &filter,
-          const std::string &value) const {
+omnisphere::models::User User::Get(const omnisphere::enums::UserFilter &filter,
+                                   const std::string &value) const {
   try {
-    omnisphere::omnidata::types::DataTable data;
-    omnisphere::omnicore::models::User userDef(
-        -1, "", "", std::nullopt, std::nullopt, -1, false, false, false, false,
-        false, -1, "", std::nullopt, std::nullopt);
+    omnisphere::types::DataTable data;
+    omnisphere::models::User userDef(-1, "", "", std::nullopt, std::nullopt, -1,
+                                     false, false, false, false, false, -1, "",
+                                     std::nullopt, std::nullopt);
 
     data = pimpl->user->Read(filter, value);
 
@@ -177,7 +167,7 @@ User::Get(const omnisphere::omnicore::enums::UserFilter &filter,
     if (data.RowsCount() == 0)
       return userDef;
 
-    omnisphere::omnicore::models::User user(
+    omnisphere::models::User user(
         data[0]["UserEntry"], data[0]["Code"],
         data[0]["Name"].GetOptional<std::string>(),
         data[0]["Email"].GetOptional<std::string>(),
@@ -195,11 +185,10 @@ User::Get(const omnisphere::omnicore::enums::UserFilter &filter,
   }
 };
 
-bool User::Exists(const omnisphere::omnicore::enums::UserFilter &filter,
+bool User::Exists(const omnisphere::enums::UserFilter &filter,
                   const std::string &value) const {
   try {
-    omnisphere::omnidata::types::DataTable data =
-        pimpl->user->Read(filter, value);
+    omnisphere::types::DataTable data = pimpl->user->Read(filter, value);
 
     if (data.RowsCount() > 1)
       throw std::runtime_error(
@@ -214,29 +203,26 @@ bool User::Exists(const omnisphere::omnicore::enums::UserFilter &filter,
   }
 };
 
-bool User::CheckPassword(
-    const omnisphere::omnicore::enums::UserFilter &userFilter,
-    const std::string &value, const std::string &oldPassword) const {
+bool User::CheckPassword(const omnisphere::enums::UserFilter &userFilter,
+                         const std::string &value,
+                         const std::string &oldPassword) const {
   try {
     switch (userFilter) {
-    case omnisphere::omnicore::enums::UserFilter::Code:
-      if (!pimpl->user->ValidatePassword(
-              omnisphere::omnicore::enums::UserFilter::Code, value,
-              oldPassword))
+    case omnisphere::enums::UserFilter::Code:
+      if (!pimpl->user->ValidatePassword(omnisphere::enums::UserFilter::Code,
+                                         value, oldPassword))
         return false;
       break;
 
-    case omnisphere::omnicore::enums::UserFilter::Email:
-      if (!pimpl->user->ValidatePassword(
-              omnisphere::omnicore::enums::UserFilter::Email, value,
-              oldPassword))
+    case omnisphere::enums::UserFilter::Email:
+      if (!pimpl->user->ValidatePassword(omnisphere::enums::UserFilter::Email,
+                                         value, oldPassword))
         return false;
       break;
 
-    case omnisphere::omnicore::enums::UserFilter::Phone:
-      if (!pimpl->user->ValidatePassword(
-              omnisphere::omnicore::enums::UserFilter::Phone, value,
-              oldPassword))
+    case omnisphere::enums::UserFilter::Phone:
+      if (!pimpl->user->ValidatePassword(omnisphere::enums::UserFilter::Phone,
+                                         value, oldPassword))
         return false;
       break;
 
@@ -251,13 +237,12 @@ bool User::CheckPassword(
   }
 }
 
-bool User::LockUnlockUser(
-    const omnisphere::omnicore::enums::UserFilter &userFilter,
-    const std::string &value, const bool &lock) const {
+bool User::LockUnlockUser(const omnisphere::enums::UserFilter &userFilter,
+                          const std::string &value, const bool &lock) const {
   try {
     switch (userFilter) {
-    case omnisphere::omnicore::enums::UserFilter::Code:
-      if (!Exists(omnisphere::omnicore::enums::UserFilter::Code, value))
+    case omnisphere::enums::UserFilter::Code:
+      if (!Exists(omnisphere::enums::UserFilter::Code, value))
         throw std::runtime_error("User Code doesn't exists");
 
     default:
@@ -270,4 +255,4 @@ bool User::LockUnlockUser(
                              e.what());
   }
 }
-} // namespace omnisphere::omnicore::services
+} // namespace omnisphere::services

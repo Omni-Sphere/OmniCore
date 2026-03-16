@@ -1,5 +1,5 @@
 #pragma once
 
-namespace omnisphere::omnicore::enums {
+namespace omnisphere::enums {
 enum UserFilter { Entry, Code, Name, Email, Phone, Employee };
 }

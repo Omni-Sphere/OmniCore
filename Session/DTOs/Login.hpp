@@ -3,8 +3,7 @@
 #include <optional>
 #include <string>
 
-
-namespace omnisphere::omnicore::dtos {
+namespace omnisphere::dtos {
 struct Login {
   std::optional<std::string> Code;
   std::optional<std::string> Email;
@@ -14,4 +13,4 @@ struct Login {
   std::string HostName;
   std::string Password;
 };
-} // namespace omnisphere::omnicore::dtos
+} // namespace omnisphere::dtos

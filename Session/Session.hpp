@@ -11,20 +11,19 @@
 #include "DTOs/Login.hpp"
 #include "DTOs/Logout.hpp"
 
-namespace omnisphere::omnicore::services {
+namespace omnisphere::services {
 
 class Session {
 public:
-  explicit Session(
-      std::shared_ptr<omnisphere::omnidata::services::Database> database);
+  explicit Session(std::shared_ptr<omnisphere::services::Database> database);
 
   ~Session();
 
-  omnisphere::omnicore::models::AuthPayload
-  Login(const omnisphere::omnicore::dtos::Login &login) const;
+  omnisphere::models::AuthPayload
+  Login(const omnisphere::dtos::Login &login) const;
 
-  omnisphere::omnicore::models::LogoutPayload
-  Logout(const omnisphere::omnicore::dtos::Logout &logout) const;
+  omnisphere::models::LogoutPayload
+  Logout(const omnisphere::dtos::Logout &logout) const;
 
   bool Exists(const std::string &token) const;
 
@@ -34,4 +33,4 @@ private:
   struct Impl;
   std::unique_ptr<Impl> pimpl;
 };
-} // namespace omnisphere::omnicore::services
+} // namespace omnisphere::services

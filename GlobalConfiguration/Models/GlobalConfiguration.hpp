@@ -2,7 +2,7 @@
 #include <optional>
 #include <string>
 
-namespace omnisphere::omnicore::models {
+namespace omnisphere::models {
 
 class GlobalConfiguration {
 public:
@@ -12,4 +12,4 @@ public:
   std::optional<std::string> XMLPath;
   int PasswordExpirationDays;
 };
-} // namespace omnisphere::omnicore::models
+} // namespace omnisphere::models

@@ -2,22 +2,22 @@
 #include <stdexcept>
 #include <vector>
 
-namespace omnisphere::omnicore::repositories {
+namespace omnisphere::repositories {
 GlobalConfiguration::GlobalConfiguration(
-    std::shared_ptr<omnisphere::omnidata::services::Database> _database)
+    std::shared_ptr<omnisphere::services::Database> _database)
     : database(std::move(_database)) {}
 
 bool GlobalConfiguration::Update(
-    const omnisphere::omnicore::dtos::UpdateGlobalConfiguration &config) const {
+    const omnisphere::dtos::UpdateGlobalConfiguration &config) const {
   try {
     std::string sQuery = "UPDATE GlobalConfiguration SET ";
-    std::vector<omnisphere::omnidata::types::SQLParam> updateParams;
+    std::vector<omnisphere::types::SQLParam> updateParams;
     bool firstField = true;
 
     if (config.ImagePath.has_value()) {
       sQuery += "ImagePath = ?";
       updateParams.emplace_back(
-          omnisphere::omnidata::types::MakeSQLParam(config.ImagePath.value()));
+          omnisphere::types::MakeSQLParam(config.ImagePath.value()));
       firstField = false;
     }
 
@@ -26,7 +26,7 @@ bool GlobalConfiguration::Update(
         sQuery += ", ";
       sQuery += "PDFPath = ?";
       updateParams.emplace_back(
-          omnisphere::omnidata::types::MakeSQLParam(config.PDFPath.value()));
+          omnisphere::types::MakeSQLParam(config.PDFPath.value()));
       firstField = false;
     }
 
@@ -35,7 +35,7 @@ bool GlobalConfiguration::Update(
         sQuery += ", ";
       sQuery += "XMLPath = ?";
       updateParams.emplace_back(
-          omnisphere::omnidata::types::MakeSQLParam(config.XMLPath.value()));
+          omnisphere::types::MakeSQLParam(config.XMLPath.value()));
       firstField = false;
     }
 
@@ -43,7 +43,7 @@ bool GlobalConfiguration::Update(
       if (!firstField)
         sQuery += ", ";
       sQuery += "PasswordExpirationDays = ?";
-      updateParams.emplace_back(omnisphere::omnidata::types::MakeSQLParam(
+      updateParams.emplace_back(omnisphere::types::MakeSQLParam(
           config.PasswordExpirationDays.value()));
       firstField = false;
     }
@@ -69,21 +69,21 @@ bool GlobalConfiguration::Update(
   }
 }
 
-omnisphere::omnicore::models::GlobalConfiguration
+omnisphere::models::GlobalConfiguration
 GlobalConfiguration::Get(int confEntry) const {
   try {
     std::string sQuery =
         "SELECT ConfEntry, ImagePath, PDFPath, XMLPath, "
         "PasswordExpirationDays FROM GlobalConfiguration WHERE ConfEntry = ?";
 
-    omnisphere::omnidata::types::DataTable data =
+    omnisphere::types::DataTable data =
         database->FetchPrepared(sQuery, std::to_string(confEntry));
 
     if (data.RowsCount() == 0) {
       throw std::runtime_error("Configuration not found");
     }
 
-    omnisphere::omnicore::models::GlobalConfiguration config;
+    omnisphere::models::GlobalConfiguration config;
     config.ConfEntry = data[0]["ConfEntry"];
 
     if (!data[0]["ImagePath"].IsNull())
@@ -103,4 +103,4 @@ GlobalConfiguration::Get(int confEntry) const {
         std::string("[GlobalConfiguration Get Exception] ") + e.what());
   }
 }
-} // namespace omnisphere::omnicore::repositories
+} // namespace omnisphere::repositories

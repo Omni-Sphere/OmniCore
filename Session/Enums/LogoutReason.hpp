@@ -1,6 +1,6 @@
 #pragma once
 
-namespace omnisphere::omnicore::enums {
+namespace omnisphere::enums {
 enum LogoutReason {
   UNDEFINED = -1,
   USER_LOGOUT,

@@ -10,53 +10,51 @@
 #include "../User/User.hpp"
 #include "Repositories/Session.hpp"
 
-namespace omnisphere::omnicore::services {
+namespace omnisphere::services {
 
 struct Session::Impl {
-  std::shared_ptr<omnisphere::omnicore::repositories::Session> session;
-  std::shared_ptr<omnisphere::omnicore::services::User> user;
+  std::shared_ptr<omnisphere::repositories::Session> session;
+  std::shared_ptr<omnisphere::services::User> user;
 
-  explicit Impl(std::shared_ptr<omnisphere::omnidata::services::Database> db)
-      : session(
-            std::make_shared<omnisphere::omnicore::repositories::Session>(db)),
-        user(std::make_shared<omnisphere::omnicore::services::User>(db)) {}
+  explicit Impl(std::shared_ptr<omnisphere::services::Database> db)
+      : session(std::make_shared<omnisphere::repositories::Session>(db)),
+        user(std::make_shared<omnisphere::services::User>(db)) {}
 };
 
-Session::Session(std::shared_ptr<omnisphere::omnidata::services::Database> db)
+Session::Session(std::shared_ptr<omnisphere::services::Database> db)
     : pimpl(std::make_unique<Impl>(db)) {}
 
 Session::~Session() = default;
 
-omnisphere::omnicore::models::AuthPayload
-Session::Login(const omnisphere::omnicore::dtos::Login &login) const {
+omnisphere::models::AuthPayload
+Session::Login(const omnisphere::dtos::Login &login) const {
   try {
     if (login.Code.has_value() &&
-        !pimpl->user->Exists(omnisphere::omnicore::enums::UserFilter::Code,
+        !pimpl->user->Exists(omnisphere::enums::UserFilter::Code,
                              login.Code.value()))
       throw std::runtime_error("User Code doesn't exists");
 
     if (login.Email.has_value() &&
-        !pimpl->user->Exists(omnisphere::omnicore::enums::UserFilter::Email,
+        !pimpl->user->Exists(omnisphere::enums::UserFilter::Email,
                              login.Email.value()))
       throw std::runtime_error("User Email doesn't exists");
 
     if (login.Phone.has_value() &&
-        !pimpl->user->Exists(omnisphere::omnicore::enums::UserFilter::Phone,
+        !pimpl->user->Exists(omnisphere::enums::UserFilter::Phone,
                              login.Phone.value()))
       throw std::runtime_error("User Phone doesn't exists");
 
     // Add lockout check
 
-    omnisphere::omnicore::models::User userModel =
-        [&]() -> omnisphere::omnicore::models::User {
+    omnisphere::models::User userModel = [&]() -> omnisphere::models::User {
       if (login.Code.has_value())
-        return pimpl->user->Get(omnisphere::omnicore::enums::UserFilter::Code,
+        return pimpl->user->Get(omnisphere::enums::UserFilter::Code,
                                 login.Code.value());
       else if (login.Email.has_value())
-        return pimpl->user->Get(omnisphere::omnicore::enums::UserFilter::Email,
+        return pimpl->user->Get(omnisphere::enums::UserFilter::Email,
                                 login.Email.value());
       else if (login.Phone.has_value())
-        return pimpl->user->Get(omnisphere::omnicore::enums::UserFilter::Phone,
+        return pimpl->user->Get(omnisphere::enums::UserFilter::Phone,
                                 login.Phone.value());
       throw std::runtime_error("No login credential provided");
     }();
@@ -65,27 +63,24 @@ Session::Login(const omnisphere::omnicore::dtos::Login &login) const {
       throw std::runtime_error("Account is locked");
 
     if (login.Code.has_value() &&
-        !pimpl->user->CheckPassword(
-            omnisphere::omnicore::enums::UserFilter::Code, login.Code.value(),
-            login.Password))
+        !pimpl->user->CheckPassword(omnisphere::enums::UserFilter::Code,
+                                    login.Code.value(), login.Password))
       throw std::runtime_error("Wrong password");
 
     if (login.Email.has_value() &&
-        !pimpl->user->CheckPassword(
-            omnisphere::omnicore::enums::UserFilter::Email, login.Email.value(),
-            login.Password))
+        !pimpl->user->CheckPassword(omnisphere::enums::UserFilter::Email,
+                                    login.Email.value(), login.Password))
       throw std::runtime_error("Wrong password");
 
     if (login.Phone.has_value() &&
-        !pimpl->user->CheckPassword(
-            omnisphere::omnicore::enums::UserFilter::Phone, login.Phone.value(),
-            login.Password))
+        !pimpl->user->CheckPassword(omnisphere::enums::UserFilter::Phone,
+                                    login.Phone.value(), login.Password))
       throw std::runtime_error("Wrong password");
 
     pimpl->session->Create(login);
 
-    omnisphere::omnidata::types::DataTable data;
-    omnisphere::omnicore::models::AuthPayload authPayload;
+    omnisphere::types::DataTable data;
+    omnisphere::models::AuthPayload authPayload;
 
     data = pimpl->session->Read(login);
 
@@ -98,19 +93,19 @@ Session::Login(const omnisphere::omnicore::dtos::Login &login) const {
         omnisphere::utils::JWT::GenerateToken(payload, 86400);
 
     if (login.Code.has_value())
-      authPayload.User = std::make_shared<omnisphere::omnicore::models::User>(
-          pimpl->user->Get(omnisphere::omnicore::enums::UserFilter::Code,
-                           data[0]["UserCode"]));
+      authPayload.User =
+          std::make_shared<omnisphere::models::User>(pimpl->user->Get(
+              omnisphere::enums::UserFilter::Code, data[0]["UserCode"]));
 
     if (login.Email.has_value())
-      authPayload.User = std::make_shared<omnisphere::omnicore::models::User>(
-          pimpl->user->Get(omnisphere::omnicore::enums::UserFilter::Email,
-                           data[0]["UserEmail"]));
+      authPayload.User =
+          std::make_shared<omnisphere::models::User>(pimpl->user->Get(
+              omnisphere::enums::UserFilter::Email, data[0]["UserEmail"]));
 
     if (login.Phone.has_value())
-      authPayload.User = std::make_shared<omnisphere::omnicore::models::User>(
-          pimpl->user->Get(omnisphere::omnicore::enums::UserFilter::Phone,
-                           data[0]["UserPhone"]));
+      authPayload.User =
+          std::make_shared<omnisphere::models::User>(pimpl->user->Get(
+              omnisphere::enums::UserFilter::Phone, data[0]["UserPhone"]));
 
     return authPayload;
   } catch (const std::exception &e) {
@@ -124,8 +119,7 @@ bool Session::Active(const std::string &token) const {
 
     std::string sessionUUID = payload["SessionUUID"].as_string().c_str();
 
-    omnisphere::omnidata::types::DataTable data =
-        pimpl->session->IsActive(sessionUUID);
+    omnisphere::types::DataTable data = pimpl->session->IsActive(sessionUUID);
 
     if (data.RowsCount() == 0)
       return false;
@@ -140,8 +134,7 @@ bool Session::Active(const std::string &token) const {
 
 bool Session::Exists(const std::string &sessionUUID) const {
   try {
-    omnisphere::omnidata::types::DataTable data =
-        pimpl->session->ExistsUUID(sessionUUID);
+    omnisphere::types::DataTable data = pimpl->session->ExistsUUID(sessionUUID);
 
     const int sessionCount = data[0]["Total"];
 
@@ -162,8 +155,8 @@ bool Session::Exists(const std::string &sessionUUID) const {
   }
 }
 
-omnisphere::omnicore::models::LogoutPayload
-Session::Logout(const omnisphere::omnicore::dtos::Logout &logout) const {
+omnisphere::models::LogoutPayload
+Session::Logout(const omnisphere::dtos::Logout &logout) const {
   try {
     if (!Exists(logout.SessionUUID))
       throw std::runtime_error("Session UUID doesn't exists");
@@ -174,15 +167,15 @@ Session::Logout(const omnisphere::omnicore::dtos::Logout &logout) const {
     if (!pimpl->session->Close(logout))
       throw std::runtime_error("Session could not be closed.");
 
-    omnisphere::omnidata::types::DataTable data =
+    omnisphere::types::DataTable data =
         pimpl->session->Read(logout.SessionUUID);
 
-    omnisphere::omnicore::models::LogoutPayload logoutModel;
+    omnisphere::models::LogoutPayload logoutModel;
     logoutModel.SessionUUID = std::string(data[0]["SessionUUID"]);
     logoutModel.StartDate = std::string(data[0]["StartDate"]);
     logoutModel.EndDate = std::string(data[0]["EndDate"]);
     logoutModel.Duration = data[0]["DurationSeconds"];
-    logoutModel.Reason = static_cast<omnisphere::omnicore::enums::LogoutReason>(
+    logoutModel.Reason = static_cast<omnisphere::enums::LogoutReason>(
         static_cast<int>(data[0]["Reason"])); // Casting check might be needed
     logoutModel.Message = data[0]["LogoutMessage"].GetOptional<std::string>();
 
@@ -192,4 +185,4 @@ Session::Logout(const omnisphere::omnicore::dtos::Logout &logout) const {
   }
 }
 
-} // namespace omnisphere::omnicore::services
+} // namespace omnisphere::services

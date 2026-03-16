@@ -2,8 +2,7 @@
 #include <optional>
 #include <string>
 
-
-namespace omnisphere::omnicore::dtos {
+namespace omnisphere::dtos {
 struct GetUser {
   std::optional<int> Entry;
   std::optional<std::string> Code;
@@ -12,4 +11,4 @@ struct GetUser {
   std::optional<std::string> Phone;
   std::optional<std::string> SuperUser;
 };
-} // namespace omnisphere::omnicore::dtos
+} // namespace omnisphere::dtos

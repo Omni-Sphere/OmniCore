@@ -7,11 +7,11 @@
 #include "Models/User.hpp"
 #include <memory>
 
-namespace omnisphere::omnicore::repositories {
+namespace omnisphere::repositories {
 
 class User {
 private:
-  std::shared_ptr<omnisphere::omnidata::services::Database> database;
+  std::shared_ptr<omnisphere::services::Database> database;
   int _UserEntry = -1;
 
   bool UpdateUserSequence() const;
@@ -19,32 +19,30 @@ private:
   int GetCurrentSequence() const;
 
 public:
-  explicit User(
-      std::shared_ptr<omnisphere::omnidata::services::Database> database);
+  explicit User(std::shared_ptr<omnisphere::services::Database> database);
 
   ~User() {};
 
-  bool Create(const omnisphere::omnicore::dtos::CreateUser &user) const;
+  bool Create(const omnisphere::dtos::CreateUser &user) const;
 
-  bool Update(const omnisphere::omnicore::dtos::UpdateUser &user) const;
+  bool Update(const omnisphere::dtos::UpdateUser &user) const;
 
-  omnisphere::omnidata::types::DataTable
-  Read(const omnisphere::omnicore::dtos::SearchUsers &user) const;
+  omnisphere::types::DataTable
+  Read(const omnisphere::dtos::SearchUsers &user) const;
 
-  omnisphere::omnidata::types::DataTable
-  Read(const omnisphere::omnicore::enums::UserFilter &filter,
-       const std::string &value) const;
+  omnisphere::types::DataTable Read(const omnisphere::enums::UserFilter &filter,
+                                    const std::string &value) const;
 
   bool ExistsEntry(const int &entry) const;
 
   bool ExistsCode(const std::string &code) const;
 
-  bool UpdatePassword(const omnisphere::omnicore::enums::UserFilter &filter,
+  bool UpdatePassword(const omnisphere::enums::UserFilter &filter,
                       const std::string &value, const std::string &oldPassword,
                       const std::string &newPassword) const;
 
-  bool ValidatePassword(const omnisphere::omnicore::enums::UserFilter &filter,
+  bool ValidatePassword(const omnisphere::enums::UserFilter &filter,
                         const std::string &value,
                         const std::string &password) const;
 };
-} // namespace omnisphere::omnicore::repositories
+} // namespace omnisphere::repositories

@@ -2,8 +2,7 @@
 #include <optional>
 #include <string>
 
-
-namespace omnisphere::omnicore::dtos {
+namespace omnisphere::dtos {
 struct UserCondition {
   std::optional<int> Entry;
   std::optional<std::string> Code;
@@ -22,4 +21,4 @@ struct UpdateUser {
   std::string UpdateDate;
   int UpdatedBy;
 };
-} // namespace omnisphere::omnicore::dtos
+} // namespace omnisphere::dtos

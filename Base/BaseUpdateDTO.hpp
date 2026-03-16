@@ -4,8 +4,7 @@
 #include <stdexcept>
 #include <string>
 
-
-namespace omnisphere::omnicore::dtos {
+namespace omnisphere::dtos {
 struct BaseUpdateDTO {
   BaseUpdateDTO(std::string _Code, std::optional<std::string> _Name,
                 int _LastUpdatedBy, std::string _UpdateDate)
@@ -50,4 +49,4 @@ struct BaseUpdateDTO {
   const std::regex positiveIntRegex{R"(^[1-9][0-9]*$)"};
   const std::regex dateRegex{R"(^\d{4}-\d{2}-\d{2}$)"};
 };
-} // namespace omnisphere::omnicore::dtos
+} // namespace omnisphere::dtos

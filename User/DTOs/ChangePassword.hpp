@@ -2,8 +2,7 @@
 #include <optional>
 #include <string>
 
-
-namespace omnisphere::omnicore::dtos {
+namespace omnisphere::dtos {
 struct ChangePassword {
   std::optional<int> Entry;
   std::optional<std::string> Code;
@@ -12,4 +11,4 @@ struct ChangePassword {
   std::string UpdateDate;
   int UpdatedBy;
 };
-} // namespace omnisphere::omnicore::dtos
+} // namespace omnisphere::dtos

@@ -4,8 +4,7 @@
 #include <stdexcept>
 #include <string>
 
-
-namespace omnisphere::omnicore::models {
+namespace omnisphere::models {
 class BaseModel {
 public:
   BaseModel(int _Entry, std::string _Code, std::string _Name, int _CreatedBy,
@@ -53,4 +52,4 @@ protected:
 private:
   const std::regex alphaNumRegex{"^[A-Za-z0-9]+$"};
 };
-} // namespace omnisphere::omnicore::models
+} // namespace omnisphere::models
