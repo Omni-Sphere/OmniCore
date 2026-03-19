@@ -21,7 +21,7 @@ bool User::Create(const omnisphere::dtos::CreateUser &user) const {
                          "[Name], "
                          "Email, "
                          "Phone, "
-                         "EmployeeEntry, "
+                         "EmpEntry, "
                          "SuperUser, "
                          "IsLocked, "
                          "IsActive, "
@@ -125,7 +125,7 @@ bool User::Update(const omnisphere::dtos::UpdateUser &user) const {
     }
 
     if (user.Data.Employee.has_value()) {
-      sQuery += "EmployeeEntry = ?, ";
+      sQuery += "EmpEntry = ?, ";
       updateParams.emplace_back(
           omnisphere::types::MakeSQLParam(user.Data.Employee.value()));
     }
@@ -202,7 +202,7 @@ types::DataTable User::Read(const omnisphere::enums::UserFilter &filter,
                          "[Name], "
                          "Email, "
                          "Phone, "
-                         "EmployeeEntry, "
+                         "EmpEntry, "
                          "SuperUser, "
                          "IsLocked, "
                          "IsActive, "
@@ -239,7 +239,7 @@ types::DataTable User::Read(const omnisphere::enums::UserFilter &filter,
       break;
 
     case omnisphere::enums::UserFilter::Employee:
-      sQuery += "EmployeeEntry = ?";
+      sQuery += "EmpEntry = ?";
       break;
 
     default:
@@ -266,7 +266,7 @@ types::DataTable User::Read(const omnisphere::dtos::SearchUsers &filter) const {
                             "Phone, "
                             "IsLocked, "
                             "IsActive, "
-                            "EmployeeEntry, "
+                            "EmpEntry, "
                             "SuperUser, "
                             "PasswordNeverExpires, "
                             "ChangePasswordNextLogin, "
@@ -320,6 +320,10 @@ bool User::ValidatePassword(const omnisphere::enums::UserFilter &searchFilter,
     std::string sQuery = "SELECT Password FROM Users WHERE ";
 
     switch (searchFilter) {
+    case omnisphere::enums::UserFilter::Entry:
+      sQuery += "[UserEntry] = ?";
+      break;
+
     case omnisphere::enums::UserFilter::Code:
       sQuery += "[Code] = ?";
       break;
@@ -335,7 +339,7 @@ bool User::ValidatePassword(const omnisphere::enums::UserFilter &searchFilter,
     default:
       break;
     }
-
+    
     omnisphere::types::DataTable data =
         database->FetchPrepared(sQuery, filterValue);
 

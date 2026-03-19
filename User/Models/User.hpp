@@ -3,7 +3,6 @@
 #include <string>
 
 namespace omnisphere::models {
-
 class User {
 public:
   int Entry;
@@ -14,7 +13,7 @@ public:
   std::optional<int> Employee;
   bool SuperUser;
   bool IsLocked;
-  bool IsActive;
+  bool IsActive = true;
   bool ChangePasswordNextLogin;
   bool PasswordNeverExpires;
   int CreatedBy;

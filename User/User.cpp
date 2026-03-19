@@ -71,7 +71,7 @@ User::Modify(const omnisphere::dtos::UpdateUser &uUser) const {
           data[0]["UserEntry"], data[0]["Code"],
           data[0]["Name"].GetOptional<std::string>(),
           data[0]["Email"].GetOptional<std::string>(),
-          data[0]["Phone"].GetOptional<std::string>(), data[0]["EmployeeEntry"],
+          data[0]["Phone"].GetOptional<std::string>(), data[0]["EmpEntry"],
           data[0]["SuperUser"], data[0]["IsLocked"], data[0]["IsActive"],
           data[0]["ChangePasswordNextLogin"], data[0]["PasswordNeverExpires"],
           data[0]["CreatedBy"], data[0]["CreateDate"],
@@ -137,7 +137,7 @@ User::Search(const omnisphere::dtos::SearchUsers &filter) const {
             data[i]["Name"].GetOptional<std::string>(),
             data[i]["Email"].GetOptional<std::string>(),
             data[i]["Phone"].GetOptional<std::string>(),
-            data[i]["EmployeeEntry"].GetOptional<int>(), data[i]["SuperUser"],
+            data[i]["EmpEntry"].GetOptional<int>(), data[i]["SuperUser"],
             data[i]["IsLocked"], data[i]["IsActive"],
             data[i]["ChangePasswordNextLogin"], data[i]["PasswordNeverExpires"],
             data[i]["CreatedBy"], data[i]["CreateDate"],
@@ -172,7 +172,7 @@ omnisphere::models::User User::Get(const omnisphere::enums::UserFilter &filter,
         data[0]["Name"].GetOptional<std::string>(),
         data[0]["Email"].GetOptional<std::string>(),
         data[0]["Phone"].GetOptional<std::string>(),
-        data[0]["EmployeeEntry"].GetOptional<int>(), data[0]["SuperUser"],
+        data[0]["EmpEntry"].GetOptional<int>(), data[0]["SuperUser"],
         data[0]["IsLocked"], data[0]["IsActive"],
         data[0]["ChangePasswordNextLogin"], data[0]["PasswordNeverExpires"],
         data[0]["CreatedBy"], data[0]["CreateDate"],
@@ -203,26 +203,26 @@ bool User::Exists(const omnisphere::enums::UserFilter &filter,
   }
 };
 
-bool User::CheckPassword(const omnisphere::enums::UserFilter &userFilter,
-                         const std::string &value,
-                         const std::string &oldPassword) const {
+bool User::CheckPassword(const omnisphere::enums::UserFilter &userFilter, const std::string &value, const std::string &oldPassword) const {
   try {
     switch (userFilter) {
+    case omnisphere::enums::UserFilter::Entry:
+      if (!pimpl->user->ValidatePassword(omnisphere::enums::UserFilter::Entry, value, oldPassword))
+        return false;
+      break;
+
     case omnisphere::enums::UserFilter::Code:
-      if (!pimpl->user->ValidatePassword(omnisphere::enums::UserFilter::Code,
-                                         value, oldPassword))
+      if (!pimpl->user->ValidatePassword(omnisphere::enums::UserFilter::Code, value, oldPassword))
         return false;
       break;
 
     case omnisphere::enums::UserFilter::Email:
-      if (!pimpl->user->ValidatePassword(omnisphere::enums::UserFilter::Email,
-                                         value, oldPassword))
+      if (!pimpl->user->ValidatePassword(omnisphere::enums::UserFilter::Email, value, oldPassword))
         return false;
       break;
 
     case omnisphere::enums::UserFilter::Phone:
-      if (!pimpl->user->ValidatePassword(omnisphere::enums::UserFilter::Phone,
-                                         value, oldPassword))
+      if (!pimpl->user->ValidatePassword(omnisphere::enums::UserFilter::Phone, value, oldPassword))
         return false;
       break;
 

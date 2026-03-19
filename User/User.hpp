@@ -18,27 +18,13 @@ public:
   ~User();
 
   bool Add(const omnisphere::dtos::CreateUser &user) const;
-
-  omnisphere::models::User
-  Modify(const omnisphere::dtos::UpdateUser &user) const;
-
+  omnisphere::models::User Modify(const omnisphere::dtos::UpdateUser &user) const;
   bool ModifyPassword(const omnisphere::dtos::ChangePassword &) const;
-
-  bool CheckPassword(const omnisphere::enums::UserFilter &filter,
-                     const std::string &oldPassword,
-                     const std::string &newPassword) const;
-
-  bool LockUnlockUser(const omnisphere::enums::UserFilter &,
-                      const std::string &value, const bool &lock) const;
-
-  std::vector<omnisphere::models::User>
-  Search(const omnisphere::dtos::SearchUsers &user) const;
-
-  omnisphere::models::User Get(const omnisphere::enums::UserFilter &filter,
-                               const std::string &value) const;
-
-  bool Exists(const omnisphere::enums::UserFilter &filter,
-              const std::string &value) const;
+  bool CheckPassword(const omnisphere::enums::UserFilter &filter, const std::string &oldPassword, const std::string &newPassword) const;
+  bool LockUnlockUser(const omnisphere::enums::UserFilter &filter, const std::string &value, const bool &lock) const;
+  std::vector<omnisphere::models::User> Search(const omnisphere::dtos::SearchUsers &user) const;
+  omnisphere::models::User Get(const omnisphere::enums::UserFilter &filter, const std::string &value) const;
+  bool Exists(const omnisphere::enums::UserFilter &filter, const std::string &value) const;
 
 private:
   struct Impl;
