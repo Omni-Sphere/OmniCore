@@ -1,3 +1,5 @@
+#include <Database.hpp>
+#include <DataTable.hpp>
 #pragma once
 #include <optional>
 #include <string>
@@ -13,6 +15,11 @@ struct UserData {
   std::optional<std::string> Email;
   std::optional<std::string> Phone;
   std::optional<int> Employee;
+  std::optional<int> RoleEntry;
+  std::optional<double> MaxDiscountItem;
+  std::optional<double> MaxDiscountGeneral;
+  std::optional<std::string> PermissionMode;
+  std::optional<int> Department;
 };
 
 struct UpdateUser {

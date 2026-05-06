@@ -25,13 +25,14 @@ add_library(OmniCore SHARED
 
 target_include_directories(OmniCore
     PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/Base
         ${CMAKE_CURRENT_SOURCE_DIR}/User
         ${CMAKE_CURRENT_SOURCE_DIR}/Session
         ${CMAKE_CURRENT_SOURCE_DIR}/GlobalConfiguration
     PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/OmniUtils/Include
-        ${CMAKE_CURRENT_SOURCE_DIR}/OmniData/Include
+        ${CMAKE_SOURCE_DIR}/OmniUtils
+        ${CMAKE_SOURCE_DIR}/OmniData
 )
 
 find_library(SODIUM_LIB sodium REQUIRED)

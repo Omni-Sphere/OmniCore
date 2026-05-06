@@ -1,4 +1,9 @@
-#include "Session.hpp"
+#include <Database.hpp>
+#include <DataTable.hpp>
+#include <DataTable.hpp>
+#include <Database.hpp>
+#include <DataTable.hpp>
+#include <Session/Repositories/Session.hpp>
 
 namespace omnisphere::repositories {
 Session::Session(std::shared_ptr<omnisphere::services::Database> _database) {

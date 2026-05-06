@@ -1,4 +1,9 @@
-#include "Repositories/GlobalConfiguration.hpp"
+#include <Database.hpp>
+#include <DataTable.hpp>
+#include <DataTable.hpp>
+#include <Database.hpp>
+#include <DataTable.hpp>
+#include <GlobalConfiguration/Repositories/GlobalConfiguration.hpp>
 #include <stdexcept>
 #include <vector>
 

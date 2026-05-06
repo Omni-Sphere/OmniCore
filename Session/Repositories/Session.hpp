@@ -1,8 +1,11 @@
+#include <Database.hpp>
+#include <DataTable.hpp>
 #pragma once
+#include <DataTable.hpp>
 
-#include "../../OmniData/Include/Database.hpp"
-#include "../DTOs/Login.hpp"
-#include "../DTOs/Logout.hpp"
+#include <Database.hpp>
+#include <Session/DTOs/Login.hpp>
+#include <Session/DTOs/Logout.hpp>
 
 namespace omnisphere::repositories {
 class Session {

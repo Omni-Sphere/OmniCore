@@ -1,6 +1,8 @@
+#include <Database.hpp>
+#include <DataTable.hpp>
 #pragma once
 
-#include "../../User/Models/User.hpp"
+#include <User/Models/User.hpp>
 #include <iostream>
 #include <memory>
 

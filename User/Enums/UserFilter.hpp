@@ -1,3 +1,5 @@
+#include <Database.hpp>
+#include <DataTable.hpp>
 #pragma once
 
 namespace omnisphere::enums {

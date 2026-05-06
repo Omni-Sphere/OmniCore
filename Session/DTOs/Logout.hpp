@@ -1,9 +1,11 @@
+#include <Database.hpp>
+#include <DataTable.hpp>
 #pragma once
 
 #include <optional>
 #include <string>
 
-#include "Enums/LogoutReason.hpp"
+#include <Session/Enums/LogoutReason.hpp>
 
 namespace omnisphere::dtos {
 struct Logout {

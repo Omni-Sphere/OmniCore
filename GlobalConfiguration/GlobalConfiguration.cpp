@@ -1,5 +1,8 @@
-#include "GlobalConfiguration.hpp"
-#include "Repositories/GlobalConfiguration.hpp"
+#include <Database.hpp>
+#include <DataTable.hpp>
+#include <Database.hpp>
+#include <GlobalConfiguration/GlobalConfiguration.hpp>
+#include <GlobalConfiguration/Repositories/GlobalConfiguration.hpp>
 
 namespace omnisphere::services {
 

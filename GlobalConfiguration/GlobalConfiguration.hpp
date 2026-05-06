@@ -1,10 +1,12 @@
+#include <Database.hpp>
+#include <DataTable.hpp>
 #pragma once
 
 #include <memory>
 
-#include "DTOs/UpdateGlobalConfiguration.hpp"
-#include "Database.hpp"
-#include "Models/GlobalConfiguration.hpp"
+#include <GlobalConfiguration/DTOs/UpdateGlobalConfiguration.hpp>
+#include <Database.hpp>
+#include <GlobalConfiguration/Models/GlobalConfiguration.hpp>
 
 namespace omnisphere::services {
 

@@ -1,10 +1,13 @@
+#include <Database.hpp>
+#include <DataTable.hpp>
 #pragma once
-#include "../../OmniData/Include/Database.hpp"
-#include "DTOs/CreateUser.hpp"
-#include "DTOs/SearchUsers.hpp"
-#include "DTOs/UpdateUser.hpp"
-#include "Enums/UserFilter.hpp"
-#include "Models/User.hpp"
+#include <DataTable.hpp>
+#include <Database.hpp>
+#include <User/DTOs/CreateUser.hpp>
+#include <User/DTOs/SearchUsers.hpp>
+#include <User/DTOs/UpdateUser.hpp>
+#include <User/Enums/UserFilter.hpp>
+#include <User/Models/User.hpp>
 #include <memory>
 
 namespace omnisphere::repositories {

@@ -1,13 +1,15 @@
+#include <Database.hpp>
+#include <DataTable.hpp>
 #pragma once
 
-#include "../OmniData/Include/Database.hpp"
+#include <Database.hpp>
 
-#include "DTOs/ChangePassword.hpp"
-#include "DTOs/CreateUser.hpp"
-#include "DTOs/SearchUsers.hpp"
-#include "DTOs/UpdateUser.hpp"
-#include "Enums/UserFilter.hpp"
-#include "Models/User.hpp"
+#include <User/DTOs/ChangePassword.hpp>
+#include <User/DTOs/CreateUser.hpp>
+#include <User/DTOs/SearchUsers.hpp>
+#include <User/DTOs/UpdateUser.hpp>
+#include <User/Enums/UserFilter.hpp>
+#include <User/Models/User.hpp>
 
 namespace omnisphere::services {
 

@@ -1,15 +1,17 @@
+#include <Database.hpp>
+#include <DataTable.hpp>
 #pragma once
 
 #include <memory>
 #include <string>
 
-#include "../OmniData/Include/Database.hpp"
+#include <Database.hpp>
 
-#include "Models/AuthPayload.hpp"
-#include "Models/LogoutPayload.hpp"
+#include <Session/Models/AuthPayload.hpp>
+#include <Session/Models/LogoutPayload.hpp>
 
-#include "DTOs/Login.hpp"
-#include "DTOs/Logout.hpp"
+#include <Session/DTOs/Login.hpp>
+#include <Session/DTOs/Logout.hpp>
 
 namespace omnisphere::services {
 

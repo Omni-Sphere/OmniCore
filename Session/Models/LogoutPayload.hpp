@@ -1,6 +1,8 @@
+#include <Database.hpp>
+#include <DataTable.hpp>
 #pragma once
 
-#include "Enums/LogoutReason.hpp"
+#include <Session/Enums/LogoutReason.hpp>
 #include <iostream>
 
 namespace omnisphere::models {

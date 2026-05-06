@@ -1,14 +1,18 @@
-#include "Session.hpp"
-#include "../../OmniUtils/Include/JWT.hpp"
+#include <Database.hpp>
+#include <DataTable.hpp>
+#include <DataTable.hpp>
+#include <Database.hpp>
+#include <Session/Session.hpp>
+#include <JWT.hpp>
 #include <memory>
 #include <optional>
 #include <stdexcept>
 
-#include "../OmniData/Include/DataTable.hpp"
-#include "../User/Enums/UserFilter.hpp"
-#include "../User/Models/User.hpp"
-#include "../User/User.hpp"
-#include "Repositories/Session.hpp"
+#include <DataTable.hpp>
+#include <User/Enums/UserFilter.hpp>
+#include <User/Models/User.hpp>
+#include <User/User.hpp>
+#include <Session/Repositories/Session.hpp>
 
 namespace omnisphere::services {
 

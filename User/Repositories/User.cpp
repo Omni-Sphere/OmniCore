@@ -1,5 +1,10 @@
-#include "User.hpp"
-#include "../../OmniUtils/Include/Hasher.hpp"
+#include <Database.hpp>
+#include <DataTable.hpp>
+#include <DataTable.hpp>
+#include <Database.hpp>
+#include <DataTable.hpp>
+#include <User/Repositories/User.hpp>
+#include <Hasher.hpp>
 #include <functional>
 
 namespace omnisphere::repositories {
@@ -22,6 +27,11 @@ bool User::Create(const omnisphere::dtos::CreateUser &user) const {
                          "Email, "
                          "Phone, "
                          "EmpEntry, "
+                         "RoleEntry, "
+                         "MaxDiscountItem, "
+                         "MaxDiscountGeneral, "
+                         "PermissionMode, "
+                         "Department, "
                          "SuperUser, "
                          "IsLocked, "
                          "IsActive, "
@@ -31,7 +41,7 @@ bool User::Create(const omnisphere::dtos::CreateUser &user) const {
                          "CreatedBy, "
                          "CreateDate"
                          ") "
-                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     const std::vector<omnisphere::types::SQLParam> params = {
         omnisphere::types::MakeSQLParam(GetCurrentSequence()),
@@ -40,6 +50,11 @@ bool User::Create(const omnisphere::dtos::CreateUser &user) const {
         omnisphere::types::MakeSQLParam(user.Email),
         omnisphere::types::MakeSQLParam(user.Phone),
         omnisphere::types::MakeSQLParam(user.Employee),
+        omnisphere::types::MakeSQLParam(user.RoleEntry),
+        omnisphere::types::MakeSQLParam(user.MaxDiscountItem),
+        omnisphere::types::MakeSQLParam(user.MaxDiscountGeneral),
+        omnisphere::types::MakeSQLParam(user.PermissionMode),
+        omnisphere::types::MakeSQLParam(user.Department),
         omnisphere::types::MakeSQLParam(user.SuperUser),
         omnisphere::types::MakeSQLParam(false),
         omnisphere::types::MakeSQLParam(true),
@@ -130,6 +145,36 @@ bool User::Update(const omnisphere::dtos::UpdateUser &user) const {
           omnisphere::types::MakeSQLParam(user.Data.Employee.value()));
     }
 
+    if (user.Data.RoleEntry.has_value()) {
+      sQuery += "RoleEntry = ?, ";
+      updateParams.emplace_back(
+          omnisphere::types::MakeSQLParam(user.Data.RoleEntry.value()));
+    }
+
+    if (user.Data.MaxDiscountItem.has_value()) {
+      sQuery += "MaxDiscountItem = ?, ";
+      updateParams.emplace_back(
+          omnisphere::types::MakeSQLParam(user.Data.MaxDiscountItem.value()));
+    }
+
+    if (user.Data.MaxDiscountGeneral.has_value()) {
+      sQuery += "MaxDiscountGeneral = ?, ";
+      updateParams.emplace_back(
+          omnisphere::types::MakeSQLParam(user.Data.MaxDiscountGeneral.value()));
+    }
+
+    if (user.Data.PermissionMode.has_value()) {
+      sQuery += "PermissionMode = ?, ";
+      updateParams.emplace_back(
+          omnisphere::types::MakeSQLParam(user.Data.PermissionMode.value()));
+    }
+
+    if (user.Data.Department.has_value()) {
+      sQuery += "Department = ?, ";
+      updateParams.emplace_back(
+          omnisphere::types::MakeSQLParam(user.Data.Department.value()));
+    }
+
     if (user.Where.Entry.has_value()) {
       sQuery += "WHERE UserEntry = ?";
       updateParams.emplace_back(
@@ -203,6 +248,11 @@ types::DataTable User::Read(const omnisphere::enums::UserFilter &filter,
                          "Email, "
                          "Phone, "
                          "EmpEntry, "
+                         "RoleEntry, "
+                         "MaxDiscountItem, "
+                         "MaxDiscountGeneral, "
+                         "PermissionMode, "
+                         "Department, "
                          "SuperUser, "
                          "IsLocked, "
                          "IsActive, "
@@ -267,6 +317,11 @@ types::DataTable User::Read(const omnisphere::dtos::SearchUsers &filter) const {
                             "IsLocked, "
                             "IsActive, "
                             "EmpEntry, "
+                            "RoleEntry, "
+                            "MaxDiscountItem, "
+                            "MaxDiscountGeneral, "
+                            "PermissionMode, "
+                            "Department, "
                             "SuperUser, "
                             "PasswordNeverExpires, "
                             "ChangePasswordNextLogin, "

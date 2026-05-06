@@ -1,5 +1,10 @@
-#include "User.hpp"
-#include "Repositories/User.hpp"
+#include <Database.hpp>
+#include <DataTable.hpp>
+#include <DataTable.hpp>
+#include <Database.hpp>
+#include <DataTable.hpp>
+#include <User/User.hpp>
+#include <User/Repositories/User.hpp>
 #include <stdexcept>
 
 namespace omnisphere::services {
@@ -67,16 +72,22 @@ User::Modify(const omnisphere::dtos::UpdateUser &uUser) const {
         data = pimpl->user->Read(omnisphere::enums::UserFilter::Code,
                                  uUser.Where.Code.value());
 
-      omnisphere::models::User user(
+      omnisphere::models::User user{
           data[0]["UserEntry"], data[0]["Code"],
           data[0]["Name"].GetOptional<std::string>(),
           data[0]["Email"].GetOptional<std::string>(),
-          data[0]["Phone"].GetOptional<std::string>(), data[0]["EmpEntry"],
+          data[0]["Phone"].GetOptional<std::string>(),
+          data[0]["EmpEntry"].GetOptional<int>(),
+          data[0]["RoleEntry"].GetOptional<int>(),
+          data[0]["MaxDiscountItem"].GetOptional<double>(),
+          data[0]["MaxDiscountGeneral"].GetOptional<double>(),
+          data[0]["PermissionMode"].GetOptional<std::string>(),
+          data[0]["Department"].GetOptional<int>(),
           data[0]["SuperUser"], data[0]["IsLocked"], data[0]["IsActive"],
           data[0]["ChangePasswordNextLogin"], data[0]["PasswordNeverExpires"],
           data[0]["CreatedBy"], data[0]["CreateDate"],
           data[0]["LastUpdatedBy"].GetOptional<int>(),
-          data[0]["UpdateDate"].GetOptional<std::string>());
+          data[0]["UpdateDate"].GetOptional<std::string>()};
 
       return user;
     } else
@@ -125,24 +136,30 @@ User::Search(const omnisphere::dtos::SearchUsers &filter) const {
     omnisphere::types::DataTable data = pimpl->user->Read(filter);
 
     if (data.RowsCount() == 0) {
-      users.emplace_back(-1, "", "", std::nullopt, std::nullopt, -1, false,
+      users.emplace_back(omnisphere::models::User{-1, "", std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, false,
                          false, false, false, false, -1, "", std::nullopt,
-                         std::nullopt);
+                         std::nullopt});
     }
 
     if (data.RowsCount() > 0)
       for (int i = 0; i < data.RowsCount(); i++)
-        users.emplace_back(
+        users.emplace_back(omnisphere::models::User{
             data[i]["UserEntry"], data[i]["Code"],
             data[i]["Name"].GetOptional<std::string>(),
             data[i]["Email"].GetOptional<std::string>(),
             data[i]["Phone"].GetOptional<std::string>(),
-            data[i]["EmpEntry"].GetOptional<int>(), data[i]["SuperUser"],
+            data[i]["EmpEntry"].GetOptional<int>(),
+            data[i]["RoleEntry"].GetOptional<int>(),
+            data[i]["MaxDiscountItem"].GetOptional<double>(),
+            data[i]["MaxDiscountGeneral"].GetOptional<double>(),
+            data[i]["PermissionMode"].GetOptional<std::string>(),
+            data[i]["Department"].GetOptional<int>(),
+            data[i]["SuperUser"],
             data[i]["IsLocked"], data[i]["IsActive"],
             data[i]["ChangePasswordNextLogin"], data[i]["PasswordNeverExpires"],
             data[i]["CreatedBy"], data[i]["CreateDate"],
             data[i]["LastUpdatedBy"].GetOptional<int>(),
-            data[i]["UpdateDate"].GetOptional<std::string>());
+            data[i]["UpdateDate"].GetOptional<std::string>()});
 
     return users;
   } catch (const std::exception &e) {
@@ -154,9 +171,9 @@ omnisphere::models::User User::Get(const omnisphere::enums::UserFilter &filter,
                                    const std::string &value) const {
   try {
     omnisphere::types::DataTable data;
-    omnisphere::models::User userDef(-1, "", "", std::nullopt, std::nullopt, -1,
+    omnisphere::models::User userDef{-1, "", std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt,
                                      false, false, false, false, false, -1, "",
-                                     std::nullopt, std::nullopt);
+                                     std::nullopt, std::nullopt};
 
     data = pimpl->user->Read(filter, value);
 
@@ -167,17 +184,23 @@ omnisphere::models::User User::Get(const omnisphere::enums::UserFilter &filter,
     if (data.RowsCount() == 0)
       return userDef;
 
-    omnisphere::models::User user(
+    omnisphere::models::User user{
         data[0]["UserEntry"], data[0]["Code"],
         data[0]["Name"].GetOptional<std::string>(),
         data[0]["Email"].GetOptional<std::string>(),
         data[0]["Phone"].GetOptional<std::string>(),
-        data[0]["EmpEntry"].GetOptional<int>(), data[0]["SuperUser"],
+        data[0]["EmpEntry"].GetOptional<int>(),
+        data[0]["RoleEntry"].GetOptional<int>(),
+        data[0]["MaxDiscountItem"].GetOptional<double>(),
+        data[0]["MaxDiscountGeneral"].GetOptional<double>(),
+        data[0]["PermissionMode"].GetOptional<std::string>(),
+        data[0]["Department"].GetOptional<int>(),
+        data[0]["SuperUser"],
         data[0]["IsLocked"], data[0]["IsActive"],
         data[0]["ChangePasswordNextLogin"], data[0]["PasswordNeverExpires"],
         data[0]["CreatedBy"], data[0]["CreateDate"],
         data[0]["LastUpdatedBy"].GetOptional<int>(),
-        data[0]["UpdateDate"].GetOptional<std::string>());
+        data[0]["UpdateDate"].GetOptional<std::string>()};
 
     return user;
   } catch (const std::exception &e) {
