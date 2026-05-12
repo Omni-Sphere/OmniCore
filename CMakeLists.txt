@@ -31,47 +31,18 @@ target_include_directories(OmniCore
         ${CMAKE_CURRENT_SOURCE_DIR}/Session
         ${CMAKE_CURRENT_SOURCE_DIR}/GlobalConfiguration
     PRIVATE
-        ${CMAKE_SOURCE_DIR}/OmniUtils
-        ${CMAKE_SOURCE_DIR}/OmniData
+        ${CMAKE_CURRENT_SOURCE_DIR}/Base
 )
 
 find_library(SODIUM_LIB sodium REQUIRED)
 find_package(Boost REQUIRED COMPONENTS json)
 
-if(WIN32)
-    target_link_libraries(OmniCore PUBLIC
-        ${SODIUM_LIB}
-        Boost::json
-        ${CMAKE_CURRENT_SOURCE_DIR}/OmniUtils/Libs/libOmniUtils.dll.a
-        ${CMAKE_CURRENT_SOURCE_DIR}/OmniData/Libs/libOmniData.dll.a
-    )
-    add_custom_command(TARGET OmniCore POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${LIBS_DIR}"
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${INCLUDE_DIR}"
-    )
-elseif(APPLE)
-    target_link_libraries(OmniCore PUBLIC
-        ${SODIUM_LIB}
-        Boost::json
-        ${CMAKE_CURRENT_SOURCE_DIR}/OmniUtils/libOmniUtils.dylib
-        ${CMAKE_CURRENT_SOURCE_DIR}/OmniData/libOmniData.dylib
-    )
-    add_custom_command(TARGET OmniCore POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${LIBS_DIR}"
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${INCLUDE_DIR}"
-    )
-else()
-    target_link_libraries(OmniCore PUBLIC
-        ${SODIUM_LIB}
-        Boost::json
-        ${CMAKE_CURRENT_SOURCE_DIR}/OmniUtils/libOmniUtils.so
-        ${CMAKE_CURRENT_SOURCE_DIR}/OmniData/libOmniData.so
-    )
-    add_custom_command(TARGET OmniCore POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${LIBS_DIR}"
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${INCLUDE_DIR}"
-    )
-endif()
+target_link_libraries(OmniCore PUBLIC
+    ${SODIUM_LIB}
+    Boost::json
+    OmniUtils
+    OmniData
+)
 
 if(WIN32)
     target_link_libraries(OmniCore PUBLIC odbc32)
