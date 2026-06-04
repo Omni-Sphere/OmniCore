@@ -5,6 +5,7 @@
 #include <DataTable.hpp>
 #include <User/User.hpp>
 #include <User/Repositories/User.hpp>
+#include <User/Enums/PermissionMode.hpp>
 #include <stdexcept>
 
 namespace omnisphere::services {
@@ -79,9 +80,9 @@ User::Modify(const omnisphere::dtos::UpdateUser &uUser) const {
           data[0]["Phone"].GetOptional<std::string>(),
           data[0]["EmpEntry"].GetOptional<int>(),
           data[0]["RoleEntry"].GetOptional<int>(),
-          data[0]["MaxDiscountItem"].GetOptional<double>(),
-          data[0]["MaxDiscountGeneral"].GetOptional<double>(),
-          data[0]["PermissionMode"].GetOptional<std::string>(),
+          data[0]["MaxDisccountPerLine"].GetOptional<double>(),
+          data[0]["MaxDisccountPerDocument"].GetOptional<double>(),
+          data[0]["PermissionMode"].GetOptional<std::string>().has_value() ? std::optional<omnisphere::enums::PermissionMode>(data[0]["PermissionMode"].GetOptional<std::string>().value() == "P" ? omnisphere::enums::PermissionMode::P : omnisphere::enums::PermissionMode::M) : std::nullopt,
           data[0]["Department"].GetOptional<int>(),
           data[0]["SuperUser"], data[0]["IsLocked"], data[0]["IsActive"],
           data[0]["ChangePasswordNextLogin"], data[0]["PasswordNeverExpires"],
@@ -150,9 +151,9 @@ User::Search(const omnisphere::dtos::SearchUsers &filter) const {
             data[i]["Phone"].GetOptional<std::string>(),
             data[i]["EmpEntry"].GetOptional<int>(),
             data[i]["RoleEntry"].GetOptional<int>(),
-            data[i]["MaxDiscountItem"].GetOptional<double>(),
-            data[i]["MaxDiscountGeneral"].GetOptional<double>(),
-            data[i]["PermissionMode"].GetOptional<std::string>(),
+            data[i]["MaxDisccountPerLine"].GetOptional<double>(),
+            data[i]["MaxDisccountPerDocument"].GetOptional<double>(),
+            data[i]["PermissionMode"].GetOptional<std::string>().has_value() ? std::optional<omnisphere::enums::PermissionMode>(data[i]["PermissionMode"].GetOptional<std::string>().value() == "P" ? omnisphere::enums::PermissionMode::P : omnisphere::enums::PermissionMode::M) : std::nullopt,
             data[i]["Department"].GetOptional<int>(),
             data[i]["SuperUser"],
             data[i]["IsLocked"], data[i]["IsActive"],
@@ -191,9 +192,9 @@ omnisphere::models::User User::Get(const omnisphere::enums::UserFilter &filter,
         data[0]["Phone"].GetOptional<std::string>(),
         data[0]["EmpEntry"].GetOptional<int>(),
         data[0]["RoleEntry"].GetOptional<int>(),
-        data[0]["MaxDiscountItem"].GetOptional<double>(),
-        data[0]["MaxDiscountGeneral"].GetOptional<double>(),
-        data[0]["PermissionMode"].GetOptional<std::string>(),
+        data[0]["MaxDisccountPerLine"].GetOptional<double>(),
+        data[0]["MaxDisccountPerDocument"].GetOptional<double>(),
+        data[0]["PermissionMode"].GetOptional<std::string>().has_value() ? std::optional<omnisphere::enums::PermissionMode>(data[0]["PermissionMode"].GetOptional<std::string>().value() == "P" ? omnisphere::enums::PermissionMode::P : omnisphere::enums::PermissionMode::M) : std::nullopt,
         data[0]["Department"].GetOptional<int>(),
         data[0]["SuperUser"],
         data[0]["IsLocked"], data[0]["IsActive"],

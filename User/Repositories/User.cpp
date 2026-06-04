@@ -4,6 +4,7 @@
 #include <Database.hpp>
 #include <DataTable.hpp>
 #include <User/Repositories/User.hpp>
+#include <User/Enums/PermissionMode.hpp>
 #include <Hasher.hpp>
 #include <functional>
 
@@ -21,15 +22,15 @@ bool User::Create(const omnisphere::dtos::CreateUser &user) const {
         omnisphere::utils::Hasher::HashPassword(user.Password);
 
     std::string sQuery = "INSERT INTO Users ("
-                         "UserEntry, "
+                         "Entry, "
                          "[Code], "
                          "[Name], "
                          "Email, "
                          "Phone, "
-                         "EmpEntry, "
+                         "Employee, "
                          "RoleEntry, "
-                         "MaxDiscountItem, "
-                         "MaxDiscountGeneral, "
+                         "MaxDisccountPerLine, "
+                         "MaxDisccountPerDocument, "
                          "PermissionMode, "
                          "Department, "
                          "SuperUser, "
@@ -51,9 +52,9 @@ bool User::Create(const omnisphere::dtos::CreateUser &user) const {
         omnisphere::types::MakeSQLParam(user.Phone),
         omnisphere::types::MakeSQLParam(user.Employee),
         omnisphere::types::MakeSQLParam(user.RoleEntry),
-        omnisphere::types::MakeSQLParam(user.MaxDiscountItem),
-        omnisphere::types::MakeSQLParam(user.MaxDiscountGeneral),
-        omnisphere::types::MakeSQLParam(user.PermissionMode),
+        omnisphere::types::MakeSQLParam(user.MaxDisccountPerLine),
+        omnisphere::types::MakeSQLParam(user.MaxDisccountPerDocument),
+        omnisphere::types::MakeSQLParam(user.PermissionMode.has_value() ? std::optional<std::string>(user.PermissionMode.value() == omnisphere::enums::PermissionMode::P ? "P" : "M") : std::optional<std::string>("P")),
         omnisphere::types::MakeSQLParam(user.Department),
         omnisphere::types::MakeSQLParam(user.SuperUser),
         omnisphere::types::MakeSQLParam(false),
@@ -102,7 +103,7 @@ bool User::UpdateUserSequence() const {
 int User::GetCurrentSequence() const {
   try {
     const std::string sQuery = "SELECT ISNULL(UserSequence, 0) + 1 "
-                               "UserSequence FROM Sequences WHERE SeqEntry = 1";
+                               "UserSequence FROM Sequences WHERE Entry = 1";
 
     omnisphere::types::DataTable data = database->FetchResults(sQuery);
 
@@ -140,7 +141,7 @@ bool User::Update(const omnisphere::dtos::UpdateUser &user) const {
     }
 
     if (user.Data.Employee.has_value()) {
-      sQuery += "EmpEntry = ?, ";
+      sQuery += "Employee = ?, ";
       updateParams.emplace_back(
           omnisphere::types::MakeSQLParam(user.Data.Employee.value()));
     }
@@ -151,22 +152,22 @@ bool User::Update(const omnisphere::dtos::UpdateUser &user) const {
           omnisphere::types::MakeSQLParam(user.Data.RoleEntry.value()));
     }
 
-    if (user.Data.MaxDiscountItem.has_value()) {
-      sQuery += "MaxDiscountItem = ?, ";
+    if (user.Data.MaxDisccountPerLine.has_value()) {
+      sQuery += "MaxDisccountPerLine = ?, ";
       updateParams.emplace_back(
-          omnisphere::types::MakeSQLParam(user.Data.MaxDiscountItem.value()));
+          omnisphere::types::MakeSQLParam(user.Data.MaxDisccountPerLine.value()));
     }
 
-    if (user.Data.MaxDiscountGeneral.has_value()) {
-      sQuery += "MaxDiscountGeneral = ?, ";
+    if (user.Data.MaxDisccountPerDocument.has_value()) {
+      sQuery += "MaxDisccountPerDocument = ?, ";
       updateParams.emplace_back(
-          omnisphere::types::MakeSQLParam(user.Data.MaxDiscountGeneral.value()));
+          omnisphere::types::MakeSQLParam(user.Data.MaxDisccountPerDocument.value()));
     }
 
     if (user.Data.PermissionMode.has_value()) {
       sQuery += "PermissionMode = ?, ";
       updateParams.emplace_back(
-          omnisphere::types::MakeSQLParam(user.Data.PermissionMode.value()));
+          omnisphere::types::MakeSQLParam(std::string(user.Data.PermissionMode.value() == omnisphere::enums::PermissionMode::P ? "P" : "M")));
     }
 
     if (user.Data.Department.has_value()) {
@@ -176,7 +177,7 @@ bool User::Update(const omnisphere::dtos::UpdateUser &user) const {
     }
 
     if (user.Where.Entry.has_value()) {
-      sQuery += "WHERE UserEntry = ?";
+      sQuery += "WHERE Entry = ?";
       updateParams.emplace_back(
           omnisphere::types::MakeSQLParam(user.Where.Entry.value()));
     }
@@ -242,15 +243,15 @@ types::DataTable User::Read(const omnisphere::enums::UserFilter &filter,
                             const std::string &value) const {
   try {
     std::string sQuery = "SELECT "
-                         "[UserEntry], "
+                         "[Entry] AS UserEntry, "
                          "[Code], "
                          "[Name], "
                          "Email, "
                          "Phone, "
-                         "EmpEntry, "
+                         "Employee AS EmpEntry, "
                          "RoleEntry, "
-                         "MaxDiscountItem, "
-                         "MaxDiscountGeneral, "
+                         "MaxDisccountPerLine, "
+                         "MaxDisccountPerDocument, "
                          "PermissionMode, "
                          "Department, "
                          "SuperUser, "
@@ -269,7 +270,7 @@ types::DataTable User::Read(const omnisphere::enums::UserFilter &filter,
     switch (filter) {
 
     case omnisphere::enums::UserFilter::Entry:
-      sQuery += "[UserEntry] = ?";
+      sQuery += "[Entry] = ?";
       break;
 
     case omnisphere::enums::UserFilter::Name:
@@ -289,7 +290,7 @@ types::DataTable User::Read(const omnisphere::enums::UserFilter &filter,
       break;
 
     case omnisphere::enums::UserFilter::Employee:
-      sQuery += "EmpEntry = ?";
+      sQuery += "Employee = ?";
       break;
 
     default:
@@ -309,17 +310,17 @@ types::DataTable User::Read(const omnisphere::enums::UserFilter &filter,
 types::DataTable User::Read(const omnisphere::dtos::SearchUsers &filter) const {
   try {
     std::string baseQuery = "SELECT "
-                            "[UserEntry], "
+                            "[Entry] AS UserEntry, "
                             "[Code], "
                             "[Name], "
                             "Email, "
                             "Phone, "
                             "IsLocked, "
                             "IsActive, "
-                            "EmpEntry, "
+                            "Employee AS EmpEntry, "
                             "RoleEntry, "
-                            "MaxDiscountItem, "
-                            "MaxDiscountGeneral, "
+                            "MaxDisccountPerLine, "
+                            "MaxDisccountPerDocument, "
                             "PermissionMode, "
                             "Department, "
                             "SuperUser, "
@@ -376,7 +377,7 @@ bool User::ValidatePassword(const omnisphere::enums::UserFilter &searchFilter,
 
     switch (searchFilter) {
     case omnisphere::enums::UserFilter::Entry:
-      sQuery += "[UserEntry] = ?";
+      sQuery += "[Entry] = ?";
       break;
 
     case omnisphere::enums::UserFilter::Code:
@@ -417,7 +418,7 @@ bool User::ValidatePassword(const omnisphere::enums::UserFilter &searchFilter,
 bool User::ExistsEntry(const int &entry) const {
   try {
     const std::string sQuery =
-        "SELECT ISNULL(COUNT(*), 0) Total FROM Users WHERE UserEntry = ?";
+        "SELECT ISNULL(COUNT(*), 0) Total FROM Users WHERE Entry = ?";
 
     omnisphere::types::DataTable data =
         database->FetchPrepared(sQuery, std::to_string(entry));
