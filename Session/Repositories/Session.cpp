@@ -96,7 +96,7 @@ namespace omnisphere::repositories
         catch (const std::exception &e)
         {
             throw std::runtime_error(std::string("[GetCurrentSequence Exception] ") +
-                                         " " + e.what());
+                                     " " + e.what());
         }
     };
 
@@ -115,7 +115,7 @@ namespace omnisphere::repositories
         catch (const std::exception &e)
         {
             throw std::runtime_error(std::string("[SessionSequence Exception] ") + " " +
-                                         e.what());
+                                     e.what());
         }
     };
 
@@ -173,7 +173,7 @@ namespace omnisphere::repositories
         catch (const std::exception &e)
         {
             throw std::runtime_error(std::string("[ReadSessionData Exception] ") + " " +
-                                         e.what());
+                                     e.what());
         }
     };
 
@@ -191,7 +191,7 @@ namespace omnisphere::repositories
         catch (const std::exception &e)
         {
             throw std::runtime_error(std::string("[ReadSessionData Exception] ") + " " +
-                                         e.what());
+                                     e.what());
         }
     };
 
@@ -210,7 +210,7 @@ namespace omnisphere::repositories
         catch (const std::exception &e)
         {
             throw std::runtime_error(std::string("[ValidateSessionUUID Exception] ") +
-                                         " " + e.what());
+                                     " " + e.what());
         }
     };
 
@@ -228,7 +228,7 @@ namespace omnisphere::repositories
         catch (const std::exception &e)
         {
             throw std::runtime_error(std::string("[IsSessionActive Exception] ") + " " +
-                                         e.what());
+                                     e.what());
         }
     };
 
@@ -264,7 +264,7 @@ namespace omnisphere::repositories
         catch (const std::exception &e)
         {
             throw std::runtime_error(std::string("[CloseSession Exception] ") + " " +
-                                         e.what());
+                                     e.what());
         }
     };
 } // namespace omnisphere::repositories

@@ -22,12 +22,12 @@ namespace omnisphere::services
         std::shared_ptr<omnisphere::services::User> user;
 
         explicit Impl(std::shared_ptr<omnisphere::services::Database> db)
-        : session(std::make_shared<omnisphere::repositories::Session>(db)),
-        user(std::make_shared<omnisphere::services::User>(db)) {}
+            : session(std::make_shared<omnisphere::repositories::Session>(db)),
+            user(std::make_shared<omnisphere::services::User>(db)) {}
     };
 
     Session::Session(std::shared_ptr<omnisphere::services::Database> db)
-    : pimpl(std::make_unique<Impl>(db)) {}
+        : pimpl(std::make_unique<Impl>(db)) {}
 
     Session::~Session() = default;
 
@@ -37,18 +37,18 @@ namespace omnisphere::services
         try
         {
             if (login.Code.has_value() &&
-                    !pimpl->user->Exists(omnisphere::enums::UserFilter::Code,
-                                                 login.Code.value()))
+                !pimpl->user->Exists(omnisphere::enums::UserFilter::Code,
+                                     login.Code.value()))
             throw std::runtime_error("User Code doesn't exists");
 
             if (login.Email.has_value() &&
-                    !pimpl->user->Exists(omnisphere::enums::UserFilter::Email,
-                                                 login.Email.value()))
+                !pimpl->user->Exists(omnisphere::enums::UserFilter::Email,
+                                     login.Email.value()))
             throw std::runtime_error("User Email doesn't exists");
 
             if (login.Phone.has_value() &&
-                    !pimpl->user->Exists(omnisphere::enums::UserFilter::Phone,
-                                                 login.Phone.value()))
+                !pimpl->user->Exists(omnisphere::enums::UserFilter::Phone,
+                                     login.Phone.value()))
             throw std::runtime_error("User Phone doesn't exists");
 
             // Add lockout check
@@ -57,13 +57,13 @@ namespace omnisphere::services
             {
                 if (login.Code.has_value())
                     return pimpl->user->Get(omnisphere::enums::UserFilter::Code,
-                                                    login.Code.value());
+                                            login.Code.value());
                 else if (login.Email.has_value())
                     return pimpl->user->Get(omnisphere::enums::UserFilter::Email,
-                                                    login.Email.value());
+                                            login.Email.value());
                 else if (login.Phone.has_value())
                     return pimpl->user->Get(omnisphere::enums::UserFilter::Phone,
-                                                    login.Phone.value());
+                                            login.Phone.value());
                 throw std::runtime_error("No login credential provided");
             }();
 
@@ -71,18 +71,18 @@ namespace omnisphere::services
                 throw std::runtime_error("Account is locked");
 
             if (login.Code.has_value() &&
-                    !pimpl->user->CheckPassword(omnisphere::enums::UserFilter::Code,
-                                                        login.Code.value(), login.Password))
+                !pimpl->user->CheckPassword(omnisphere::enums::UserFilter::Code,
+                                            login.Code.value(), login.Password))
             throw std::runtime_error("Wrong password");
 
             if (login.Email.has_value() &&
-                    !pimpl->user->CheckPassword(omnisphere::enums::UserFilter::Email,
-                                                        login.Email.value(), login.Password))
+                !pimpl->user->CheckPassword(omnisphere::enums::UserFilter::Email,
+                                            login.Email.value(), login.Password))
             throw std::runtime_error("Wrong password");
 
             if (login.Phone.has_value() &&
-                    !pimpl->user->CheckPassword(omnisphere::enums::UserFilter::Phone,
-                                                        login.Phone.value(), login.Password))
+                !pimpl->user->CheckPassword(omnisphere::enums::UserFilter::Phone,
+                                            login.Phone.value(), login.Password))
             throw std::runtime_error("Wrong password");
 
             pimpl->session->Create(login);
@@ -169,7 +169,7 @@ namespace omnisphere::services
         catch (const std::exception &e)
         {
             throw std::runtime_error(std::string("[ExistsSession Exception] ") +
-                                         e.what());
+                                     e.what());
         }
     }
 

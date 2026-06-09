@@ -8,21 +8,22 @@
 #include <Database.hpp>
 #include <GlobalConfiguration/Models/GlobalConfiguration.hpp>
 
-namespace omnisphere::services {
+namespace omnisphere::services
+{
+    class GlobalConfiguration
+    {
+        public:
+        explicit GlobalConfiguration(
+            std::shared_ptr<omnisphere::services::Database> database);
 
-class GlobalConfiguration {
-public:
-  explicit GlobalConfiguration(
-      std::shared_ptr<omnisphere::services::Database> database);
+        ~GlobalConfiguration();
 
-  ~GlobalConfiguration();
+        bool Modify(const omnisphere::dtos::UpdateGlobalConfiguration &config) const;
 
-  bool Modify(const omnisphere::dtos::UpdateGlobalConfiguration &config) const;
+        omnisphere::models::GlobalConfiguration Get(int confEntry) const;
 
-  omnisphere::models::GlobalConfiguration Get(int confEntry) const;
-
-private:
-  struct Impl;
-  std::unique_ptr<Impl> pimpl;
-};
+        private:
+        struct Impl;
+        std::unique_ptr<Impl> pimpl;
+    };
 } // namespace omnisphere::services

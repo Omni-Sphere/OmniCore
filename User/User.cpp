@@ -14,11 +14,11 @@ namespace omnisphere::services
     {
         std::shared_ptr<omnisphere::repositories::User> user;
         explicit Impl(std::shared_ptr<omnisphere::services::Database> _database)
-        : user(std::make_shared<omnisphere::repositories::User>(_database)) {}
+            : user(std::make_shared<omnisphere::repositories::User>(_database)) {}
     };
 
     User::User(std::shared_ptr<omnisphere::services::Database> _database)
-    : pimpl(std::make_unique<Impl>(_database)) {}
+        : pimpl(std::make_unique<Impl>(_database)) {}
 
     User::~User() = default;
 
@@ -30,15 +30,15 @@ namespace omnisphere::services
                 throw std::runtime_error("Code already exists");
 
             if (newUser.Name.has_value() &&
-                    Exists(omnisphere::enums::UserFilter::Name, newUser.Name.value()))
+                Exists(omnisphere::enums::UserFilter::Name, newUser.Name.value()))
             throw std::runtime_error("Name already exists");
 
             if (newUser.Phone.has_value() &&
-                    Exists(omnisphere::enums::UserFilter::Phone, newUser.Phone.value()))
+                Exists(omnisphere::enums::UserFilter::Phone, newUser.Phone.value()))
             throw std::runtime_error("Phone already exists");
 
             if (newUser.Email.has_value() &&
-                    Exists(omnisphere::enums::UserFilter::Email, newUser.Email.value()))
+                Exists(omnisphere::enums::UserFilter::Email, newUser.Email.value()))
             throw std::runtime_error("Email already exists");
 
             if (pimpl->user->Create(newUser))
@@ -58,19 +58,19 @@ namespace omnisphere::services
         try
         {
             if (uUser.Where.Code.has_value() &&
-                    !Exists(omnisphere::enums::UserFilter::Code, uUser.Where.Code.value()))
+                !Exists(omnisphere::enums::UserFilter::Code, uUser.Where.Code.value()))
             throw std::invalid_argument("User Code doesn't exists");
 
             if (uUser.Data.Email.has_value() &&
-                    Exists(omnisphere::enums::UserFilter::Email, uUser.Data.Email.value()))
+                Exists(omnisphere::enums::UserFilter::Email, uUser.Data.Email.value()))
             throw std::runtime_error("UserEmail already exists");
 
             if (uUser.Data.Name.has_value() &&
-                    Exists(omnisphere::enums::UserFilter::Name, uUser.Data.Name.value()))
+                Exists(omnisphere::enums::UserFilter::Name, uUser.Data.Name.value()))
             throw std::runtime_error("UserName already exists");
 
             if (uUser.Data.Phone.has_value() &&
-                    Exists(omnisphere::enums::UserFilter::Phone, uUser.Data.Phone.value()))
+                Exists(omnisphere::enums::UserFilter::Phone, uUser.Data.Phone.value()))
             throw std::runtime_error("UserPhone already exists");
 
             if (pimpl->user->Update(uUser))
@@ -79,7 +79,7 @@ namespace omnisphere::services
 
                 if (uUser.Where.Code.has_value())
                     data = pimpl->user->Read(omnisphere::enums::UserFilter::Code,
-                                                     uUser.Where.Code.value());
+                                             uUser.Where.Code.value());
 
                 omnisphere::models::User user
                 {
@@ -118,7 +118,7 @@ namespace omnisphere::services
             if (userDTO.Code.has_value())
             {
                 if (!CheckPassword(omnisphere::enums::UserFilter::Code,
-                                         userDTO.Code.value(), userDTO.OldPassword))
+                                   userDTO.Code.value(), userDTO.OldPassword))
                 throw std::invalid_argument("Wrong password");
 
                 if (!pimpl->user->UpdatePassword(
@@ -130,14 +130,14 @@ namespace omnisphere::services
             else if (userDTO.Entry.has_value())
             {
                 if (!CheckPassword(omnisphere::enums::UserFilter::Entry,
-                                         std::to_string(userDTO.Entry.value()),
-                                         userDTO.OldPassword))
+                                   std::to_string(userDTO.Entry.value()),
+                                   userDTO.OldPassword))
                 throw std::invalid_argument("Wrong password");
 
                 if (!pimpl->user->UpdatePassword(omnisphere::enums::UserFilter::Entry,
-                                                       std::to_string(userDTO.Entry.value()),
-                                                       userDTO.OldPassword,
-                                                       userDTO.NewPassword))
+                                                 std::to_string(userDTO.Entry.value()),
+                                                 userDTO.OldPassword,
+                                                 userDTO.NewPassword))
 
                 return false;
             }
@@ -147,7 +147,7 @@ namespace omnisphere::services
         catch (const std::exception &e)
         {
             throw std::runtime_error(std::string("[ModifyPassword Exception]") +
-                                         e.what());
+                                     e.what());
         }
     };
 
@@ -163,30 +163,30 @@ namespace omnisphere::services
             {
                 users.emplace_back(omnisphere::models::User
                 {-1, "", std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, false,
-                                         false, false, false, false, -1, "", std::nullopt,
-                                         std::nullopt});
+                                   false, false, false, false, -1, "", std::nullopt,
+                                   std::nullopt});
             }
 
             if (data.RowsCount() > 0)
                 for (int i = 0; i < data.RowsCount(); i++)
                 users.emplace_back(omnisphere::models::User
             {
-                                           data[i]["UserEntry"], data[i]["Code"],
-                                           data[i]["Name"].GetOptional<std::string>(),
-                                           data[i]["Email"].GetOptional<std::string>(),
-                                           data[i]["Phone"].GetOptional<std::string>(),
-                                           data[i]["EmpEntry"].GetOptional<int>(),
-                                           data[i]["RoleEntry"].GetOptional<int>(),
-                                           data[i]["MaxDisccountPerLine"].GetOptional<double>(),
-                                           data[i]["MaxDisccountPerDocument"].GetOptional<double>(),
-                                           data[i]["PermissionMode"].GetOptional<std::string>().has_value() ? std::optional<omnisphere::enums::PermissionMode>(data[i]["PermissionMode"].GetOptional<std::string>().value() == "P" ? omnisphere::enums::PermissionMode::P : omnisphere::enums::PermissionMode::M) : std::nullopt,
-                                           data[i]["Department"].GetOptional<int>(),
-                                           data[i]["SuperUser"],
-                                           data[i]["IsLocked"], data[i]["IsActive"],
-                                           data[i]["ChangePasswordNextLogin"], data[i]["PasswordNeverExpires"],
-                                           data[i]["CreatedBy"], data[i]["CreateDate"],
-                                           data[i]["LastUpdatedBy"].GetOptional<int>(),
-                                           data[i]["UpdateDate"].GetOptional<std::string>()});
+                                   data[i]["UserEntry"], data[i]["Code"],
+                                   data[i]["Name"].GetOptional<std::string>(),
+                                   data[i]["Email"].GetOptional<std::string>(),
+                                   data[i]["Phone"].GetOptional<std::string>(),
+                                   data[i]["EmpEntry"].GetOptional<int>(),
+                                   data[i]["RoleEntry"].GetOptional<int>(),
+                                   data[i]["MaxDisccountPerLine"].GetOptional<double>(),
+                                   data[i]["MaxDisccountPerDocument"].GetOptional<double>(),
+                                   data[i]["PermissionMode"].GetOptional<std::string>().has_value() ? std::optional<omnisphere::enums::PermissionMode>(data[i]["PermissionMode"].GetOptional<std::string>().value() == "P" ? omnisphere::enums::PermissionMode::P : omnisphere::enums::PermissionMode::M) : std::nullopt,
+                                   data[i]["Department"].GetOptional<int>(),
+                                   data[i]["SuperUser"],
+                                   data[i]["IsLocked"], data[i]["IsActive"],
+                                   data[i]["ChangePasswordNextLogin"], data[i]["PasswordNeverExpires"],
+                                   data[i]["CreatedBy"], data[i]["CreateDate"],
+                                   data[i]["LastUpdatedBy"].GetOptional<int>(),
+                                   data[i]["UpdateDate"].GetOptional<std::string>()});
 
             return users;
         }
@@ -304,7 +304,7 @@ namespace omnisphere::services
         catch (const std::exception &e)
         {
             throw std::runtime_error(std::string("[CheckPassword Exception] ") +
-                                         e.what());
+                                     e.what());
         }
     }
 
@@ -329,7 +329,7 @@ namespace omnisphere::services
         catch (const std::exception &e)
         {
             throw std::runtime_error(std::string("[LockUnlockUser Exception] ") +
-                                         e.what());
+                                     e.what());
         }
     }
 } // namespace omnisphere::services

@@ -6,20 +6,21 @@
 #include <GlobalConfiguration/Models/GlobalConfiguration.hpp>
 #include <memory>
 
-namespace omnisphere::repositories {
+namespace omnisphere::repositories
+{
+    class GlobalConfiguration
+    {
+        private:
+        std::shared_ptr<omnisphere::services::Database> database;
 
-class GlobalConfiguration {
-private:
-  std::shared_ptr<omnisphere::services::Database> database;
+        public:
+        explicit GlobalConfiguration(
+            std::shared_ptr<omnisphere::services::Database> database);
 
-public:
-  explicit GlobalConfiguration(
-      std::shared_ptr<omnisphere::services::Database> database);
+        ~GlobalConfiguration() = default;
 
-  ~GlobalConfiguration() = default;
+        bool Update(const omnisphere::dtos::UpdateGlobalConfiguration &config) const;
 
-  bool Update(const omnisphere::dtos::UpdateGlobalConfiguration &config) const;
-
-  omnisphere::models::GlobalConfiguration Get(int confEntry) const;
-};
+        omnisphere::models::GlobalConfiguration Get(int confEntry) const;
+    };
 } // namespace omnisphere::repositories

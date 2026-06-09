@@ -11,7 +11,7 @@
 namespace omnisphere::repositories
 {
     User::User(std::shared_ptr<omnisphere::services::Database> _database)
-    : database(std::move(_database)) {}
+        : database(std::move(_database)) {}
 
     bool User::Create(const omnisphere::dtos::CreateUser &user) const
     {
@@ -88,7 +88,7 @@ namespace omnisphere::repositories
         {
             database->RollbackTransaction();
             throw std::runtime_error(std::string("[CreateUser Exception] ") + " " +
-                                         e.what());
+                                     e.what());
         }
     }
 
@@ -107,7 +107,7 @@ namespace omnisphere::repositories
         catch (const std::exception &e)
         {
             throw std::runtime_error(std::string("[UpdateUserSequence Exception] ") +
-                                         " " + e.what());
+                                     " " + e.what());
         }
     };
 
@@ -128,7 +128,7 @@ namespace omnisphere::repositories
         catch (const std::exception &e)
         {
             throw std::runtime_error(std::string("[GetCurrentSequence Exception] ") +
-                                         " " + e.what());
+                                     " " + e.what());
         }
     };
 
@@ -271,7 +271,7 @@ namespace omnisphere::repositories
         {
             database->RollbackTransaction();
             throw std::runtime_error(std::string("[UpdatePassword Exception]: ") +
-                                         e.what());
+                                     e.what());
         }
     };
 
@@ -343,7 +343,7 @@ namespace omnisphere::repositories
         catch (const std::exception &e)
         {
             throw std::runtime_error(std::string("[ReadByCode Exception] ") + " " +
-                                         e.what());
+                                     e.what());
         }
     };
 
@@ -378,7 +378,7 @@ namespace omnisphere::repositories
 
             std::function<void(const std::string &, const std::optional<std::string> &)>
             addCondition = [&](const std::string &field,
-                                       const std::optional<std::string> &value)
+                               const std::optional<std::string> &value)
             {
                 if (value.has_value())
                 {
@@ -402,7 +402,7 @@ namespace omnisphere::repositories
 
                 return acc + (filter.ExactValues ? " AND " : " OR ") + cond;
             }
-                );
+            );
         } */
 
         omnisphere::types::DataTable dataTable =
@@ -463,7 +463,7 @@ bool User::ValidatePassword(const omnisphere::enums::UserFilter &searchFilter,
     {
         database->RollbackTransaction();
         throw std::runtime_error(std::string("[ValidatePassword Exception]: ") +
-                                     e.what());
+                                 e.what());
     }
 };
 

@@ -10,14 +10,14 @@ namespace omnisphere::services
     {
         std::shared_ptr<omnisphere::repositories::GlobalConfiguration> repository;
         explicit Impl(std::shared_ptr<omnisphere::services::Database> database)
-        : repository(
-            std::make_shared<omnisphere::repositories::GlobalConfiguration>(
-                database)) {}
+            : repository(
+                std::make_shared<omnisphere::repositories::GlobalConfiguration>(
+                    database)) {}
     };
 
     GlobalConfiguration::GlobalConfiguration(
         std::shared_ptr<omnisphere::services::Database> database)
-    : pimpl(std::make_unique<Impl>(database)) {}
+        : pimpl(std::make_unique<Impl>(database)) {}
 
     GlobalConfiguration::~GlobalConfiguration() = default;
 
