@@ -5,12 +5,14 @@
 #include <regex>
 #include <stdexcept>
 #include <string>
+#include <boost/describe.hpp>
 
 namespace omnisphere::models
 {
     class BaseModel
     {
         public:
+        BaseModel() = default;
         BaseModel(
             int _Entry,
             std::string _Code,
@@ -33,13 +35,13 @@ namespace omnisphere::models
             Validate();
         }
 
-        const int Entry;
-        const std::string Code;
-        const std::string Name;
-        const int CreatedBy;
-        const std::string CreateDate;
-        const std::optional<int> LastUpdatedBy;
-        const std::optional<std::string> UpdateDate;
+        int Entry;
+        std::string Code;
+        std::string Name;
+        int CreatedBy;
+        std::string CreateDate;
+        std::optional<int> LastUpdatedBy;
+        std::optional<std::string> UpdateDate;
 
         protected:
         void Validate()
@@ -70,4 +72,5 @@ namespace omnisphere::models
         private:
         const std::regex alphaNumRegex{"^[A-Za-z0-9]+$"};
     };
+    BOOST_DESCRIBE_STRUCT(BaseModel, (), (Entry, Code, Name, CreatedBy, CreateDate, LastUpdatedBy, UpdateDate))
 } // namespace omnisphere::models

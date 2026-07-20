@@ -4,6 +4,7 @@
 #include <User/Enums/PermissionMode.hpp>
 #include <optional>
 #include <string>
+#include <memory>
 
 namespace omnisphere::models
 {
@@ -32,5 +33,7 @@ namespace omnisphere::models
         std::string CreateDate;
         std::optional<int> LastUpdatedBy;
         std::optional<std::string> UpdateDate;
+        std::shared_ptr<User> CreatedByUser;
+        std::shared_ptr<User> LastUpdatedByUser;
     };
 } // namespace omnisphere::models
