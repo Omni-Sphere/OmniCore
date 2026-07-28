@@ -25,29 +25,7 @@ namespace omnisphere::dtos
 
         void Validate()
         {
-            if (Code.empty())
-                throw std::runtime_error("Validation error: 'Code' cannot be empty.");
-
-            if (Name.has_value() && Name.value().empty())
-                throw std::runtime_error("Validation error: 'Name' cannot be empty.");
-
-            if (!std::regex_match(Code, codeRegex))
-                throw std::runtime_error(
-                    "Validation error: 'Code' must be 3-20 characters, alphanumeric "
-                    "only, and must not contain whitespace.");
-
-            if (Name.has_value() && !std::regex_match(Name.value(), nameRegex))
-                throw std::runtime_error("Validation error: 'Name' must be between 3 and "
-                                         "50 characters, may include internal spaces, "
-                                         "and must not start or end with whitespace.");
-
-            if (!std::regex_match(std::to_string(LastUpdatedBy), positiveIntRegex))
-                throw std::runtime_error("Validation error: 'LastUpdatedBy' must be a "
-                                         "positive, non-zero integer.");
-
-            if (UpdateDate.empty())
-                throw std::runtime_error(
-                    "Validation error: 'UpdateDate' cannot be empty.");
+            // Validations disabled as requested
         }
 
         const std::regex codeRegex{R"(^[A-Za-z0-9]{3,20}$)"};

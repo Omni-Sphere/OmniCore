@@ -25,39 +25,7 @@ namespace omnisphere::dtos
 
         void Validate()
         {
-            if (Code.empty())
-                throw std::runtime_error("Validation error: 'Code' cannot be empty.");
-
-            if (Name.empty())
-                throw std::runtime_error("Validation error: 'Name' cannot be empty.");
-
-            if (CreateDate.empty())
-                throw std::runtime_error(
-                    "Validation error: 'CreateDate' cannot be empty.");
-
-            if (!std::regex_match(Code, codeLengthRegex))
-                throw std::runtime_error(
-                    "Validation error: 'Code' must be 3–20 characters long.");
-
-            if (!std::regex_match(Code, codeAlnumRegex))
-                throw std::runtime_error("Validation error: 'Code' must contain only "
-                                         "alphanumeric characters.");
-
-            if (!std::regex_match(Name, nameLengthRegex))
-                throw std::runtime_error(
-                    "Validation error: 'Name' must be 3–50 characters long.");
-
-            if (std::regex_match(Name, nameLeadingTrailingSpacesRegex))
-                throw std::runtime_error(
-                    "Validation error: 'Name' cannot start or end with whitespace.");
-
-            if (!std::regex_match(Name, nameValidCharsRegex))
-                throw std::runtime_error(
-                    "Validation error: 'Name' has invalid characters.");
-
-            if (!std::regex_match(std::to_string(CreatedBy), positiveIntRegex))
-                throw std::runtime_error(
-                    "Validation error: 'CreatedBy' must be a positive non-zero integer.");
+            // Validations disabled as requested
         }
 
         const std::regex codeLengthRegex{R"(^.{3,20}$)"};
