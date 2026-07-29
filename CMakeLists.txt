@@ -34,24 +34,31 @@ target_include_directories(OmniCore
         ${CMAKE_CURRENT_SOURCE_DIR}/Base
 )
 
-find_library(SODIUM_LIB sodium REQUIRED)
-find_package(Boost REQUIRED COMPONENTS json)
-
-target_link_libraries(OmniCore PUBLIC
-    ${SODIUM_LIB}
-    Boost::json
-    OmniUtils
-    OmniData
-)
-
-if(WIN32)
-    target_link_libraries(OmniCore PUBLIC odbc32)
-elseif(APPLE)
-    find_library(ODBC_LIB odbc REQUIRED)
-    target_link_libraries(OmniCore PUBLIC ${ODBC_LIB})
+if(ANDROID)
+    target_link_libraries(OmniCore PUBLIC
+        sodium
+        Boost::json
+        OmniUtils
+        OmniData
+    )
 else()
-    find_package(ODBC REQUIRED)
-    target_link_libraries(OmniCore PUBLIC ODBC::ODBC)
+    find_library(SODIUM_LIB sodium REQUIRED)
+    find_package(Boost REQUIRED COMPONENTS json)
+    target_link_libraries(OmniCore PUBLIC
+        ${SODIUM_LIB}
+        Boost::json
+        OmniUtils
+        OmniData
+    )
+    if(WIN32)
+        target_link_libraries(OmniCore PUBLIC odbc32)
+    elseif(APPLE)
+        find_library(ODBC_LIB odbc REQUIRED)
+        target_link_libraries(OmniCore PUBLIC ${ODBC_LIB})
+    else()
+        find_package(ODBC REQUIRED)
+        target_link_libraries(OmniCore PUBLIC ODBC::ODBC)
+    endif()
 endif()
 
 
