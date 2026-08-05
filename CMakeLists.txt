@@ -21,6 +21,8 @@ add_library(OmniCore SHARED
     Session/Repositories/Session.cpp
     GlobalConfiguration/GlobalConfiguration.cpp
     GlobalConfiguration/Repositories/GlobalConfiguration.cpp
+    File/File.cpp
+    File/Repositories/File.cpp
 )
 
 target_include_directories(OmniCore
@@ -30,6 +32,7 @@ target_include_directories(OmniCore
         ${CMAKE_CURRENT_SOURCE_DIR}/User
         ${CMAKE_CURRENT_SOURCE_DIR}/Session
         ${CMAKE_CURRENT_SOURCE_DIR}/GlobalConfiguration
+        ${CMAKE_CURRENT_SOURCE_DIR}/File
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/Base
 )
@@ -80,6 +83,7 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/User/User.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Session/Session.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/GlobalConfiguration/GlobalConfiguration.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/File/File.hpp
 )
 
 foreach(HDR ${PUBLIC_HEADERS})
@@ -104,6 +108,8 @@ set(
     Session/Models
     GlobalConfiguration/Models
     GlobalConfiguration/DTOs
+    File/DTOs
+    File/Models
 )
 
 foreach(DIR ${HEADER_DIRS})
