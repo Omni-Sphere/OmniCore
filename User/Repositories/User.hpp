@@ -15,7 +15,7 @@ namespace omnisphere::repositories
     class User
     {
         private:
-        std::shared_ptr<omnisphere::services::Database> database;
+        std::shared_ptr<omnisphere::data::Database> database;
         int _UserEntry = -1;
 
         bool UpdateUserSequence() const;
@@ -23,7 +23,7 @@ namespace omnisphere::repositories
         int GetCurrentSequence() const;
 
         public:
-        explicit User(std::shared_ptr<omnisphere::services::Database> database);
+        explicit User(std::shared_ptr<omnisphere::data::Database> database);
 
         ~User() {};
 

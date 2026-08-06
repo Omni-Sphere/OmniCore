@@ -149,6 +149,22 @@ std::string File::ConnectNetworkShare(const omnisphere::dtos::ConnectNetworkShar
 }
 
 // ---------------------------------------------------------------------------
+// GetMountedShares
+// ---------------------------------------------------------------------------
+
+std::vector<std::string> File::GetMountedShares() const
+{
+    try
+    {
+        return pimpl->repo.GetMountedShares();
+    }
+    catch (const std::exception& e)
+    {
+        throw std::runtime_error(std::string("[File::GetMountedShares] ") + e.what());
+    }
+}
+
+// ---------------------------------------------------------------------------
 // CreateDirectory
 // ---------------------------------------------------------------------------
 

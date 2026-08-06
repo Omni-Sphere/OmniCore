@@ -12,12 +12,12 @@ namespace omnisphere::repositories
     class Session
     {
         private:
-        std::shared_ptr<omnisphere::services::Database> database;
+        std::shared_ptr<omnisphere::data::Database> database;
         int GetCurrentSequence() const;
         bool UpdateSessionSequence() const;
 
         public:
-        explicit Session(std::shared_ptr<omnisphere::services::Database> Database);
+        explicit Session(std::shared_ptr<omnisphere::data::Database> Database);
         ~Session() {};
 
         bool Create(const omnisphere::dtos::Login &login) const;

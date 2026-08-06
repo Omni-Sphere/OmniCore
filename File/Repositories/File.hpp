@@ -32,6 +32,9 @@ namespace omnisphere::repositories
         // Mount SMB/NFS network share via gio mount on Linux, net use on Windows
         std::string MountShare(const omnisphere::dtos::ConnectNetworkShare& input, std::string& outError) const;
 
+        // Get all active SMB/NFS network shares currently mounted on the OS
+        std::vector<std::string> GetMountedShares() const;
+
         // Create a new directory under parentPath
         std::string MakeDir(const omnisphere::dtos::CreateDirectory& input) const;
 

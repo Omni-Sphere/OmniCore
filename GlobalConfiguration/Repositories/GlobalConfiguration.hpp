@@ -11,11 +11,11 @@ namespace omnisphere::repositories
     class GlobalConfiguration
     {
         private:
-        std::shared_ptr<omnisphere::services::Database> database;
+        std::shared_ptr<omnisphere::data::Database> database;
 
         public:
         explicit GlobalConfiguration(
-            std::shared_ptr<omnisphere::services::Database> database);
+            std::shared_ptr<omnisphere::data::Database> database);
 
         ~GlobalConfiguration() = default;
 

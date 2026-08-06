@@ -10,7 +10,7 @@
 
 namespace omnisphere::repositories
 {
-    User::User(std::shared_ptr<omnisphere::services::Database> _database)
+    User::User(std::shared_ptr<omnisphere::data::Database> _database)
         : database(std::move(_database)) {}
 
     bool User::Create(const omnisphere::dtos::CreateUser &user) const
@@ -97,7 +97,7 @@ namespace omnisphere::repositories
         try
         {
             const std::string sQuery =
-            "UPDATE Sequences SET UserSequence = ISNULL(UserSequence,0) + 1";
+            "UPDATE Sequences SET UserSequence = COALESCE(UserSequence,0) + 1";
 
             if (!database->RunStatement(sQuery))
                 return false;
@@ -115,7 +115,7 @@ namespace omnisphere::repositories
     {
         try
         {
-            const std::string sQuery = "SELECT ISNULL(UserSequence, 0) + 1 "
+            const std::string sQuery = "SELECT COALESCE(UserSequence, 0) + 1 "
             "UserSequence FROM Sequences WHERE Entry = 1";
 
             omnisphere::types::DataTable data = database->FetchResults(sQuery);
@@ -472,7 +472,7 @@ bool User::ExistsEntry(const int &entry) const
     try
     {
         const std::string sQuery =
-        "SELECT ISNULL(COUNT(*), 0) Total FROM Users WHERE Entry = ?";
+        "SELECT COALESCE(COUNT(*), 0) Total FROM Users WHERE Entry = ?";
 
         omnisphere::types::DataTable data =
         database->FetchPrepared(sQuery, std::to_string(entry));
@@ -493,7 +493,7 @@ bool User::ExistsCode(const std::string &code) const
     try
     {
         const std::string sQuery =
-        "SELECT ISNULL(COUNT(*), 0) Total FROM Users WHERE [Code] = ?";
+        "SELECT COALESCE(COUNT(*), 0) AS Total FROM Users WHERE Code = ?";
 
         omnisphere::types::DataTable data = database->FetchPrepared(sQuery, code);
 

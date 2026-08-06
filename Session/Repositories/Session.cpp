@@ -7,7 +7,7 @@
 
 namespace omnisphere::repositories
 {
-    Session::Session(std::shared_ptr<omnisphere::services::Database> _database)
+    Session::Session(std::shared_ptr<omnisphere::data::Database> _database)
     {
         database = std::move(_database);
     }
@@ -83,7 +83,7 @@ namespace omnisphere::repositories
         try
         {
             const std::string sQuery =
-            "SELECT ISNULL(SessionSequence, 0) + 1 SessionSequence FROM Sequences "
+            "SELECT COALESCE(SessionSequence, 0) + 1 SessionSequence FROM Sequences "
             "WHERE SeqEntry = 1";
 
             omnisphere::types::DataTable data = database->FetchResults(sQuery);
@@ -105,7 +105,7 @@ namespace omnisphere::repositories
         try
         {
             const std::string sQuery =
-            "UPDATE Sequences SET SessionSequence = ISNULL(SessionSequence,0) + 1";
+            "UPDATE Sequences SET SessionSequence = COALESCE(SessionSequence,0) + 1";
 
             if (!database->RunStatement(sQuery))
                 return false;

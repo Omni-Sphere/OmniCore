@@ -13,11 +13,11 @@ namespace omnisphere::services
     struct User::Impl
     {
         std::shared_ptr<omnisphere::repositories::User> user;
-        explicit Impl(std::shared_ptr<omnisphere::services::Database> _database)
+        explicit Impl(std::shared_ptr<omnisphere::data::Database> _database)
             : user(std::make_shared<omnisphere::repositories::User>(_database)) {}
     };
 
-    User::User(std::shared_ptr<omnisphere::services::Database> _database)
+    User::User(std::shared_ptr<omnisphere::data::Database> _database)
         : pimpl(std::make_unique<Impl>(_database)) {}
 
     User::~User() = default;

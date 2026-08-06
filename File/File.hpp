@@ -30,6 +30,9 @@ namespace omnisphere::services
         // Connect to an SMB or NFS network share
         std::string ConnectNetworkShare(const omnisphere::dtos::ConnectNetworkShare& input) const;
 
+        // Get active OS mounted SMB/NFS network shares
+        std::vector<std::string> GetMountedShares() const;
+
         // Create a new directory
         std::string CreateDirectory(const omnisphere::dtos::CreateDirectory& input) const;
 

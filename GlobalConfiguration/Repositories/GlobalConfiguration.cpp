@@ -10,7 +10,7 @@
 namespace omnisphere::repositories
 {
     GlobalConfiguration::GlobalConfiguration(
-        std::shared_ptr<omnisphere::services::Database> _database)
+        std::shared_ptr<omnisphere::data::Database> _database)
         : database(std::move(_database)) {}
 
     bool GlobalConfiguration::Update(

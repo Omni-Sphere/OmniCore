@@ -21,12 +21,12 @@ namespace omnisphere::services
         std::shared_ptr<omnisphere::repositories::Session> session;
         std::shared_ptr<omnisphere::services::User> user;
 
-        explicit Impl(std::shared_ptr<omnisphere::services::Database> db)
+        explicit Impl(std::shared_ptr<omnisphere::data::Database> db)
             : session(std::make_shared<omnisphere::repositories::Session>(db)),
             user(std::make_shared<omnisphere::services::User>(db)) {}
     };
 
-    Session::Session(std::shared_ptr<omnisphere::services::Database> db)
+    Session::Session(std::shared_ptr<omnisphere::data::Database> db)
         : pimpl(std::make_unique<Impl>(db)) {}
 
     Session::~Session() = default;

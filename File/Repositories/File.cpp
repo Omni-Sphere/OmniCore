@@ -652,6 +652,58 @@ std::string File::MountShare(const omnisphere::dtos::ConnectNetworkShare& input,
 }
 
 // ---------------------------------------------------------------------------
+// GetMountedShares
+// ---------------------------------------------------------------------------
+
+std::vector<std::string> File::GetMountedShares() const
+{
+    std::vector<std::string> shares;
+#ifndef _WIN32
+    uid_t uid = getuid();
+    std::string gvfsDir = "/run/user/" + std::to_string(uid) + "/gvfs";
+    std::error_code ec;
+    if (fs::exists(gvfsDir, ec))
+    {
+        auto extractVal = [](const std::string& str, const std::string& key) -> std::string {
+            size_t kPos = str.find(key);
+            if (kPos == std::string::npos) return "";
+            size_t valStart = kPos + key.length();
+            size_t valEnd = str.find_first_of(",/", valStart);
+            if (valEnd == std::string::npos)
+                return str.substr(valStart);
+            return str.substr(valStart, valEnd - valStart);
+        };
+
+        for (const auto& entry : fs::directory_iterator(gvfsDir, ec))
+        {
+            std::string filename = entry.path().filename().string();
+            if (filename.rfind("smb-share:", 0) == 0)
+            {
+                std::string serverName = extractVal(filename, "server=");
+                std::string shareName  = extractVal(filename, "share=");
+                std::string userName   = extractVal(filename, "user=");
+
+                if (!serverName.empty())
+                {
+                    std::string uri = "smb://" + (userName.empty() ? "" : userName + "@") + serverName + (shareName.empty() ? "" : "/" + shareName);
+                    shares.push_back(uri);
+                }
+            }
+            else if (filename.rfind("nfs-share:", 0) == 0)
+            {
+                std::string serverName = extractVal(filename, "server=");
+                if (!serverName.empty())
+                {
+                    shares.push_back("nfs://" + serverName);
+                }
+            }
+        }
+    }
+#endif
+    return shares;
+}
+
+// ---------------------------------------------------------------------------
 // MakeDir
 // ---------------------------------------------------------------------------
 

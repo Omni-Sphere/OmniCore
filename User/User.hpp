@@ -16,7 +16,7 @@ namespace omnisphere::services
     class User
     {
         public:
-        explicit User(std::shared_ptr<omnisphere::services::Database> database);
+        explicit User(std::shared_ptr<omnisphere::data::Database> database);
 
         ~User();
 
