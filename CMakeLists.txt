@@ -1,17 +1,34 @@
 cmake_minimum_required(VERSION 3.16)
 project(OmniCore LANGUAGES CXX)
 
+# --- 0. Detección de la Raíz de Proyectos (Sin usar "../") ---
+get_filename_component(PROYECTOS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}" DIRECTORY)
+
+# --- Configuración inteligente para compilación manual ---
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+        set(CMAKE_INSTALL_PREFIX "/usr/lib/OmniSphere" CACHE PATH "Directorio de instalación" FORCE)
+    else()
+        set(CMAKE_INSTALL_PREFIX "${PROYECTOS_ROOT}/.omni-dev-sdk" CACHE PATH "Directorio de instalación" FORCE)
+    endif()
+endif()
+
+# Forzar la subcarpeta para aislar los headers (ej. include/OmniCore)
+set(CMAKE_INSTALL_INCLUDEDIR "include/${PROJECT_NAME}" CACHE PATH "Directorio de cabeceras" FORCE)
+
 include(GNUInstallDirs)
 
+# --- 1. Resolución de Rutas de las OmniLibs ---
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    if(EXISTS "/usr/lib/OmniSphere")
-        list(APPEND CMAKE_PREFIX_PATH "/usr/lib/OmniSphere")
-    endif()
+    set(OMNI_BASE_DIR "/usr/lib/OmniSphere")
 else()
-    get_filename_component(OMNI_PARENT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
-    if(EXISTS "${OMNI_PARENT_DIR}/.omni-dev-sdk")
-        list(APPEND CMAKE_PREFIX_PATH "${OMNI_PARENT_DIR}/.omni-dev-sdk")
-    endif()
+    set(OMNI_BASE_DIR "${PROYECTOS_ROOT}/.omni-dev-sdk")
+endif()
+
+if(EXISTS "${OMNI_BASE_DIR}")
+    list(APPEND CMAKE_PREFIX_PATH "${OMNI_BASE_DIR}")
+    list(APPEND CMAKE_PREFIX_PATH "${OMNI_BASE_DIR}/lib/OmniUtils/cmake/OmniUtils")
+    list(APPEND CMAKE_PREFIX_PATH "${OMNI_BASE_DIR}/lib/OmniData/cmake/OmniData")
 endif()
 
 set(CMAKE_CXX_STANDARD 20)
@@ -46,23 +63,43 @@ target_include_directories(OmniCore
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Session>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/GlobalConfiguration>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/File>
-        $<INSTALL_INTERFACE:include>
-        $<INSTALL_INTERFACE:include/Base>
-        $<INSTALL_INTERFACE:include/User>
-        $<INSTALL_INTERFACE:include/Session>
-        $<INSTALL_INTERFACE:include/GlobalConfiguration>
-        $<INSTALL_INTERFACE:include/File>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Base>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/User>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Session>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/GlobalConfiguration>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/File>
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/Base
 )
 
 add_library(OmniCore::OmniCore ALIAS OmniCore)
 
+# --- Resolución de dependencias Omni ---
 if(NOT TARGET OmniUtils::OmniUtils)
     find_package(OmniUtils REQUIRED)
 endif()
 if(NOT TARGET OmniData::OmniData)
     find_package(OmniData REQUIRED)
+endif()
+
+# --- Corrección limpia de rutas para dependencias importadas ---
+if(TARGET OmniUtils::OmniUtils)
+    get_target_property(IS_IMPORTED OmniUtils::OmniUtils IMPORTED)
+    if(IS_IMPORTED)
+        set_target_properties(OmniUtils::OmniUtils PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES "${OMNI_BASE_DIR}/include"
+        )
+    endif()
+endif()
+
+if(TARGET OmniData::OmniData)
+    get_target_property(IS_IMPORTED OmniData::OmniData IMPORTED)
+    if(IS_IMPORTED)
+        set_target_properties(OmniData::OmniData PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES "${OMNI_BASE_DIR}/include"
+        )
+    endif()
 endif()
 
 if(ANDROID)
@@ -91,7 +128,6 @@ else()
         target_link_libraries(OmniCore PUBLIC ODBC::ODBC)
     endif()
 endif()
-
 
 if(WIN32)
     set_target_properties(OmniCore PROPERTIES
@@ -155,8 +191,6 @@ foreach(DIR ${HEADER_DIRS})
 endforeach()
 
 # --- Installation & Export ---
-include(GNUInstallDirs)
-
 install(TARGETS OmniCore
     EXPORT OmniCoreTargets
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}

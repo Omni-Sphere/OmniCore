@@ -1,17 +1,13 @@
-#include <Database.hpp>
-#include <DataTable.hpp>
 #pragma once
 
-namespace omnisphere::enums
-{
-    enum LogoutReason
-    {
-        UNDEFINED = -1,
-        USER_LOGOUT,
-        SESSION_TIMEOUT,
-        TOKEN_EXPIRED,
-        FORCE_LOGOUT,
-        DEVICE_DISCONNECTED,
-        SECURITY_EVENT
-    };
+namespace omnisphere::enums {
+enum LogoutReason {
+  UNDEFINED = -1,
+  USER_LOGOUT,
+  SESSION_TIMEOUT,
+  TOKEN_EXPIRED,
+  FORCE_LOGOUT,
+  DEVICE_DISCONNECTED,
+  SECURITY_EVENT
+};
 }
