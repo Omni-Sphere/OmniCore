@@ -1,7 +1,8 @@
-#include "User/Enums/PermissionMode.hpp"
-#include "User/Repositories/User.hpp"
-#include "User/User.hpp"
 #include <stdexcept>
+
+#include "Enums/PermissionMode.hpp"
+#include "Repositories/User.hpp"
+#include "User.hpp"
 
 namespace omnisphere::services {
 struct User::Impl {
