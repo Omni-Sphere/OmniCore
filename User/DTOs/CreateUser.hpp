@@ -1,5 +1,5 @@
 #pragma once
-#include "Enums/PermissionMode.hpp"
+#include "User/Enums/PermissionMode.hpp"
 #include <optional>
 #include <string>
 

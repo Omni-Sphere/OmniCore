@@ -55,26 +55,6 @@ add_library(OmniCore SHARED
     File/Repositories/File.cpp
 )
 
-target_include_directories(OmniCore
-    PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Base>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/User>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Session>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/GlobalConfiguration>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/File>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Base>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/User>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Session>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/GlobalConfiguration>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/File>
-    PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/Base
-)
-
-add_library(OmniCore::OmniCore ALIAS OmniCore)
-
 # --- Resolución de dependencias Omni ---
 if(NOT TARGET OmniUtils::OmniUtils)
     find_package(OmniUtils REQUIRED)
@@ -101,6 +81,18 @@ if(TARGET OmniData::OmniData)
         )
     endif()
 endif()
+
+# SOLUCIÓN: Solo exportamos la raíz limpia del proyecto e incluimos el SDK local para dependencias
+target_include_directories(OmniCore
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Base
+        "${OMNI_BASE_DIR}/include"
+)
+
+add_library(OmniCore::OmniCore ALIAS OmniCore)
 
 if(ANDROID)
     target_link_libraries(OmniCore PUBLIC
@@ -138,7 +130,7 @@ if(WIN32)
 else()
     set_target_properties(OmniCore PROPERTIES
         LIBRARY_OUTPUT_DIRECTORY "${LIBS_DIR}"
-        ARCHIVE_OUTPUT_DIRECTORY "${ARCHIVE_DIR}"
+        ARCHIVE_OUTPUT_DIRECTORY "${LIBS_DIR}"
     )
 endif()
 
@@ -152,11 +144,8 @@ set(PUBLIC_HEADERS
 
 foreach(HDR ${PUBLIC_HEADERS})
     file(RELATIVE_PATH REL_PATH "${CMAKE_CURRENT_SOURCE_DIR}" "${HDR}")
-    
     set(DEST_PATH "${INCLUDE_DIR}/${REL_PATH}")
-
     get_filename_component(DEST_INC_DIR "${DEST_PATH}" DIRECTORY)
-    
     add_custom_command(TARGET OmniCore POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_INC_DIR}"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different "${HDR}" "${DEST_PATH}"
@@ -183,7 +172,6 @@ foreach(DIR ${HEADER_DIRS})
     foreach(HDR ${HEADERS})
         file(RELATIVE_PATH REL_PATH "${CMAKE_CURRENT_SOURCE_DIR}" "${HDR}")
         set(DEST_PATH "${INCLUDE_DIR}/${REL_PATH}")
-
         get_filename_component(DEST_INC_DIR "${DEST_PATH}" DIRECTORY)
         add_custom_command(TARGET OmniCore POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E make_directory "${DEST_INC_DIR}"
@@ -198,13 +186,7 @@ install(TARGETS OmniCore
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    INCLUDES DESTINATION 
-        ${CMAKE_INSTALL_INCLUDEDIR} 
-        ${CMAKE_INSTALL_INCLUDEDIR}/Base 
-        ${CMAKE_INSTALL_INCLUDEDIR}/User 
-        ${CMAKE_INSTALL_INCLUDEDIR}/Session 
-        ${CMAKE_INSTALL_INCLUDEDIR}/GlobalConfiguration 
-        ${CMAKE_INSTALL_INCLUDEDIR}/File
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} # Sin subcarpetas extra que dupliquen rutas
 )
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
