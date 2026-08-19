@@ -4,13 +4,13 @@
 
 #include "GlobalConfiguration/DTOs/UpdateGlobalConfiguration.hpp"
 #include "GlobalConfiguration/Models/GlobalConfiguration.hpp"
-#include <OmniData/Database.hpp>
+#include <OmniData/DatabasePool.hpp>
 
 namespace omnisphere::services {
 class GlobalConfiguration {
 public:
   explicit GlobalConfiguration(
-      std::shared_ptr<omnisphere::data::Database> database);
+      std::shared_ptr<omnisphere::data::DatabasePool> database);
 
   ~GlobalConfiguration();
 

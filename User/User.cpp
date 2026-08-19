@@ -7,12 +7,12 @@
 namespace omnisphere::services {
 struct User::Impl {
   std::shared_ptr<omnisphere::repositories::User> user;
-  explicit Impl(std::shared_ptr<omnisphere::data::Database> _database)
-      : user(std::make_shared<omnisphere::repositories::User>(_database)) {}
+  explicit Impl(std::shared_ptr<omnisphere::data::DatabasePool> db)
+      : user(std::make_shared<omnisphere::repositories::User>(db)) {}
 };
 
-User::User(std::shared_ptr<omnisphere::data::Database> _database)
-    : pimpl(std::make_unique<Impl>(_database)) {}
+User::User(std::shared_ptr<omnisphere::data::DatabasePool> db)
+    : pimpl(std::make_unique<Impl>(db)) {}
 
 User::~User() = default;
 
@@ -40,7 +40,7 @@ bool User::Add(const omnisphere::dtos::CreateUser &newUser) const {
   } catch (const std::exception &e) {
     throw std::runtime_error(std::string("[UserExeption] ") + e.what());
   }
-};
+}
 
 omnisphere::models::User
 User::Modify(const omnisphere::dtos::UpdateUser &uUser) const {
@@ -59,271 +59,218 @@ User::Modify(const omnisphere::dtos::UpdateUser &uUser) const {
 
     if (uUser.Data.Phone.has_value() &&
         Exists(omnisphere::enums::UserFilter::Phone, uUser.Data.Phone.value()))
-      throw std::runtime_error("UserPhone already exists");
+      throw std::runtime_error("User Phone already exists");
 
-    if (pimpl->user->Update(uUser)) {
-      omnisphere::types::DataTable data;
+    if (!pimpl->user->Update(uUser))
+      throw std::runtime_error("User wasn't modified");
 
-      if (uUser.Where.Code.has_value())
-        data = pimpl->user->Read(omnisphere::enums::UserFilter::Code,
-                                 uUser.Where.Code.value());
+    return Get(omnisphere::enums::UserFilter::Code, uUser.Where.Code.value());
 
-      omnisphere::models::User user{
-          data[0]["UserEntry"],
-          data[0]["Code"],
-          data[0]["Name"].GetOptional<std::string>(),
-          data[0]["Email"].GetOptional<std::string>(),
-          data[0]["Phone"].GetOptional<std::string>(),
-          data[0]["EmpEntry"].GetOptional<int>(),
-          data[0]["RoleEntry"].GetOptional<int>(),
-          data[0]["MaxDisccountPerLine"].GetOptional<double>(),
-          data[0]["MaxDisccountPerDocument"].GetOptional<double>(),
-          data[0]["PermissionMode"].GetOptional<std::string>().has_value()
-              ? std::optional<omnisphere::enums::PermissionMode>(
-                    data[0]["PermissionMode"]
-                                .GetOptional<std::string>()
-                                .value() == "P"
-                        ? omnisphere::enums::PermissionMode::P
-                        : omnisphere::enums::PermissionMode::M)
-              : std::nullopt,
-          data[0]["Department"].GetOptional<int>(),
-          data[0]["SuperUser"],
-          data[0]["IsLocked"],
-          data[0]["IsActive"],
-          data[0]["ChangePasswordNextLogin"],
-          data[0]["PasswordNeverExpires"],
-          data[0]["CreatedBy"],
-          data[0]["CreateDate"],
-          data[0]["LastUpdatedBy"].GetOptional<int>(),
-          data[0]["UpdateDate"].GetOptional<std::string>()};
-
-      return user;
-    } else
-      throw std::runtime_error("Error updating user ");
   } catch (const std::exception &e) {
-    throw std::runtime_error(std::string("[UpdateUser Exception]") + e.what());
+    throw std::runtime_error(std::string("[ModifyUser Exeption] ") + e.what());
   }
-};
+}
 
-bool User::ModifyPassword(
-    const omnisphere::dtos::ChangePassword &userDTO) const {
+bool User::ModifyPassword(const omnisphere::dtos::ChangePassword &cPass) const {
   try {
-    if (userDTO.Code.has_value()) {
-      if (!CheckPassword(omnisphere::enums::UserFilter::Code,
-                         userDTO.Code.value(), userDTO.OldPassword))
-        throw std::invalid_argument("Wrong password");
+    if (!cPass.Code.has_value() || cPass.Code.value().empty() || cPass.OldPassword.empty() ||
+        cPass.NewPassword.empty())
+      throw std::invalid_argument(
+          "Code, OldPassword and NewPassword are required");
 
-      if (!pimpl->user->UpdatePassword(
-              omnisphere::enums::UserFilter::Code, userDTO.Code.value(),
-              userDTO.OldPassword, userDTO.NewPassword))
+    if (!Exists(omnisphere::enums::UserFilter::Code, cPass.Code.value()))
+      throw std::invalid_argument("User Code doesn't exists");
 
-        return false;
-    } else if (userDTO.Entry.has_value()) {
-      if (!CheckPassword(omnisphere::enums::UserFilter::Entry,
-                         std::to_string(userDTO.Entry.value()),
-                         userDTO.OldPassword))
-        throw std::invalid_argument("Wrong password");
+    if (!pimpl->user->ValidatePassword(omnisphere::enums::UserFilter::Code,
+                                       cPass.Code.value(), cPass.OldPassword))
+      throw std::invalid_argument("Invalid password");
 
-      if (!pimpl->user->UpdatePassword(omnisphere::enums::UserFilter::Entry,
-                                       std::to_string(userDTO.Entry.value()),
-                                       userDTO.OldPassword,
-                                       userDTO.NewPassword))
+    if (pimpl->user->UpdatePassword(omnisphere::enums::UserFilter::Code,
+                                    cPass.Code.value(), cPass.OldPassword,
+                                    cPass.NewPassword))
+      return true;
 
-        return false;
-    }
-
-    return true;
+    return false;
   } catch (const std::exception &e) {
-    throw std::runtime_error(std::string("[ModifyPassword Exception]") +
+    throw std::runtime_error(std::string("[ModifyPassword Exception] ") +
                              e.what());
   }
-};
+}
 
-std::vector<omnisphere::models::User>
-User::Search(const omnisphere::dtos::SearchUsers &filter) const {
-  try {
-    std::vector<omnisphere::models::User> users;
-    omnisphere::types::DataTable data = pimpl->user->Read(filter);
-
-    if (data.RowsCount() == 0) {
-      users.emplace_back(omnisphere::models::User{
-          -1,           "",           std::nullopt, std::nullopt,
-          std::nullopt, std::nullopt, std::nullopt, std::nullopt,
-          std::nullopt, std::nullopt, std::nullopt, false,
-          false,        false,        false,        false,
-          -1,           "",           std::nullopt, std::nullopt});
-    }
-
-    if (data.RowsCount() > 0)
-      for (int i = 0; i < data.RowsCount(); i++)
-        users.emplace_back(omnisphere::models::User{
-            data[i]["UserEntry"],
-            data[i]["Code"],
-            data[i]["Name"].GetOptional<std::string>(),
-            data[i]["Email"].GetOptional<std::string>(),
-            data[i]["Phone"].GetOptional<std::string>(),
-            data[i]["EmpEntry"].GetOptional<int>(),
-            data[i]["RoleEntry"].GetOptional<int>(),
-            data[i]["MaxDisccountPerLine"].GetOptional<double>(),
-            data[i]["MaxDisccountPerDocument"].GetOptional<double>(),
-            data[i]["PermissionMode"].GetOptional<std::string>().has_value()
-                ? std::optional<omnisphere::enums::PermissionMode>(
-                      data[i]["PermissionMode"]
-                                  .GetOptional<std::string>()
-                                  .value() == "P"
-                          ? omnisphere::enums::PermissionMode::P
-                          : omnisphere::enums::PermissionMode::M)
-                : std::nullopt,
-            data[i]["Department"].GetOptional<int>(),
-            data[i]["SuperUser"],
-            data[i]["IsLocked"],
-            data[i]["IsActive"],
-            data[i]["ChangePasswordNextLogin"],
-            data[i]["PasswordNeverExpires"],
-            data[i]["CreatedBy"],
-            data[i]["CreateDate"],
-            data[i]["LastUpdatedBy"].GetOptional<int>(),
-            data[i]["UpdateDate"].GetOptional<std::string>()});
-
-    return users;
-  } catch (const std::exception &e) {
-    throw std::runtime_error(std::string("[SearhUsers Exception]") + e.what());
-  }
-};
-
-omnisphere::models::User User::Get(const omnisphere::enums::UserFilter &filter,
-                                   const std::string &value) const {
-  try {
-    omnisphere::types::DataTable data;
-    omnisphere::models::User userDef{
-        -1,           "",           std::nullopt, std::nullopt, std::nullopt,
-        std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt,
-        std::nullopt, false,        false,        false,        false,
-        false,        -1,           "",           std::nullopt, std::nullopt};
-
-    data = pimpl->user->Read(filter, value);
-
-    if (data.RowsCount() > 1)
-      throw std::runtime_error(
-          "Inconstence retreiving Users, not exists or exists more than one");
-
-    if (data.RowsCount() == 0)
-      return userDef;
-
-    omnisphere::models::User user{
-        data[0]["UserEntry"],
-        data[0]["Code"],
-        data[0]["Name"].GetOptional<std::string>(),
-        data[0]["Email"].GetOptional<std::string>(),
-        data[0]["Phone"].GetOptional<std::string>(),
-        data[0]["EmpEntry"].GetOptional<int>(),
-        data[0]["RoleEntry"].GetOptional<int>(),
-        data[0]["MaxDisccountPerLine"].GetOptional<double>(),
-        data[0]["MaxDisccountPerDocument"].GetOptional<double>(),
-        data[0]["PermissionMode"].GetOptional<std::string>().has_value()
-            ? std::optional<omnisphere::enums::PermissionMode>(
-                  data[0]["PermissionMode"]
-                              .GetOptional<std::string>()
-                              .value() == "P"
-                      ? omnisphere::enums::PermissionMode::P
-                      : omnisphere::enums::PermissionMode::M)
-            : std::nullopt,
-        data[0]["Department"].GetOptional<int>(),
-        data[0]["SuperUser"],
-        data[0]["IsLocked"],
-        data[0]["IsActive"],
-        data[0]["ChangePasswordNextLogin"],
-        data[0]["PasswordNeverExpires"],
-        data[0]["CreatedBy"],
-        data[0]["CreateDate"],
-        data[0]["LastUpdatedBy"].GetOptional<int>(),
-        data[0]["UpdateDate"].GetOptional<std::string>()};
-
-    return user;
-  } catch (const std::exception &e) {
-    throw std::runtime_error(std::string("[GetUser Exception] ") + e.what());
-  }
-};
-
-bool User::Exists(const omnisphere::enums::UserFilter &filter,
-                  const std::string &value) const {
-  try {
-    omnisphere::types::DataTable data = pimpl->user->Read(filter, value);
-
-    if (data.RowsCount() > 1)
-      throw std::runtime_error(
-          "Inconstence retreiving Users exists more than one");
-
-    if (data.RowsCount() == 0)
-      return false;
-
-    return true;
-  } catch (const std::exception &e) {
-    throw std::runtime_error(std::string("[ExistsUser Exception] ") + e.what());
-  }
-};
-
-bool User::CheckPassword(const omnisphere::enums::UserFilter &userFilter,
+bool User::CheckPassword(const omnisphere::enums::UserFilter &filter,
                          const std::string &value,
-                         const std::string &oldPassword) const {
+                         const std::string &password) const {
   try {
-    switch (userFilter) {
-    case omnisphere::enums::UserFilter::Entry:
-
-      if (!pimpl->user->ValidatePassword(omnisphere::enums::UserFilter::Entry,
-                                         value, oldPassword))
-        return false;
-      break;
-
-    case omnisphere::enums::UserFilter::Code:
-
-      if (!pimpl->user->ValidatePassword(omnisphere::enums::UserFilter::Code,
-                                         value, oldPassword))
-        return false;
-      break;
-
-    case omnisphere::enums::UserFilter::Email:
-
-      if (!pimpl->user->ValidatePassword(omnisphere::enums::UserFilter::Email,
-                                         value, oldPassword))
-        return false;
-      break;
-
-    case omnisphere::enums::UserFilter::Phone:
-
-      if (!pimpl->user->ValidatePassword(omnisphere::enums::UserFilter::Phone,
-                                         value, oldPassword))
-        return false;
-      break;
-
-    default:
-      break;
-    }
-
-    return true;
+    return pimpl->user->ValidatePassword(filter, value, password);
   } catch (const std::exception &e) {
     throw std::runtime_error(std::string("[CheckPassword Exception] ") +
                              e.what());
   }
 }
 
-bool User::LockUnlockUser(const omnisphere::enums::UserFilter &userFilter,
+bool User::LockUnlockUser(const omnisphere::enums::UserFilter &filter,
                           const std::string &value, const bool &lock) const {
+  return true;
+}
+
+std::vector<omnisphere::models::User>
+User::Search(const omnisphere::dtos::SearchUsers &user) const {
   try {
-    switch (userFilter) {
-    case omnisphere::enums::UserFilter::Code:
+    omnisphere::types::DataTable dataTable = pimpl->user->Read(user);
+    std::vector<omnisphere::models::User> vUsers;
 
-      if (!Exists(omnisphere::enums::UserFilter::Code, value))
-        throw std::runtime_error("User Code doesn't exists");
+    for (size_t i = 0; i < dataTable.RowsCount(); i++) {
+      omnisphere::models::User UserData;
 
-    default:
-      break;
+      UserData.Entry = dataTable[i]["UserEntry"];
+      UserData.Code = static_cast<std::string>(dataTable[i]["Code"]);
+
+      if (!dataTable[i]["Name"].IsNull())
+        UserData.Name = static_cast<std::string>(dataTable[i]["Name"]);
+
+      if (!dataTable[i]["Email"].IsNull())
+        UserData.Email = static_cast<std::string>(dataTable[i]["Email"]);
+
+      if (!dataTable[i]["Phone"].IsNull())
+        UserData.Phone = static_cast<std::string>(dataTable[i]["Phone"]);
+
+      if (!dataTable[i]["EmpEntry"].IsNull())
+        UserData.Employee = static_cast<int>(dataTable[i]["EmpEntry"]);
+
+      if (!dataTable[i]["RoleEntry"].IsNull())
+        UserData.RoleEntry = static_cast<int>(dataTable[i]["RoleEntry"]);
+
+      if (!dataTable[i]["MaxDisccountPerLine"].IsNull())
+        UserData.MaxDisccountPerLine =
+            static_cast<double>(dataTable[i]["MaxDisccountPerLine"]);
+
+      if (!dataTable[i]["MaxDisccountPerDocument"].IsNull())
+        UserData.MaxDisccountPerDocument =
+            static_cast<double>(dataTable[i]["MaxDisccountPerDocument"]);
+
+      if (!dataTable[i]["PermissionMode"].IsNull()) {
+        std::string mode =
+            static_cast<std::string>(dataTable[i]["PermissionMode"]);
+        UserData.PermissionMode = mode == "P"
+                                      ? omnisphere::enums::PermissionMode::P
+                                      : omnisphere::enums::PermissionMode::M;
+      }
+
+      if (!dataTable[i]["Department"].IsNull())
+        UserData.Department = static_cast<int>(dataTable[i]["Department"]);
+
+      UserData.SuperUser = dataTable[i]["SuperUser"];
+      UserData.IsLocked = dataTable[i]["IsLocked"];
+      UserData.IsActive = dataTable[i]["IsActive"];
+      UserData.PasswordNeverExpires = dataTable[i]["PasswordNeverExpires"];
+      UserData.ChangePasswordNextLogin = dataTable[i]["ChangePasswordNextLogin"];
+      UserData.CreatedBy = dataTable[i]["CreatedBy"];
+      UserData.CreateDate = static_cast<std::string>(dataTable[i]["CreateDate"]);
+
+      if (!dataTable[i]["LastUpdatedBy"].IsNull())
+        UserData.LastUpdatedBy = static_cast<int>(dataTable[i]["LastUpdatedBy"]);
+
+      if (!dataTable[i]["UpdateDate"].IsNull())
+        UserData.UpdateDate =
+            static_cast<std::string>(dataTable[i]["UpdateDate"]);
+
+      vUsers.push_back(UserData);
     }
 
-    return true;
+    return vUsers;
   } catch (const std::exception &e) {
-    throw std::runtime_error(std::string("[LockUnlockUser Exception] ") +
-                             e.what());
+    throw std::runtime_error(std::string("[SearchUser Exception] ") + e.what());
   }
 }
+
+omnisphere::models::User User::Get(const omnisphere::enums::UserFilter &filter,
+                                   const std::string &value) const {
+  try {
+    omnisphere::types::DataTable dataTable = pimpl->user->Read(filter, value);
+    if (dataTable.RowsCount() == 0)
+      throw std::invalid_argument("User not found");
+
+    omnisphere::models::User UserData;
+
+    UserData.Entry = dataTable[0]["UserEntry"];
+    UserData.Code = static_cast<std::string>(dataTable[0]["Code"]);
+
+    if (!dataTable[0]["Name"].IsNull())
+      UserData.Name = static_cast<std::string>(dataTable[0]["Name"]);
+
+    if (!dataTable[0]["Email"].IsNull())
+      UserData.Email = static_cast<std::string>(dataTable[0]["Email"]);
+
+    if (!dataTable[0]["Phone"].IsNull())
+      UserData.Phone = static_cast<std::string>(dataTable[0]["Phone"]);
+
+    if (!dataTable[0]["EmpEntry"].IsNull())
+      UserData.Employee = static_cast<int>(dataTable[0]["EmpEntry"]);
+
+    if (!dataTable[0]["RoleEntry"].IsNull())
+      UserData.RoleEntry = static_cast<int>(dataTable[0]["RoleEntry"]);
+
+    if (!dataTable[0]["MaxDisccountPerLine"].IsNull())
+      UserData.MaxDisccountPerLine =
+          static_cast<double>(dataTable[0]["MaxDisccountPerLine"]);
+
+    if (!dataTable[0]["MaxDisccountPerDocument"].IsNull())
+      UserData.MaxDisccountPerDocument =
+          static_cast<double>(dataTable[0]["MaxDisccountPerDocument"]);
+
+    if (!dataTable[0]["PermissionMode"].IsNull()) {
+      std::string mode =
+          static_cast<std::string>(dataTable[0]["PermissionMode"]);
+      UserData.PermissionMode = mode == "P"
+                                    ? omnisphere::enums::PermissionMode::P
+                                    : omnisphere::enums::PermissionMode::M;
+    }
+
+    if (!dataTable[0]["Department"].IsNull())
+      UserData.Department = static_cast<int>(dataTable[0]["Department"]);
+
+    UserData.SuperUser = dataTable[0]["SuperUser"];
+    UserData.IsLocked = dataTable[0]["IsLocked"];
+    UserData.IsActive = dataTable[0]["IsActive"];
+    UserData.PasswordNeverExpires = dataTable[0]["PasswordNeverExpires"];
+    UserData.ChangePasswordNextLogin = dataTable[0]["ChangePasswordNextLogin"];
+    UserData.CreatedBy = dataTable[0]["CreatedBy"];
+    UserData.CreateDate = static_cast<std::string>(dataTable[0]["CreateDate"]);
+
+    if (!dataTable[0]["LastUpdatedBy"].IsNull())
+      UserData.LastUpdatedBy = static_cast<int>(dataTable[0]["LastUpdatedBy"]);
+
+    if (!dataTable[0]["UpdateDate"].IsNull())
+      UserData.UpdateDate =
+          static_cast<std::string>(dataTable[0]["UpdateDate"]);
+
+    return UserData;
+  } catch (const std::exception &e) {
+    throw std::runtime_error(std::string("[GetUser Exception] ") + e.what());
+  }
+}
+
+bool User::Exists(const omnisphere::enums::UserFilter &filter,
+                  const std::string &value) const {
+  try {
+    switch (filter) {
+    case omnisphere::enums::UserFilter::Entry:
+      return pimpl->user->ExistsEntry(std::stoi(value));
+
+    case omnisphere::enums::UserFilter::Code:
+      return pimpl->user->ExistsCode(value);
+
+    default:
+      return false;
+    }
+  } catch (const std::exception &e) {
+    throw std::runtime_error(std::string("[ExistsUser Exception] ") + e.what());
+  }
+}
+
+omnisphere::repositories::UserCursorPage
+User::GetPage(std::optional<int> afterEntry, int limit) const {
+  return pimpl->user->GetPage(afterEntry, limit);
+}
+
 } // namespace omnisphere::services

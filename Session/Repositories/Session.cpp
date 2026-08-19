@@ -1,11 +1,12 @@
 #include "Session/Repositories/Session.hpp"
 
 namespace omnisphere::repositories {
-Session::Session(std::shared_ptr<omnisphere::data::Database> _database) {
+Session::Session(std::shared_ptr<omnisphere::data::DatabasePool> _database) {
   database = std::move(_database);
 }
 
 bool Session::Create(const omnisphere::dtos::Login &login) const {
+  auto conn = database->Acquire();
   try {
     std::string sQuery = "INSERT INTO Sessions ("
                          "SessionEntry, "
@@ -50,30 +51,31 @@ bool Session::Create(const omnisphere::dtos::Login &login) const {
     vParams.emplace_back(omnisphere::types::MakeSQLParam(login.DeviceIP));
     vParams.emplace_back(omnisphere::types::MakeSQLParam(login.HostName));
 
-    database->BeginTransaction();
+    conn->BeginTransaction();
 
-    if (!database->RunPrepared(sQuery, vParams))
+    if (!conn->RunPrepared(sQuery, vParams))
       throw std::runtime_error("[RunPrepared exception]");
 
     if (!UpdateSessionSequence())
-      throw std::runtime_error("Error updating sesion sequence");
+      throw std::runtime_error("Error updating session sequence");
 
-    database->CommitTransaction();
+    conn->CommitTransaction();
 
     return true;
   } catch (const std::exception &e) {
-    database->RollbackTransaction();
+    conn->RollbackTransaction();
     throw(std::runtime_error(std::string("[LoginException]") + e.what()));
   }
-};
+}
 
 int Session::GetCurrentSequence() const {
+  auto conn = database->Acquire();
   try {
     const std::string sQuery = "SELECT COALESCE(SessionSequence, 0) + 1 "
                                "SessionSequence FROM Sequences "
                                "WHERE SeqEntry = 1";
 
-    omnisphere::types::DataTable data = database->FetchResults(sQuery);
+    omnisphere::types::DataTable data = conn->FetchResults(sQuery);
 
     if (data.RowsCount() == 1)
       return data[0]["SessionSequence"];
@@ -83,14 +85,15 @@ int Session::GetCurrentSequence() const {
     throw std::runtime_error(std::string("[GetCurrentSequence Exception] ") +
                              " " + e.what());
   }
-};
+}
 
 bool Session::UpdateSessionSequence() const {
+  auto conn = database->Acquire();
   try {
     const std::string sQuery = "UPDATE Sequences SET SessionSequence = "
                                "COALESCE(SessionSequence,0) + 1";
 
-    if (!database->RunStatement(sQuery))
+    if (!conn->RunStatement(sQuery))
       return false;
 
     return true;
@@ -98,10 +101,11 @@ bool Session::UpdateSessionSequence() const {
     throw std::runtime_error(std::string("[SessionSequence Exception] ") + " " +
                              e.what());
   }
-};
+}
 
 omnisphere::types::DataTable
 Session::Read(const omnisphere::dtos::Login &login) const {
+  auto conn = database->Acquire();
   try {
     std::string sQuery = "SELECT "
                          "T0.SessionEntry, "
@@ -142,59 +146,63 @@ Session::Read(const omnisphere::dtos::Login &login) const {
     vParams.emplace_back(omnisphere::types::MakeSQLParam(login.HostName));
 
     omnisphere::types::DataTable data =
-        database->FetchPrepared(sQuery, vParams);
+        conn->FetchPrepared(sQuery, vParams);
 
     return data;
   } catch (const std::exception &e) {
     throw std::runtime_error(std::string("[ReadSessionData Exception] ") + " " +
                              e.what());
   }
-};
+}
 
 omnisphere::types::DataTable
 Session::Read(const std::string &sessionUUID) const {
+  auto conn = database->Acquire();
   try {
     std::string sQuery =
         "SELECT SessionUUID, StartDate, EndDate, DurationSeconds, Reason, "
         "LogoutMessage FROM Sessions WHERE SessionUUID = ?";
 
-    return database->FetchPrepared(sQuery, sessionUUID);
+    return conn->FetchPrepared(sQuery, sessionUUID);
   } catch (const std::exception &e) {
     throw std::runtime_error(std::string("[ReadSessionData Exception] ") + " " +
                              e.what());
   }
-};
+}
 
 omnisphere::types::DataTable
 Session::ExistsUUID(const std::string &sessionUUID) const {
+  auto conn = database->Acquire();
   try {
     std::string sQuery =
-        "SELECT COUNT(*) Total FROM Sessions WHERE SessionUUID  = ?";
+        "SELECT COUNT(*) Total FROM Sessions WHERE SessionUUID = ?";
 
-    types::DataTable data = database->FetchPrepared(sQuery, sessionUUID);
+    types::DataTable data = conn->FetchPrepared(sQuery, sessionUUID);
 
     return data;
   } catch (const std::exception &e) {
     throw std::runtime_error(std::string("[ValidateSessionUUID Exception] ") +
                              " " + e.what());
   }
-};
+}
 
 omnisphere::types::DataTable
 Session::IsActive(const std::string &sessionUUID) const {
+  auto conn = database->Acquire();
   try {
-    std::string sQuery = "SELECT IsActive FROM Sessions WHERE SessionUUID  = ?";
+    std::string sQuery = "SELECT IsActive FROM Sessions WHERE SessionUUID = ?";
 
-    types::DataTable data = database->FetchPrepared(sQuery, sessionUUID);
+    types::DataTable data = conn->FetchPrepared(sQuery, sessionUUID);
 
     return data;
   } catch (const std::exception &e) {
     throw std::runtime_error(std::string("[IsSessionActive Exception] ") + " " +
                              e.what());
   }
-};
+}
 
 bool Session::Close(const omnisphere::dtos::Logout &logout) const {
+  auto conn = database->Acquire();
   try {
     std::string sQuery =
         "UPDATE Sessions SET IsActive = 'N', EndDate = ?, DurationSeconds = ? ";
@@ -203,7 +211,7 @@ bool Session::Close(const omnisphere::dtos::Logout &logout) const {
     if (logout.Message.has_value())
       sQuery += ", LogoutMessage = ? ";
 
-    sQuery += ", Reason = ? WHERE SessionUUID  = ? AND IsActive = 'Y'";
+    sQuery += ", Reason = ? WHERE SessionUUID = ? AND IsActive = 'Y'";
 
     vParams.emplace_back(omnisphere::types::MakeSQLParam(logout.EndDate));
     vParams.emplace_back(omnisphere::types::MakeSQLParam(3600));
@@ -214,15 +222,16 @@ bool Session::Close(const omnisphere::dtos::Logout &logout) const {
     vParams.emplace_back(omnisphere::types::MakeSQLParam(logout.Reason));
     vParams.emplace_back(omnisphere::types::MakeSQLParam(logout.SessionUUID));
 
-    database->BeginTransaction();
-    database->RunPrepared(sQuery, vParams);
+    conn->BeginTransaction();
+    conn->RunPrepared(sQuery, vParams);
 
-    database->CommitTransaction();
+    conn->CommitTransaction();
 
     return true;
   } catch (const std::exception &e) {
+    conn->RollbackTransaction();
     throw std::runtime_error(std::string("[CloseSession Exception] ") + " " +
                              e.what());
   }
-};
+}
 } // namespace omnisphere::repositories

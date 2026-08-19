@@ -1,25 +1,34 @@
 #pragma once
 #include <OmniData/DataTable.hpp>
-#include <OmniData/Database.hpp>
+#include <OmniData/DatabasePool.hpp>
 #include "User/DTOs/CreateUser.hpp"
 #include "User/DTOs/SearchUsers.hpp"
 #include "User/DTOs/UpdateUser.hpp"
 #include "User/Enums/UserFilter.hpp"
 #include "User/Models/User.hpp"
 #include <memory>
+#include <optional>
+#include <vector>
 
 namespace omnisphere::repositories {
+
+struct UserCursorPage {
+  std::vector<omnisphere::models::User> users;
+  std::optional<int> nextCursor;
+  bool hasPreviousPage = false;
+  int totalCount = 0;
+};
+
 class User {
 private:
-  std::shared_ptr<omnisphere::data::Database> database;
+  std::shared_ptr<omnisphere::data::DatabasePool> database;
   int _UserEntry = -1;
 
   bool UpdateUserSequence() const;
-
   int GetCurrentSequence() const;
 
 public:
-  explicit User(std::shared_ptr<omnisphere::data::Database> database);
+  explicit User(std::shared_ptr<omnisphere::data::DatabasePool> database);
 
   ~User() {};
 
@@ -32,6 +41,12 @@ public:
 
   omnisphere::types::DataTable Read(const omnisphere::enums::UserFilter &filter,
                                     const std::string &value) const;
+
+  // Batch lookup for DataLoader
+  omnisphere::types::DataTable GetByIds(const std::vector<int> &ids) const;
+
+  // Keyset pagination (cursor = Entry)
+  UserCursorPage GetPage(std::optional<int> afterEntry, int limit) const;
 
   bool ExistsEntry(const int &entry) const;
 

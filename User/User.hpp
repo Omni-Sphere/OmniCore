@@ -1,6 +1,6 @@
 #pragma once
 
-#include <OmniData/Database.hpp>
+#include <OmniData/DatabasePool.hpp>
 
 #include "DTOs/ChangePassword.hpp"
 #include "DTOs/CreateUser.hpp"
@@ -8,11 +8,12 @@
 #include "DTOs/UpdateUser.hpp"
 #include "Enums/UserFilter.hpp"
 #include "Models/User.hpp"
+#include "Repositories/User.hpp"
 
 namespace omnisphere::services {
 class User {
 public:
-  explicit User(std::shared_ptr<omnisphere::data::Database> database);
+  explicit User(std::shared_ptr<omnisphere::data::DatabasePool> database);
 
   ~User();
 
@@ -31,6 +32,9 @@ public:
                                const std::string &value) const;
   bool Exists(const omnisphere::enums::UserFilter &filter,
               const std::string &value) const;
+
+  omnisphere::repositories::UserCursorPage
+  GetPage(std::optional<int> afterEntry, int limit) const;
 
 private:
   struct Impl;

@@ -4,14 +4,14 @@
 namespace omnisphere::services {
 struct GlobalConfiguration::Impl {
   std::shared_ptr<omnisphere::repositories::GlobalConfiguration> repository;
-  explicit Impl(std::shared_ptr<omnisphere::data::Database> database)
+  explicit Impl(std::shared_ptr<omnisphere::data::DatabasePool> database)
       : repository(
             std::make_shared<omnisphere::repositories::GlobalConfiguration>(
                 database)) {}
 };
 
 GlobalConfiguration::GlobalConfiguration(
-    std::shared_ptr<omnisphere::data::Database> database)
+    std::shared_ptr<omnisphere::data::DatabasePool> database)
     : pimpl(std::make_unique<Impl>(database)) {}
 
 GlobalConfiguration::~GlobalConfiguration() = default;

@@ -1,6 +1,6 @@
 #include <OmniUtils/JWT.hpp>
 #include <OmniData/DataTable.hpp>
-#include <OmniData/Database.hpp>
+#include <OmniData/DatabasePool.hpp>
 #include "Session/Session.hpp"
 #include <memory>
 #include <optional>
@@ -16,12 +16,12 @@ struct Session::Impl {
   std::shared_ptr<omnisphere::repositories::Session> session;
   std::shared_ptr<omnisphere::services::User> user;
 
-  explicit Impl(std::shared_ptr<omnisphere::data::Database> db)
+  explicit Impl(std::shared_ptr<omnisphere::data::DatabasePool> db)
       : session(std::make_shared<omnisphere::repositories::Session>(db)),
         user(std::make_shared<omnisphere::services::User>(db)) {}
 };
 
-Session::Session(std::shared_ptr<omnisphere::data::Database> db)
+Session::Session(std::shared_ptr<omnisphere::data::DatabasePool> db)
     : pimpl(std::make_unique<Impl>(db)) {}
 
 Session::~Session() = default;
@@ -43,8 +43,6 @@ Session::Login(const omnisphere::dtos::Login &login) const {
         !pimpl->user->Exists(omnisphere::enums::UserFilter::Phone,
                              login.Phone.value()))
       throw std::runtime_error("User Phone doesn't exists");
-
-    // Add lockout check
 
     omnisphere::models::User userModel = [&]() -> omnisphere::models::User {
       if (login.Code.has_value())
@@ -111,7 +109,7 @@ Session::Login(const omnisphere::dtos::Login &login) const {
   } catch (const std::exception &e) {
     throw std::runtime_error(std::string("[Login Exception] ") + e.what());
   }
-};
+}
 
 bool Session::Active(const std::string &token) const {
   try {
@@ -146,7 +144,7 @@ bool Session::Exists(const std::string &sessionUUID) const {
 
     if (sessionCount > 1)
       throw std::runtime_error(std::string(
-          "Inconsistences in sesion UUID, found more than one session"));
+          "Inconsistencies in session UUID, found more than one session"));
 
     return true;
   } catch (const std::exception &e) {
@@ -176,7 +174,7 @@ Session::Logout(const omnisphere::dtos::Logout &logout) const {
     logoutModel.EndDate = std::string(data[0]["EndDate"]);
     logoutModel.Duration = data[0]["DurationSeconds"];
     logoutModel.Reason = static_cast<omnisphere::enums::LogoutReason>(
-        static_cast<int>(data[0]["Reason"])); // Casting check might be needed
+        static_cast<int>(data[0]["Reason"]));
     logoutModel.Message = data[0]["LogoutMessage"].GetOptional<std::string>();
 
     return logoutModel;

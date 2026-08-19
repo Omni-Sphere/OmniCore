@@ -4,11 +4,12 @@
 
 namespace omnisphere::repositories {
 GlobalConfiguration::GlobalConfiguration(
-    std::shared_ptr<omnisphere::data::Database> _database)
+    std::shared_ptr<omnisphere::data::DatabasePool> _database)
     : database(std::move(_database)) {}
 
 bool GlobalConfiguration::Update(
     const omnisphere::dtos::UpdateGlobalConfiguration &config) const {
+  auto conn = database->Acquire();
   try {
     std::string sQuery = "UPDATE GlobalConfiguration SET ";
     std::vector<omnisphere::types::SQLParam> updateParams;
@@ -48,25 +49,22 @@ bool GlobalConfiguration::Update(
       firstField = false;
     }
 
-    // If no fields were updated, return true as nothing needs to be done
-
     if (firstField) {
       return true;
     }
 
-    database->BeginTransaction();
+    conn->BeginTransaction();
 
-    if (!database->RunPrepared(sQuery, updateParams)) {
-      database->RollbackTransaction();
-
+    if (!conn->RunPrepared(sQuery, updateParams)) {
+      conn->RollbackTransaction();
       return false;
     }
 
-    database->CommitTransaction();
+    conn->CommitTransaction();
 
     return true;
   } catch (const std::exception &e) {
-    database->RollbackTransaction();
+    conn->RollbackTransaction();
     throw std::runtime_error(
         std::string("[GlobalConfiguration Update Exception] ") + e.what());
   }
@@ -74,13 +72,14 @@ bool GlobalConfiguration::Update(
 
 omnisphere::models::GlobalConfiguration
 GlobalConfiguration::Get(int confEntry) const {
+  auto conn = database->Acquire();
   try {
     std::string sQuery =
         "SELECT ConfEntry, ImagePath, PDFPath, XMLPath, "
         "PasswordExpirationDays FROM GlobalConfiguration WHERE ConfEntry = ?";
 
     omnisphere::types::DataTable data =
-        database->FetchPrepared(sQuery, std::to_string(confEntry));
+        conn->FetchPrepared(sQuery, std::to_string(confEntry));
 
     if (data.RowsCount() == 0) {
       throw std::runtime_error("Configuration not found");

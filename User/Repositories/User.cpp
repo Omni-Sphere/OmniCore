@@ -2,16 +2,20 @@
 #include "User/Enums/PermissionMode.hpp"
 #include "User/Repositories/User.hpp"
 #include <functional>
+#include <algorithm>
+#include <sstream>
 
 namespace omnisphere::repositories {
-User::User(std::shared_ptr<omnisphere::data::Database> _database)
+
+User::User(std::shared_ptr<omnisphere::data::DatabasePool> _database)
     : database(std::move(_database)) {}
 
 bool User::Create(const omnisphere::dtos::CreateUser &user) const {
+  auto conn = database->Acquire();
   try {
-    database->BeginTransaction();
+    conn->BeginTransaction();
 
-    GetCurrentSequence();
+    int nextSeq = GetCurrentSequence();
 
     std::vector<uint8_t> hashedPassword =
         omnisphere::utils::Hasher::HashPassword(user.Password);
@@ -41,7 +45,7 @@ bool User::Create(const omnisphere::dtos::CreateUser &user) const {
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     const std::vector<omnisphere::types::SQLParam> params = {
-        omnisphere::types::MakeSQLParam(GetCurrentSequence()),
+        omnisphere::types::MakeSQLParam(nextSeq),
         omnisphere::types::MakeSQLParam(user.Code),
         omnisphere::types::MakeSQLParam(user.Name),
         omnisphere::types::MakeSQLParam(user.Email),
@@ -68,32 +72,33 @@ bool User::Create(const omnisphere::dtos::CreateUser &user) const {
         omnisphere::types::MakeSQLParam(user.CreatedBy),
         omnisphere::types::MakeSQLParam(user.CreateDate)};
 
-    if (!database->RunPrepared(sQuery, params)) {
-      database->RollbackTransaction();
+    if (!conn->RunPrepared(sQuery, params)) {
+      conn->RollbackTransaction();
       throw std::runtime_error("Error creating user");
     }
 
     if (!UpdateUserSequence()) {
-      database->RollbackTransaction();
+      conn->RollbackTransaction();
       throw std::runtime_error("Error updating sequence");
     }
 
-    database->CommitTransaction();
+    conn->CommitTransaction();
 
     return true;
   } catch (const std::exception &e) {
-    database->RollbackTransaction();
+    conn->RollbackTransaction();
     throw std::runtime_error(std::string("[CreateUser Exception] ") + " " +
                              e.what());
   }
 }
 
 bool User::UpdateUserSequence() const {
+  auto conn = database->Acquire();
   try {
     const std::string sQuery =
         "UPDATE Sequences SET UserSequence = COALESCE(UserSequence,0) + 1";
 
-    if (!database->RunStatement(sQuery))
+    if (!conn->RunStatement(sQuery))
       return false;
 
     return true;
@@ -101,14 +106,15 @@ bool User::UpdateUserSequence() const {
     throw std::runtime_error(std::string("[UpdateUserSequence Exception] ") +
                              " " + e.what());
   }
-};
+}
 
 int User::GetCurrentSequence() const {
+  auto conn = database->Acquire();
   try {
     const std::string sQuery = "SELECT COALESCE(UserSequence, 0) + 1 "
                                "UserSequence FROM Sequences WHERE Entry = 1";
 
-    omnisphere::types::DataTable data = database->FetchResults(sQuery);
+    omnisphere::types::DataTable data = conn->FetchResults(sQuery);
 
     if (data.RowsCount() == 1)
       return data[0]["UserSequence"];
@@ -118,9 +124,10 @@ int User::GetCurrentSequence() const {
     throw std::runtime_error(std::string("[GetCurrentSequence Exception] ") +
                              " " + e.what());
   }
-};
+}
 
 bool User::Update(const omnisphere::dtos::UpdateUser &user) const {
+  auto conn = database->Acquire();
   try {
     std::string sQuery = "UPDATE Users SET ";
     std::vector<omnisphere::types::SQLParam> updateParams;
@@ -137,7 +144,7 @@ bool User::Update(const omnisphere::dtos::UpdateUser &user) const {
           omnisphere::types::MakeSQLParam(user.Data.Email.value()));
     }
 
-    if (user.Data.Email.has_value()) {
+    if (user.Data.Phone.has_value()) {
       sQuery += "Phone = ?, ";
       updateParams.emplace_back(
           omnisphere::types::MakeSQLParam(user.Data.Phone.value()));
@@ -194,24 +201,25 @@ bool User::Update(const omnisphere::dtos::UpdateUser &user) const {
           omnisphere::types::MakeSQLParam(user.Where.Code.value()));
     }
 
-    database->BeginTransaction();
+    conn->BeginTransaction();
 
-    if (!database->RunPrepared(sQuery, updateParams))
-      throw;
+    if (!conn->RunPrepared(sQuery, updateParams))
+      throw std::runtime_error("Update failed");
 
-    database->CommitTransaction();
+    conn->CommitTransaction();
 
     return true;
   } catch (const std::exception &e) {
-    database->RollbackTransaction();
-    throw std::runtime_error(std::string("[UpdateUSer Exception]") + e.what());
+    conn->RollbackTransaction();
+    throw std::runtime_error(std::string("[UpdateUser Exception]") + e.what());
   }
-};
+}
 
 bool User::UpdatePassword(const omnisphere::enums::UserFilter &filter,
                           const std::string &value,
                           const std::string &oldPassword,
                           const std::string &newPassword) const {
+  auto conn = database->Acquire();
   try {
     std::string sQuery = "UPDATE Users SET Password = ? WHERE ";
 
@@ -231,23 +239,24 @@ bool User::UpdatePassword(const omnisphere::enums::UserFilter &filter,
       break;
     }
 
-    database->BeginTransaction();
+    conn->BeginTransaction();
 
-    if (!database->RunPrepared(sQuery, vParams))
-      throw;
+    if (!conn->RunPrepared(sQuery, vParams))
+      throw std::runtime_error("UpdatePassword failed");
 
-    database->CommitTransaction();
+    conn->CommitTransaction();
 
     return true;
   } catch (const std::exception &e) {
-    database->RollbackTransaction();
+    conn->RollbackTransaction();
     throw std::runtime_error(std::string("[UpdatePassword Exception]: ") +
                              e.what());
   }
-};
+}
 
 types::DataTable User::Read(const omnisphere::enums::UserFilter &filter,
                             const std::string &value) const {
+  auto conn = database->Acquire();
   try {
     std::string sQuery = "SELECT "
                          "[Entry] AS UserEntry, "
@@ -271,8 +280,6 @@ types::DataTable User::Read(const omnisphere::enums::UserFilter &filter,
                          "LastUpdatedBy, "
                          "UpdateDate "
                          "FROM Users WHERE ";
-
-    std::vector<omnisphere::types::SQLParam> vParams;
 
     switch (filter) {
     case omnisphere::enums::UserFilter::Entry:
@@ -304,16 +311,17 @@ types::DataTable User::Read(const omnisphere::enums::UserFilter &filter,
     }
 
     omnisphere::types::DataTable dataTable =
-        database->FetchPrepared(sQuery, value);
+        conn->FetchPrepared(sQuery, value);
 
     return dataTable;
   } catch (const std::exception &e) {
     throw std::runtime_error(std::string("[ReadByCode Exception] ") + " " +
                              e.what());
   }
-};
+}
 
 types::DataTable User::Read(const omnisphere::dtos::SearchUsers &filter) const {
+  auto conn = database->Acquire();
   try {
     std::string baseQuery = "SELECT "
                             "[Entry] AS UserEntry, "
@@ -340,35 +348,8 @@ types::DataTable User::Read(const omnisphere::dtos::SearchUsers &filter) const {
     std::vector<std::string> conditions;
     std::vector<std::string> parameters;
 
-    std::function<void(const std::string &, const std::optional<std::string> &)>
-        addCondition = [&](const std::string &field,
-                           const std::optional<std::string> &value) {
-          if (value.has_value()) {
-            // TODO Implements LIKE condition
-            //  if (filter.ExactValues) {
-            conditions.push_back(field + " = ?");
-            parameters.emplace_back(value.value());
-            //}  else {
-            //    conditions.push_back(field + " LIKE ?");
-            //    parameters.emplace_back("%" + value.value() + "%");
-            //}
-          }
-        };
-
-    std::string query = baseQuery;
-
-    /* if (!conditions.empty()) {
-    query += " WHERE " + std::accumulate(
-        std::next(conditions.begin()), conditions.end(), conditions[0],
-        [&](std::string acc, const std::string& cond) {
-
-        return acc + (filter.ExactValues ? " AND " : " OR ") + cond;
-    }
-    );
-} */
-
     omnisphere::types::DataTable dataTable =
-        database->FetchPrepared(baseQuery, parameters);
+        conn->FetchPrepared(baseQuery, parameters);
 
     return dataTable;
   } catch (const std::exception &e) {
@@ -376,9 +357,73 @@ types::DataTable User::Read(const omnisphere::dtos::SearchUsers &filter) const {
   }
 }
 
+omnisphere::types::DataTable User::GetByIds(const std::vector<int> &ids) const {
+  if (ids.empty()) return omnisphere::types::DataTable{};
+  auto conn = database->Acquire();
+  std::string sQuery = "SELECT Entry, Code, Name, Email, Phone, IsLocked, IsActive, "
+                       "RoleEntry, SuperUser, CreateDate FROM Users WHERE Entry IN (";
+  std::vector<omnisphere::types::SQLParam> params;
+  for (size_t i = 0; i < ids.size(); ++i) {
+    if (i > 0) sQuery += ", ";
+    sQuery += "?";
+    params.push_back(omnisphere::types::MakeSQLParam(ids[i]));
+  }
+  sQuery += ")";
+  return conn->FetchPrepared(sQuery, params);
+}
+
+UserCursorPage User::GetPage(std::optional<int> afterEntry, int limit) const {
+  auto conn = database->Acquire();
+  std::string countQuery = "SELECT COALESCE(COUNT(*), 0) AS Total FROM Users";
+  auto totalTable = conn->FetchResults(countQuery);
+  int totalCount = 0;
+  if (totalTable.RowsCount() > 0) {
+    totalCount = totalTable[0]["Total"];
+  }
+
+  std::string sQuery;
+  std::vector<omnisphere::types::SQLParam> params;
+
+  if (afterEntry.has_value()) {
+    sQuery = "SELECT Entry, Code, Name, Email, Phone, IsLocked, IsActive, CreatedBy, CreateDate "
+             "FROM Users WHERE Entry > ? ORDER BY Entry ASC LIMIT ?";
+    params.push_back(omnisphere::types::MakeSQLParam(afterEntry.value()));
+    params.push_back(omnisphere::types::MakeSQLParam(limit + 1));
+  } else {
+    sQuery = "SELECT Entry, Code, Name, Email, Phone, IsLocked, IsActive, CreatedBy, CreateDate "
+             "FROM Users ORDER BY Entry ASC LIMIT ?";
+    params.push_back(omnisphere::types::MakeSQLParam(limit + 1));
+  }
+
+  auto table = conn->FetchPrepared(sQuery, params);
+  UserCursorPage page;
+  page.totalCount = totalCount;
+  page.hasPreviousPage = afterEntry.has_value();
+
+  size_t rowLimit = std::min<size_t>(table.RowsCount(), static_cast<size_t>(limit));
+  for (size_t i = 0; i < rowLimit; ++i) {
+    omnisphere::models::User u;
+    u.Entry = table[i]["Entry"];
+    u.Code = static_cast<std::string>(table[i]["Code"]);
+    if (!table[i]["Name"].IsNull()) u.Name = static_cast<std::string>(table[i]["Name"]);
+    if (!table[i]["Email"].IsNull()) u.Email = static_cast<std::string>(table[i]["Email"]);
+    if (!table[i]["Phone"].IsNull()) u.Phone = static_cast<std::string>(table[i]["Phone"]);
+    u.IsLocked = table[i]["IsLocked"];
+    u.IsActive = table[i]["IsActive"];
+    page.users.push_back(u);
+  }
+
+  if (table.RowsCount() > static_cast<size_t>(limit)) {
+    page.nextCursor = page.users.back().Entry;
+  }
+
+  return page;
+}
+
 bool User::ValidatePassword(const omnisphere::enums::UserFilter &searchFilter,
                             const std::string &filterValue,
                             const std::string &Password) const {
+  auto conn = database->Acquire();
   try {
     std::string sQuery = "SELECT Password FROM Users WHERE ";
 
@@ -404,7 +449,7 @@ bool User::ValidatePassword(const omnisphere::enums::UserFilter &searchFilter,
     }
 
     omnisphere::types::DataTable data =
-        database->FetchPrepared(sQuery, filterValue);
+        conn->FetchPrepared(sQuery, filterValue);
 
     if (data.RowsCount() == 0)
       throw std::runtime_error("No records found");
@@ -416,19 +461,20 @@ bool User::ValidatePassword(const omnisphere::enums::UserFilter &searchFilter,
 
     return false;
   } catch (const std::exception &e) {
-    database->RollbackTransaction();
+    conn->RollbackTransaction();
     throw std::runtime_error(std::string("[ValidatePassword Exception]: ") +
                              e.what());
   }
-};
+}
 
 bool User::ExistsEntry(const int &entry) const {
+  auto conn = database->Acquire();
   try {
     const std::string sQuery =
         "SELECT COALESCE(COUNT(*), 0) Total FROM Users WHERE Entry = ?";
 
     omnisphere::types::DataTable data =
-        database->FetchPrepared(sQuery, std::to_string(entry));
+        conn->FetchPrepared(sQuery, std::to_string(entry));
 
     if (data.RowsCount() == 0)
       return false;
@@ -437,14 +483,15 @@ bool User::ExistsEntry(const int &entry) const {
   } catch (const std::exception &e) {
     throw std::runtime_error(e.what());
   }
-};
+}
 
 bool User::ExistsCode(const std::string &code) const {
+  auto conn = database->Acquire();
   try {
     const std::string sQuery =
         "SELECT COALESCE(COUNT(*), 0) AS Total FROM Users WHERE Code = ?";
 
-    omnisphere::types::DataTable data = database->FetchPrepared(sQuery, code);
+    omnisphere::types::DataTable data = conn->FetchPrepared(sQuery, code);
 
     if (data.RowsCount() == 0)
       return false;
@@ -453,5 +500,6 @@ bool User::ExistsCode(const std::string &code) const {
   } catch (const std::exception &e) {
     throw std::runtime_error(e.what());
   }
-};
+}
+
 } // namespace omnisphere::repositories

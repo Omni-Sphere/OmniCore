@@ -1,19 +1,19 @@
 #pragma once
 #include <OmniData/DataTable.hpp>
-
-#include <OmniData/Database.hpp>
+#include <OmniData/DatabasePool.hpp>
 #include "Session/DTOs/Login.hpp"
 #include "Session/DTOs/Logout.hpp"
+#include <memory>
 
 namespace omnisphere::repositories {
 class Session {
 private:
-  std::shared_ptr<omnisphere::data::Database> database;
+  std::shared_ptr<omnisphere::data::DatabasePool> database;
   int GetCurrentSequence() const;
   bool UpdateSessionSequence() const;
 
 public:
-  explicit Session(std::shared_ptr<omnisphere::data::Database> Database);
+  explicit Session(std::shared_ptr<omnisphere::data::DatabasePool> Database);
   ~Session() {};
 
   bool Create(const omnisphere::dtos::Login &login) const;
