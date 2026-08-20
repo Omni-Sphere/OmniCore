@@ -53,6 +53,8 @@ add_library(OmniCore SHARED
     GlobalConfiguration/Repositories/GlobalConfiguration.cpp
     File/File.cpp
     File/Repositories/File.cpp
+    Authorization/Authorization.cpp
+    Authorization/Repositories/Authorization.cpp
 )
 
 # --- Resolución de dependencias Omni ---
@@ -140,6 +142,7 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/Session/Session.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/GlobalConfiguration/GlobalConfiguration.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/File/File.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Authorization/Authorization.hpp
 )
 
 foreach(HDR ${PUBLIC_HEADERS})
@@ -165,6 +168,9 @@ set(
     GlobalConfiguration/DTOs
     File/DTOs
     File/Models
+    Authorization
+    Authorization/DTOs
+    Authorization/Models
 )
 
 foreach(DIR ${HEADER_DIRS})
