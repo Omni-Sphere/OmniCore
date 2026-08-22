@@ -25,8 +25,10 @@ include(GNUInstallDirs)
 
 if(EXISTS "${OMNI_BASE_DIR}")
     list(APPEND CMAKE_PREFIX_PATH "${OMNI_BASE_DIR}")
-    list(APPEND CMAKE_PREFIX_PATH "${OMNI_BASE_DIR}/lib/OmniUtils/cmake/OmniUtils")
-    list(APPEND CMAKE_PREFIX_PATH "${OMNI_BASE_DIR}/lib/OmniData/cmake/OmniData")
+    list(APPEND CMAKE_PREFIX_PATH "${OMNI_BASE_DIR}/lib/cmake/OmniUtils")
+    list(APPEND CMAKE_PREFIX_PATH "${OMNI_BASE_DIR}/lib/cmake/OmniData")
+    list(APPEND CMAKE_PREFIX_PATH "${OMNI_BASE_DIR}/lib/OmniSphere/cmake/OmniUtils")
+    list(APPEND CMAKE_PREFIX_PATH "${OMNI_BASE_DIR}/lib/OmniSphere/cmake/OmniData")
 endif()
 
 set(CMAKE_CXX_STANDARD 20)
@@ -63,24 +65,7 @@ if(NOT TARGET OmniData::OmniData)
     find_package(OmniData REQUIRED)
 endif()
 
-# --- Corrección limpia de rutas para dependencias importadas ---
-if(TARGET OmniUtils::OmniUtils)
-    get_target_property(IS_IMPORTED OmniUtils::OmniUtils IMPORTED)
-    if(IS_IMPORTED)
-        set_target_properties(OmniUtils::OmniUtils PROPERTIES
-            INTERFACE_INCLUDE_DIRECTORIES "${OMNI_BASE_DIR}/include"
-        )
-    endif()
-endif()
 
-if(TARGET OmniData::OmniData)
-    get_target_property(IS_IMPORTED OmniData::OmniData IMPORTED)
-    if(IS_IMPORTED)
-        set_target_properties(OmniData::OmniData PROPERTIES
-            INTERFACE_INCLUDE_DIRECTORIES "${OMNI_BASE_DIR}/include"
-        )
-    endif()
-endif()
 
 # SOLUCIÓN: Solo exportamos la raíz limpia del proyecto e incluimos el SDK local para dependencias
 target_include_directories(OmniCore
