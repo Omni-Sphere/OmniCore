@@ -475,7 +475,8 @@ bool User::ExistsEntry(const int &entry) const {
     if (data.RowsCount() == 0)
       return false;
 
-    return true;
+    int total = data[0]["Total"];
+    return total > 0;
   } catch (const std::exception &e) {
     throw std::runtime_error(e.what());
   }
@@ -492,7 +493,8 @@ bool User::ExistsCode(const std::string &code) const {
     if (data.RowsCount() == 0)
       return false;
 
-    return true;
+    int total = data[0]["Total"];
+    return total > 0;
   } catch (const std::exception &e) {
     throw std::runtime_error(e.what());
   }
