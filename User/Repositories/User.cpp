@@ -467,7 +467,7 @@ bool User::ExistsEntry(const int &entry) const {
   auto conn = database->Acquire();
   try {
     const std::string sQuery =
-        "SELECT COALESCE(COUNT(*), 0) Total FROM \"Users\" WHERE \"Entry\" = ?";
+        "SELECT COALESCE(COUNT(*), 0) AS \"Total\" FROM \"Users\" WHERE \"Entry\" = ?";
 
     omnisphere::types::DataTable data =
         conn->FetchPrepared(sQuery, std::to_string(entry));
@@ -486,7 +486,7 @@ bool User::ExistsCode(const std::string &code) const {
   auto conn = database->Acquire();
   try {
     const std::string sQuery =
-        "SELECT COALESCE(COUNT(*), 0) AS Total FROM \"Users\" WHERE \"Code\" = ?";
+        "SELECT COALESCE(COUNT(*), 0) AS \"Total\" FROM \"Users\" WHERE \"Code\" = ?";
 
     omnisphere::types::DataTable data = conn->FetchPrepared(sQuery, code);
 
