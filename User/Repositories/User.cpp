@@ -15,37 +15,33 @@ bool User::Create(const omnisphere::dtos::CreateUser &user) const {
   try {
     conn->BeginTransaction();
 
-    int nextSeq = GetCurrentSequence();
-
     std::vector<uint8_t> hashedPassword =
         omnisphere::utils::Hasher::HashPassword(user.Password);
 
     std::string sQuery =
-        "INSERT INTO Users ("
-        "Entry, "
-        "[Code], "
-        "[Name], "
-        "Email, "
-        "Phone, "
-        "Employee, "
-        "RoleEntry, "
-        "MaxDisccountPerLine, "
-        "MaxDisccountPerDocument, "
-        "PermissionMode, "
-        "Department, "
-        "SuperUser, "
-        "IsLocked, "
-        "IsActive, "
-        "[Password], "
-        "PasswordNeverExpires, "
-        "ChangePasswordNextLogin, "
-        "CreatedBy, "
-        "CreateDate"
+        "INSERT INTO \"Users\" ("
+        "\"Code\", "
+        "\"Name\", "
+        "\"Email\", "
+        "\"Phone\", "
+        "\"Employee\", "
+        "\"RoleEntry\", "
+        "\"MaxDisccountPerLine\", "
+        "\"MaxDisccountPerDocument\", "
+        "\"PermissionMode\", "
+        "\"Department\", "
+        "\"SuperUser\", "
+        "\"IsLocked\", "
+        "\"IsActive\", "
+        "\"Password\", "
+        "\"PasswordNeverExpires\", "
+        "\"ChangePasswordNextLogin\", "
+        "\"CreatedBy\", "
+        "\"CreateDate\""
         ") "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     const std::vector<omnisphere::types::SQLParam> params = {
-        omnisphere::types::MakeSQLParam(nextSeq),
         omnisphere::types::MakeSQLParam(user.Code),
         omnisphere::types::MakeSQLParam(user.Name),
         omnisphere::types::MakeSQLParam(user.Email),
