@@ -223,7 +223,7 @@ omnisphere::models::User User::Get(const omnisphere::enums::UserFilter &filter,
           static_cast<std::string>(dataTable[0]["PermissionMode"]);
       UserData.PermissionMode = mode == "P"
                                     ? omnisphere::enums::PermissionMode::P
-                                    : omnisphere::enums::PermissionMode::M;
+                                    : omnisphere::enums::PermissionMode::R;
     }
 
     if (!dataTable[0]["Department"].IsNull())
