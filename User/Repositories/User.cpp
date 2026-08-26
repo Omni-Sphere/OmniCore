@@ -72,11 +72,11 @@ bool User::Create(const omnisphere::dtos::CreateUser &user) const {
     std::cout << "[OmniCore::User::Create] Executing SQL Query:" << std::endl;
     std::cout << sQuery << std::endl;
     std::cout << "[OmniCore::User::Create] Values: Code='" << user.Code
-              << "', Name='" << user.Name
-              << "', SuperUser='" << (user.SuperUser ? "Y" : "N")
-              << "', IsLocked='N', IsActive='Y'"
-              << "', PasswordNeverExpires='" << (user.PasswordNeverExpires ? "Y" : "N")
-              << "', ChangePasswordNextLogin='" << (user.ChangePasswordNextLogin ? "Y" : "N")
+              << "', Name='" << user.Name.value_or("")
+              << "', SuperUser='" << (user.SuperUser ? "true" : "false")
+              << "', IsLocked='false', IsActive='true'"
+              << "', PasswordNeverExpires='" << (user.PasswordNeverExpires ? "true" : "false")
+              << "', ChangePasswordNextLogin='" << (user.ChangePasswordNextLogin ? "true" : "false")
               << "', CreatedBy=" << user.CreatedBy
               << ", CreateDate='" << user.CreateDate << "'" << std::endl;
     std::cout << "==================================================\n" << std::endl;

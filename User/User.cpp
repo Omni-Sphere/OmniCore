@@ -153,7 +153,7 @@ User::Search(const omnisphere::dtos::SearchUsers &user) const {
             static_cast<std::string>(dataTable[i]["PermissionMode"]);
         UserData.PermissionMode = mode == "P"
                                       ? omnisphere::enums::PermissionMode::P
-                                      : omnisphere::enums::PermissionMode::M;
+                                      : omnisphere::enums::PermissionMode::R;
       }
 
       if (!dataTable[i]["Department"].IsNull())
