@@ -56,7 +56,7 @@ bool User::Create(const omnisphere::dtos::CreateUser &user) const {
                       user.PermissionMode.value() ==
                               omnisphere::enums::PermissionMode::P
                           ? "P"
-                          : "M")
+                          : "R")
                 : std::optional<std::string>("P")),
         omnisphere::types::MakeSQLParam(user.Department),
         omnisphere::types::MakeSQLParam(user.SuperUser),
@@ -68,18 +68,25 @@ bool User::Create(const omnisphere::dtos::CreateUser &user) const {
         omnisphere::types::MakeSQLParam(user.CreatedBy),
         omnisphere::types::MakeSQLParam(user.CreateDate)};
 
+    std::cout << "\n==================================================" << std::endl;
+    std::cout << "[OmniCore::User::Create] Executing SQL Query:" << std::endl;
+    std::cout << sQuery << std::endl;
+    std::cout << "[OmniCore::User::Create] Values: Code='" << user.Code
+              << "', Name='" << user.Name
+              << "', SuperUser='" << (user.SuperUser ? "Y" : "N")
+              << "', IsLocked='N', IsActive='Y'"
+              << "', PasswordNeverExpires='" << (user.PasswordNeverExpires ? "Y" : "N")
+              << "', ChangePasswordNextLogin='" << (user.ChangePasswordNextLogin ? "Y" : "N")
+              << "', CreatedBy=" << user.CreatedBy
+              << ", CreateDate='" << user.CreateDate << "'" << std::endl;
+    std::cout << "==================================================\n" << std::endl;
+
     if (!conn->RunPrepared(sQuery, params)) {
       conn->RollbackTransaction();
-      throw std::runtime_error("Error creating user");
-    }
-
-    if (!UpdateUserSequence()) {
-      conn->RollbackTransaction();
-      throw std::runtime_error("Error updating sequence");
+      throw std::runtime_error("Error executing User::Create statement");
     }
 
     conn->CommitTransaction();
-
     return true;
   } catch (const std::exception &e) {
     conn->RollbackTransaction();
