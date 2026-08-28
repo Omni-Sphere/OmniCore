@@ -1,5 +1,4 @@
-#ifndef OMNISPHERE_ENUMS_PERMISSIONMODE_HPP
-#define OMNISPHERE_ENUMS_PERMISSIONMODE_HPP
+#pragma once
 
 namespace omnisphere::enums
 {
@@ -9,5 +8,3 @@ namespace omnisphere::enums
         R
     };
 }
-
-#endif // OMNISPHERE_ENUMS_PERMISSIONMODE_HPP

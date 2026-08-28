@@ -1,7 +1,7 @@
 #pragma once
 #include <OmniData/DataTable.hpp>
 #include <OmniData/Database.hpp>
-#include "../Enums/PermissionMode.hpp"
+#include "User/Enums/PermissionMode.hpp"
 #include <memory>
 #include <optional>
 #include <string>

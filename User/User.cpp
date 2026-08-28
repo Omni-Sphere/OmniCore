@@ -1,6 +1,6 @@
 #include <stdexcept>
 
-#include "Enums/PermissionMode.hpp"
+#include "User/Enums/PermissionMode.hpp"
 #include "Repositories/User.hpp"
 #include "User.hpp"
 
