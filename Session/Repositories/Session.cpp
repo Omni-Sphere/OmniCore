@@ -125,7 +125,7 @@ Session::Read(const omnisphere::dtos::Login &login) const {
     std::vector<omnisphere::types::SQLParam> vParams;
 
     if (login.Code.has_value()) {
-      sQuery += "T0.UserCode = T1.[Code] WHERE T1.[Code] = ? ";
+      sQuery += "T0.UserCode = T1.Code WHERE T1.Code = ? ";
       vParams.emplace_back(omnisphere::types::MakeSQLParam(login.Code.value()));
     }
 

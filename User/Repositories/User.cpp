@@ -262,9 +262,9 @@ types::DataTable User::Read(const omnisphere::enums::UserFilter &filter,
   auto conn = database->Acquire();
   try {
     std::string sQuery = "SELECT "
-                         "[Entry] AS UserEntry, "
-                         "[Code], "
-                         "[Name], "
+                         "Entry AS UserEntry, "
+                         "Code, "
+                         "Name, "
                          "Email, "
                          "Phone, "
                          "Employee AS EmpEntry, "
@@ -286,15 +286,15 @@ types::DataTable User::Read(const omnisphere::enums::UserFilter &filter,
 
     switch (filter) {
     case omnisphere::enums::UserFilter::Entry:
-      sQuery += "[Entry] = ?";
+      sQuery += "Entry = ?";
       break;
 
     case omnisphere::enums::UserFilter::Name:
-      sQuery += "[Name] = ?";
+      sQuery += "Name = ?";
       break;
 
     case omnisphere::enums::UserFilter::Code:
-      sQuery += "[Code] = ?";
+      sQuery += "Code = ?";
       break;
 
     case omnisphere::enums::UserFilter::Email:
@@ -327,9 +327,9 @@ types::DataTable User::Read(const omnisphere::dtos::SearchUsers &filter) const {
   auto conn = database->Acquire();
   try {
     std::string baseQuery = "SELECT "
-                            "[Entry] AS UserEntry, "
-                            "[Code], "
-                            "[Name], "
+                            "Entry AS UserEntry, "
+                            "Code, "
+                            "Name, ";
                             "Email, "
                             "Phone, "
                             "IsLocked, "
@@ -432,11 +432,11 @@ bool User::ValidatePassword(const omnisphere::enums::UserFilter &searchFilter,
 
     switch (searchFilter) {
     case omnisphere::enums::UserFilter::Entry:
-      sQuery += "[Entry] = ?";
+      sQuery += "Entry = ?";
       break;
 
     case omnisphere::enums::UserFilter::Code:
-      sQuery += "[Code] = ?";
+      sQuery += "Code = ?";
       break;
 
     case omnisphere::enums::UserFilter::Email:
