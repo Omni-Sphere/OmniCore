@@ -262,51 +262,51 @@ types::DataTable User::Read(const omnisphere::enums::UserFilter &filter,
   auto conn = database->Acquire();
   try {
     std::string sQuery = "SELECT "
-                         "Entry AS UserEntry, "
-                         "Code, "
-                         "Name, "
-                         "Email, "
-                         "Phone, "
-                         "Employee AS EmpEntry, "
-                         "RoleEntry, "
-                         "MaxDisccountPerLine, "
-                         "MaxDisccountPerDocument, "
-                         "PermissionMode, "
-                         "Department, "
-                         "SuperUser, "
-                         "IsLocked, "
-                         "IsActive, "
-                         "ChangePasswordNextLogin, "
-                         "PasswordNeverExpires, "
-                         "CreateDate, "
-                         "CreatedBy, "
-                         "LastUpdatedBy, "
-                         "UpdateDate "
-                         "FROM Users WHERE ";
+                         "\"Entry\" AS UserEntry, "
+                         "\"Code\", "
+                         "\"Name\", "
+                         "\"Email\", "
+                         "\"Phone\", "
+                         "\"Employee\" AS EmpEntry, "
+                         "\"RoleEntry\", "
+                         "\"MaxDisccountPerLine\", "
+                         "\"MaxDisccountPerDocument\", "
+                         "\"PermissionMode\", "
+                         "\"Department\", "
+                         "\"SuperUser\", "
+                         "\"IsLocked\", "
+                         "\"IsActive\", "
+                         "\"ChangePasswordNextLogin\", "
+                         "\"PasswordNeverExpires\", "
+                         "\"CreateDate\", "
+                         "\"CreatedBy\", "
+                         "\"LastUpdatedBy\", "
+                         "\"UpdateDate\" "
+                         "FROM \"Users\" WHERE ";
 
     switch (filter) {
     case omnisphere::enums::UserFilter::Entry:
-      sQuery += "Entry = ?";
+      sQuery += "\"Entry\" = ?";
       break;
 
     case omnisphere::enums::UserFilter::Name:
-      sQuery += "Name = ?";
+      sQuery += "\"Name\" = ?";
       break;
 
     case omnisphere::enums::UserFilter::Code:
-      sQuery += "Code = ?";
+      sQuery += "\"Code\" = ?";
       break;
 
     case omnisphere::enums::UserFilter::Email:
-      sQuery += "Email = ?";
+      sQuery += "\"Email\" = ?";
       break;
 
     case omnisphere::enums::UserFilter::Phone:
-      sQuery += "Phone = ?";
+      sQuery += "\"Phone\" = ?";
       break;
 
     case omnisphere::enums::UserFilter::Employee:
-      sQuery += "Employee = ?";
+      sQuery += "\"Employee\" = ?";
       break;
 
     default:
@@ -428,23 +428,23 @@ bool User::ValidatePassword(const omnisphere::enums::UserFilter &searchFilter,
                             const std::string &Password) const {
   auto conn = database->Acquire();
   try {
-    std::string sQuery = "SELECT Password FROM Users WHERE ";
+    std::string sQuery = "SELECT \"Password\" FROM \"Users\" WHERE ";
 
     switch (searchFilter) {
     case omnisphere::enums::UserFilter::Entry:
-      sQuery += "Entry = ?";
+      sQuery += "\"Entry\" = ?";
       break;
 
     case omnisphere::enums::UserFilter::Code:
-      sQuery += "Code = ?";
+      sQuery += "\"Code\" = ?";
       break;
 
     case omnisphere::enums::UserFilter::Email:
-      sQuery += "Email = ?";
+      sQuery += "\"Email\" = ?";
       break;
 
     case omnisphere::enums::UserFilter::Phone:
-      sQuery += "Phone = ?";
+      sQuery += "\"Phone\" = ?";
       break;
 
     default:
@@ -464,7 +464,6 @@ bool User::ValidatePassword(const omnisphere::enums::UserFilter &searchFilter,
 
     return false;
   } catch (const std::exception &e) {
-    conn->RollbackTransaction();
     throw std::runtime_error(std::string("[ValidatePassword Exception]: ") +
                              e.what());
   }

@@ -8,33 +8,36 @@ Session::Session(std::shared_ptr<omnisphere::data::DatabasePool> _database) {
 bool Session::Create(const omnisphere::dtos::Login &login) const {
   auto conn = database->Acquire();
   try {
-    std::string sQuery = "INSERT INTO Sessions ("
-                         "SessionEntry, "
-                         "SessionUUID, ";
+    std::string sQuery = "INSERT INTO \"Sessions\" ("
+                         "\"SessionUUID\", ";
 
     if (login.Code.has_value())
-      sQuery += "UserCode, ";
+      sQuery += "\"UserCode\", ";
 
     if (login.Email.has_value())
-      sQuery += "UserEmail, ";
+      sQuery += "\"UserEmail\", ";
 
     if (login.Phone.has_value())
-      sQuery += "UserPhone, ";
+      sQuery += "\"UserPhone\", ";
 
-    sQuery += "StartDate, "
-              "DeviceIP, "
-              "HostName "
+    sQuery += "\"StartDate\", "
+              "\"DeviceIP\", "
+              "\"HostName\" "
               ") VALUES ("
-              "?, "
-              "NEWID(), "
-              "?, "
-              "?, "
-              "?, "
-              "?)";
+              "gen_random_uuid()::text, ";
+
+    if (login.Code.has_value())
+      sQuery += "?, ";
+
+    if (login.Email.has_value())
+      sQuery += "?, ";
+
+    if (login.Phone.has_value())
+      sQuery += "?, ";
+
+    sQuery += "?, ?, ?)";
 
     std::vector<omnisphere::types::SQLParam> vParams;
-
-    vParams.emplace_back(omnisphere::types::MakeSQLParam(GetCurrentSequence()));
 
     if (login.Code.has_value())
       vParams.emplace_back(omnisphere::types::MakeSQLParam(login.Code.value()));
@@ -56,9 +59,6 @@ bool Session::Create(const omnisphere::dtos::Login &login) const {
     if (!conn->RunPrepared(sQuery, vParams))
       throw std::runtime_error("[RunPrepared exception]");
 
-    if (!UpdateSessionSequence())
-      throw std::runtime_error("Error updating session sequence");
-
     conn->CommitTransaction();
 
     return true;
@@ -69,38 +69,11 @@ bool Session::Create(const omnisphere::dtos::Login &login) const {
 }
 
 int Session::GetCurrentSequence() const {
-  auto conn = database->Acquire();
-  try {
-    const std::string sQuery = "SELECT COALESCE(SessionSequence, 0) + 1 "
-                               "SessionSequence FROM Sequences "
-                               "WHERE SeqEntry = 1";
-
-    omnisphere::types::DataTable data = conn->FetchResults(sQuery);
-
-    if (data.RowsCount() == 1)
-      return data[0]["SessionSequence"];
-    else
-      return 0;
-  } catch (const std::exception &e) {
-    throw std::runtime_error(std::string("[GetCurrentSequence Exception] ") +
-                             " " + e.what());
-  }
+  return 0;
 }
 
 bool Session::UpdateSessionSequence() const {
-  auto conn = database->Acquire();
-  try {
-    const std::string sQuery = "UPDATE Sequences SET SessionSequence = "
-                               "COALESCE(SessionSequence,0) + 1";
-
-    if (!conn->RunStatement(sQuery))
-      return false;
-
-    return true;
-  } catch (const std::exception &e) {
-    throw std::runtime_error(std::string("[SessionSequence Exception] ") + " " +
-                             e.what());
-  }
+  return true;
 }
 
 omnisphere::types::DataTable
@@ -108,40 +81,40 @@ Session::Read(const omnisphere::dtos::Login &login) const {
   auto conn = database->Acquire();
   try {
     std::string sQuery = "SELECT "
-                         "T0.SessionEntry, "
-                         "T0.SessionUUID, "
-                         "T0.UserCode, "
-                         "T0.UserEmail, "
-                         "T0.UserPhone, "
-                         "T0.IsActive, "
-                         "T0.StartDate, "
-                         "T0.DeviceIP, "
-                         "T0.HostName, "
-                         "T0.EndDate, "
-                         "T0.DurationSeconds "
-                         "FROM Sessions T0 "
-                         "JOIN Users T1 ON ";
+                         "T0.\"SessionEntry\", "
+                         "T0.\"SessionUUID\", "
+                         "T0.\"UserCode\", "
+                         "T0.\"UserEmail\", "
+                         "T0.\"UserPhone\", "
+                         "T0.\"IsActive\", "
+                         "T0.\"StartDate\", "
+                         "T0.\"DeviceIP\", "
+                         "T0.\"HostName\", "
+                         "T0.\"EndDate\", "
+                         "T0.\"DurationSeconds\" "
+                         "FROM \"Sessions\" T0 "
+                         "JOIN \"Users\" T1 ON ";
 
     std::vector<omnisphere::types::SQLParam> vParams;
 
     if (login.Code.has_value()) {
-      sQuery += "T0.UserCode = T1.Code WHERE T1.Code = ? ";
+      sQuery += "T0.\"UserCode\" = T1.\"Code\" WHERE T1.\"Code\" = ? ";
       vParams.emplace_back(omnisphere::types::MakeSQLParam(login.Code.value()));
     }
 
     if (login.Email.has_value()) {
-      sQuery += "T0.UserEmail = T1.Email WHERE T1.Email = ? ";
+      sQuery += "T0.\"UserEmail\" = T1.\"Email\" WHERE T1.\"Email\" = ? ";
       vParams.emplace_back(
           omnisphere::types::MakeSQLParam(login.Email.value()));
     }
 
     if (login.Phone.has_value()) {
-      sQuery += "T0.UserPhone = T1.Phone WHERE T1.Phone = ? ";
+      sQuery += "T0.\"UserPhone\" = T1.\"Phone\" WHERE T1.\"Phone\" = ? ";
       vParams.emplace_back(
           omnisphere::types::MakeSQLParam(login.Phone.value()));
     }
 
-    sQuery += "AND T0.DeviceIP = ? AND T0.HostName = ? AND T0.IsActive = 'Y'";
+    sQuery += "AND T0.\"DeviceIP\" = ? AND T0.\"HostName\" = ? AND T0.\"IsActive\" = 'Y'";
     vParams.emplace_back(omnisphere::types::MakeSQLParam(login.DeviceIP));
     vParams.emplace_back(omnisphere::types::MakeSQLParam(login.HostName));
 
@@ -160,8 +133,8 @@ Session::Read(const std::string &sessionUUID) const {
   auto conn = database->Acquire();
   try {
     std::string sQuery =
-        "SELECT SessionUUID, StartDate, EndDate, DurationSeconds, Reason, "
-        "LogoutMessage FROM Sessions WHERE SessionUUID = ?";
+        "SELECT \"SessionUUID\", \"StartDate\", \"EndDate\", \"DurationSeconds\", \"Reason\", "
+        "\"LogoutMessage\" FROM \"Sessions\" WHERE \"SessionUUID\" = ?";
 
     return conn->FetchPrepared(sQuery, sessionUUID);
   } catch (const std::exception &e) {
@@ -175,7 +148,7 @@ Session::ExistsUUID(const std::string &sessionUUID) const {
   auto conn = database->Acquire();
   try {
     std::string sQuery =
-        "SELECT COUNT(*) Total FROM Sessions WHERE SessionUUID = ?";
+        "SELECT COUNT(*) AS \"Total\" FROM \"Sessions\" WHERE \"SessionUUID\" = ?";
 
     types::DataTable data = conn->FetchPrepared(sQuery, sessionUUID);
 
@@ -190,7 +163,7 @@ omnisphere::types::DataTable
 Session::IsActive(const std::string &sessionUUID) const {
   auto conn = database->Acquire();
   try {
-    std::string sQuery = "SELECT IsActive FROM Sessions WHERE SessionUUID = ?";
+    std::string sQuery = "SELECT \"IsActive\" FROM \"Sessions\" WHERE \"SessionUUID\" = ?";
 
     types::DataTable data = conn->FetchPrepared(sQuery, sessionUUID);
 
@@ -205,25 +178,28 @@ bool Session::Close(const omnisphere::dtos::Logout &logout) const {
   auto conn = database->Acquire();
   try {
     std::string sQuery =
-        "UPDATE Sessions SET IsActive = 'N', EndDate = ?, DurationSeconds = ? ";
+        "UPDATE \"Sessions\" SET \"IsActive\" = 'N', \"EndDate\" = ?, \"DurationSeconds\" = ? ";
     std::vector<omnisphere::types::SQLParam> vParams;
 
     if (logout.Message.has_value())
-      sQuery += ", LogoutMessage = ? ";
+      sQuery += ", \"LogoutMessage\" = ? ";
 
-    sQuery += ", Reason = ? WHERE SessionUUID = ? AND IsActive = 'Y'";
+    sQuery += ", \"Reason\" = ? WHERE \"SessionUUID\" = ? AND \"IsActive\" = 'Y'";
 
     vParams.emplace_back(omnisphere::types::MakeSQLParam(logout.EndDate));
     vParams.emplace_back(omnisphere::types::MakeSQLParam(3600));
 
     if (logout.Message.has_value())
-      vParams.emplace_back(omnisphere::types::MakeSQLParam(logout.Message));
+      vParams.emplace_back(omnisphere::types::MakeSQLParam(logout.Message.value()));
 
-    vParams.emplace_back(omnisphere::types::MakeSQLParam(logout.Reason));
+    vParams.emplace_back(omnisphere::types::MakeSQLParam(static_cast<int>(logout.Reason)));
     vParams.emplace_back(omnisphere::types::MakeSQLParam(logout.SessionUUID));
 
     conn->BeginTransaction();
-    conn->RunPrepared(sQuery, vParams);
+    if (!conn->RunPrepared(sQuery, vParams)) {
+      conn->RollbackTransaction();
+      return false;
+    }
 
     conn->CommitTransaction();
 

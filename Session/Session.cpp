@@ -86,6 +86,12 @@ Session::Login(const omnisphere::dtos::Login &login) const {
 
     boost::json::object payload;
     payload["SessionUUID"] = authPayload.SessionUUID;
+    if (data.RowsCount() > 0 && data[0].HasColumn("UserCode") && !data[0]["UserCode"].IsNull()) {
+      std::string uCode = std::string(data[0]["UserCode"]);
+      payload["UserCode"] = uCode;
+      payload["userCode"] = uCode;
+      payload["sub"] = uCode;
+    }
 
     authPayload.AccessToken =
         omnisphere::utils::JWT::GenerateToken(payload, 86400);
@@ -111,20 +117,23 @@ Session::Login(const omnisphere::dtos::Login &login) const {
   }
 }
 
-bool Session::Active(const std::string &token) const {
+bool Session::Active(const std::string &tokenOrUUID) const {
   try {
-    boost::json::object payload = omnisphere::utils::JWT::ValidateToken(token);
-
-    std::string sessionUUID = payload["SessionUUID"].as_string().c_str();
+    std::string sessionUUID = tokenOrUUID;
+    if (tokenOrUUID.find('.') != std::string::npos) {
+      boost::json::object payload = omnisphere::utils::JWT::ValidateToken(tokenOrUUID);
+      if (payload.contains("SessionUUID") && payload.at("SessionUUID").is_string()) {
+        sessionUUID = std::string(payload.at("SessionUUID").as_string());
+      }
+    }
 
     omnisphere::types::DataTable data = pimpl->session->IsActive(sessionUUID);
 
     if (data.RowsCount() == 0)
       return false;
 
-    const bool sessionActive = data[0]["IsActive"];
-
-    return sessionActive;
+    std::string activeStr = std::string(data[0]["IsActive"]);
+    return (activeStr == "Y" || activeStr == "true" || activeStr == "1");
   } catch (const std::exception &) {
     return false;
   }

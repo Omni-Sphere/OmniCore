@@ -11,12 +11,12 @@ bool GlobalConfiguration::Update(
     const omnisphere::dtos::UpdateGlobalConfiguration &config) const {
   auto conn = database->Acquire();
   try {
-    std::string sQuery = "UPDATE GlobalConfiguration SET ";
+    std::string sQuery = "UPDATE \"GlobalConfiguration\" SET ";
     std::vector<omnisphere::types::SQLParam> updateParams;
     bool firstField = true;
 
     if (config.ImagePath.has_value()) {
-      sQuery += "ImagePath = ?";
+      sQuery += "\"ImagePath\" = ?";
       updateParams.emplace_back(
           omnisphere::types::MakeSQLParam(config.ImagePath.value()));
       firstField = false;
@@ -25,7 +25,7 @@ bool GlobalConfiguration::Update(
     if (config.PDFPath.has_value()) {
       if (!firstField)
         sQuery += ", ";
-      sQuery += "PDFPath = ?";
+      sQuery += "\"PDFPath\" = ?";
       updateParams.emplace_back(
           omnisphere::types::MakeSQLParam(config.PDFPath.value()));
       firstField = false;
@@ -34,7 +34,7 @@ bool GlobalConfiguration::Update(
     if (config.XMLPath.has_value()) {
       if (!firstField)
         sQuery += ", ";
-      sQuery += "XMLPath = ?";
+      sQuery += "\"XMLPath\" = ?";
       updateParams.emplace_back(
           omnisphere::types::MakeSQLParam(config.XMLPath.value()));
       firstField = false;
@@ -43,7 +43,7 @@ bool GlobalConfiguration::Update(
     if (config.PasswordExpirationDays.has_value()) {
       if (!firstField)
         sQuery += ", ";
-      sQuery += "PasswordExpirationDays = ?";
+      sQuery += "\"PasswordExpirationDays\" = ?";
       updateParams.emplace_back(omnisphere::types::MakeSQLParam(
           config.PasswordExpirationDays.value()));
       firstField = false;
@@ -75,8 +75,8 @@ GlobalConfiguration::Get(int confEntry) const {
   auto conn = database->Acquire();
   try {
     std::string sQuery =
-        "SELECT ConfEntry, ImagePath, PDFPath, XMLPath, "
-        "PasswordExpirationDays FROM GlobalConfiguration WHERE ConfEntry = ?";
+        "SELECT \"ConfEntry\", \"ImagePath\", \"PDFPath\", \"XMLPath\", "
+        "\"PasswordExpirationDays\" FROM \"GlobalConfiguration\" WHERE \"ConfEntry\" = ?";
 
     omnisphere::types::DataTable data =
         conn->FetchPrepared(sQuery, std::to_string(confEntry));

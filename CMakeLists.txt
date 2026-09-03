@@ -55,6 +55,9 @@ add_library(OmniCore SHARED
     File/Repositories/File.cpp
     Authorization/Authorization.cpp
     Authorization/Repositories/Authorization.cpp
+    Notification/WhatsAppService.cpp
+    Notification/Repositories/WhatsAppRepository.cpp
+    Notification/WhatsAppWebhookRouter.cpp
 )
 
 # --- Resolución de dependencias Omni ---
@@ -64,8 +67,7 @@ endif()
 if(NOT TARGET OmniData::OmniData)
     find_package(OmniData REQUIRED)
 endif()
-
-
+find_package(OpenSSL REQUIRED)
 
 # SOLUCIÓN: Solo exportamos la raíz limpia del proyecto e incluimos el SDK local para dependencias
 target_include_directories(OmniCore
@@ -85,6 +87,8 @@ if(ANDROID)
         Boost::json
         OmniUtils::OmniUtils
         OmniData::OmniData
+        OpenSSL::SSL
+        OpenSSL::Crypto
     )
 else()
     find_library(SODIUM_LIB sodium REQUIRED)
@@ -94,6 +98,8 @@ else()
         Boost::json
         OmniUtils::OmniUtils
         OmniData::OmniData
+        OpenSSL::SSL
+        OpenSSL::Crypto
     )
     if(WIN32)
         target_link_libraries(OmniCore PUBLIC odbc32)
@@ -126,6 +132,8 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/GlobalConfiguration/GlobalConfiguration.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/File/File.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Authorization/Authorization.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Notification/WhatsAppService.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Notification/WhatsAppWebhookRouter.hpp
 )
 
 foreach(HDR ${PUBLIC_HEADERS})
@@ -154,6 +162,10 @@ set(
     Authorization
     Authorization/DTOs
     Authorization/Models
+    Notification
+    Notification/DTOs
+    Notification/Models
+    Notification/Repositories
 )
 
 foreach(DIR ${HEADER_DIRS})
@@ -192,6 +204,7 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/OmniCoreConfig.cmake"
 "if(NOT WIN32 AND NOT ANDROID)\n"
 "  find_dependency(ODBC REQUIRED)\n"
 "endif()\n"
+"find_dependency(OpenSSL REQUIRED)\n"
 "find_dependency(OmniUtils REQUIRED)\n"
 "find_dependency(OmniData REQUIRED)\n"
 "include(\"\${CMAKE_CURRENT_LIST_DIR}/OmniCoreTargets.cmake\")\n"

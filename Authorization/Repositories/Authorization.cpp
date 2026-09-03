@@ -16,7 +16,7 @@ namespace omnisphere::repositories
             auto conn = m_dbPool->Acquire();
 
             // 1. Obtener el RoleCode del usuario
-            std::string userQuery = "SELECT RoleCode FROM Users WHERE Code = ?";
+            std::string userQuery = "SELECT \"RoleCode\" FROM \"Users\" WHERE \"Code\" = ?";
             std::vector<omnisphere::types::SQLParam> userParams = {
                 omnisphere::types::MakeSQLParam(userCode)
             };
@@ -31,7 +31,7 @@ namespace omnisphere::repositories
             // CASO 1: Si el usuario TIENE un Rol asignado, consultar ÚNICAMENTE RolePermissions
             if (!roleCode.empty())
             {
-                std::string roleQuery = "SELECT COUNT(1) AS Allowed FROM RolePermissions WHERE RoleCode = ? AND Permission = ? AND State = 'ENABLE'";
+                std::string roleQuery = "SELECT COUNT(1) AS \"Allowed\" FROM \"RolePermissions\" WHERE \"RoleCode\" = ? AND \"Permission\" = ? AND \"State\" = 'ENABLE'";
                 std::vector<omnisphere::types::SQLParam> roleParams = {
                     omnisphere::types::MakeSQLParam(roleCode),
                     omnisphere::types::MakeSQLParam(permission)
@@ -47,7 +47,7 @@ namespace omnisphere::repositories
             else
             {
                 // CASO 2: Si el usuario NO TIENE Rol asignado, consultar ÚNICAMENTE UserPermissions
-                std::string userPermQuery = "SELECT COUNT(1) AS Allowed FROM UserPermissions WHERE UserCode = ? AND Permission = ? AND State = 'ENABLE'";
+                std::string userPermQuery = "SELECT COUNT(1) AS \"Allowed\" FROM \"UserPermissions\" WHERE \"UserCode\" = ? AND \"Permission\" = ? AND \"State\" = 'ENABLE'";
                 std::vector<omnisphere::types::SQLParam> userPermParams = {
                     omnisphere::types::MakeSQLParam(userCode),
                     omnisphere::types::MakeSQLParam(permission)
@@ -85,7 +85,7 @@ namespace omnisphere::repositories
             try
             {
                 auto conn = m_dbPool->Acquire();
-                std::string sql = "INSERT INTO AuthorizationAuditLog (UserCode, GrantedByCode, Module, Permission, ResourceCode, Status, Reason) "
+                std::string sql = "INSERT INTO \"AuthorizationAuditLog\" (\"UserCode\", \"GrantedByCode\", \"Module\", \"Permission\", \"ResourceCode\", \"Status\", \"Reason\") "
                                   "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
                 std::vector<omnisphere::types::SQLParam> params = {
@@ -118,9 +118,8 @@ namespace omnisphere::repositories
         if (!m_dbPool) return true;
 
         auto conn = m_dbPool->Acquire();
-        std::string sql = "INSERT INTO UserPermissions (UserCode, Module, Permission, State, GrantedByCode) "
-                          "VALUES (?, ?, ?, 'ENABLE', ?) "
-                          "ON DUPLICATE KEY UPDATE State = 'ENABLE', GrantedByCode = VALUES(GrantedByCode)";
+        std::string sql = "INSERT INTO \"UserPermissions\" (\"UserCode\", \"Module\", \"Permission\", \"State\", \"GrantedByCode\") "
+                          "VALUES (?, ?, ?, 'ENABLE', ?)";
 
         std::vector<omnisphere::types::SQLParam> params = {
             omnisphere::types::MakeSQLParam(input.userCode),
@@ -136,7 +135,7 @@ namespace omnisphere::repositories
         if (!m_dbPool) return true;
 
         auto conn = m_dbPool->Acquire();
-        std::string sql = "UPDATE UserPermissions SET State = 'DISABLE' WHERE UserCode = ? AND Module = ? AND Permission = ?";
+        std::string sql = "UPDATE \"UserPermissions\" SET \"State\" = 'DISABLE' WHERE \"UserCode\" = ? AND \"Module\" = ? AND \"Permission\" = ?";
 
         std::vector<omnisphere::types::SQLParam> params = {
             omnisphere::types::MakeSQLParam(input.userCode),
@@ -151,9 +150,8 @@ namespace omnisphere::repositories
         if (!m_dbPool) return true;
 
         auto conn = m_dbPool->Acquire();
-        std::string sql = "INSERT INTO RolePermissions (RoleCode, Module, Permission, State) "
-                          "VALUES (?, ?, ?, 'ENABLE') "
-                          "ON DUPLICATE KEY UPDATE State = 'ENABLE'";
+        std::string sql = "INSERT INTO \"RolePermissions\" (\"RoleCode\", \"Module\", \"Permission\", \"State\") "
+                          "VALUES (?, ?, ?, 'ENABLE')";
 
         std::vector<omnisphere::types::SQLParam> params = {
             omnisphere::types::MakeSQLParam(input.roleCode),
@@ -168,7 +166,7 @@ namespace omnisphere::repositories
         if (!m_dbPool) return true;
 
         auto conn = m_dbPool->Acquire();
-        std::string sql = "UPDATE RolePermissions SET State = 'DISABLE' WHERE RoleCode = ? AND Module = ? AND Permission = ?";
+        std::string sql = "UPDATE \"RolePermissions\" SET \"State\" = 'DISABLE' WHERE \"RoleCode\" = ? AND \"Module\" = ? AND \"Permission\" = ?";
 
         std::vector<omnisphere::types::SQLParam> params = {
             omnisphere::types::MakeSQLParam(input.roleCode),
