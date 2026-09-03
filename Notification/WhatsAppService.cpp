@@ -324,7 +324,7 @@ namespace omnisphere::services
         json::object tmpl;
         tmpl["name"] = templateName;
         json::object lang;
-        lang["code"] = (templateName == "hello_world") ? "en_US" : "es";
+        lang["code"] = "es_MX";
         tmpl["language"] = lang;
 
         if (!params.empty())
@@ -366,7 +366,7 @@ namespace omnisphere::services
         json::object tmpl;
         tmpl["name"] = templateName;
         json::object lang;
-        lang["code"] = (templateName == "hello_world") ? "en_US" : "es";
+        lang["code"] = "es_MX";
         tmpl["language"] = lang;
 
         if (!params.empty())
@@ -435,7 +435,7 @@ namespace omnisphere::services
         json::object tmpl;
         tmpl["name"] = "ticket_confirmation";
         json::object lang;
-        lang["code"] = "es";
+        lang["code"] = "es_MX";
         tmpl["language"] = lang;
 
         json::array components;
