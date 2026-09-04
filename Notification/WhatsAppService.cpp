@@ -44,7 +44,7 @@ namespace omnisphere::services
             auto isPlain = [](const std::string& val) -> bool {
                 if (val.empty()) return false;
                 if (val.rfind("omni_", 0) == 0) return true;
-                if (val.rfind("EAAG", 0) == 0 || val.rfind("EAAB", 0) == 0) return true;
+                if (val.rfind("EAA", 0) == 0) return true;
                 bool allDigits = true;
                 for (char c : val) {
                     if (!std::isdigit(static_cast<unsigned char>(c))) { allDigits = false; break; }
@@ -108,7 +108,7 @@ namespace omnisphere::services
                 auto isPlain = [](const std::string& val) -> bool {
                     if (val.empty()) return false;
                     if (val.rfind("omni_", 0) == 0) return true;
-                    if (val.rfind("EAAG", 0) == 0 || val.rfind("EAAB", 0) == 0) return true;
+                    if (val.rfind("EAA", 0) == 0) return true;
                     bool allDigits = true;
                     for (char c : val) {
                         if (!std::isdigit(static_cast<unsigned char>(c))) { allDigits = false; break; }
@@ -159,7 +159,7 @@ namespace omnisphere::services
         auto isPlain = [](const std::string& val) -> bool {
             if (val.empty()) return false;
             if (val.rfind("omni_", 0) == 0) return true;
-            if (val.rfind("EAAG", 0) == 0 || val.rfind("EAAB", 0) == 0) return true;
+            if (val.rfind("EAA", 0) == 0) return true;
             bool allDigits = true;
             for (char c : val) {
                 if (!std::isdigit(static_cast<unsigned char>(c))) { allDigits = false; break; }
@@ -204,9 +204,30 @@ namespace omnisphere::services
         return ok;
     }
 
+    static std::string CleanString(const std::string& raw)
+    {
+        std::string clean = "";
+        for (char c : raw)
+        {
+            if (c != '\r' && c != '\n' && c != '\t' && c != '"' && c != '\'')
+            {
+                clean += c;
+            }
+        }
+        size_t start = clean.find_first_not_of(" ");
+        if (start == std::string::npos) return "";
+        size_t end = clean.find_last_not_of(" ");
+        return clean.substr(start, end - start + 1);
+    }
+
     std::string WhatsAppService::ParseMetaErrorMessage(const std::string& rawPayload)
     {
         if (rawPayload.empty()) return "No se pudo establecer conexión con la API de Meta WhatsApp.";
+
+        if (rawPayload.find("<!DOCTYPE") != std::string::npos || rawPayload.find("<html") != std::string::npos || rawPayload.find("4xx Client Error") != std::string::npos)
+        {
+            return "Error 4xx HTTP devuelto por el servidor de Meta. Verifica que el Token de Acceso (ApiToken) y PhoneId de Meta WhatsApp estén configurados correctamente.";
+        }
 
         try {
             auto parsed = json::parse(rawPayload);
@@ -248,12 +269,12 @@ namespace omnisphere::services
                     return "Han transcurrido más de 24 horas desde la última interacción del usuario. Se debe iniciar la conversación enviando una plantilla aprobada.";
                 }
 
-                if (!details.empty()) return "Error de Meta API: " + details;
-                if (!msg.empty()) return "Error de Meta API: " + msg;
+                if (!msg.empty()) return msg;
+                if (!details.empty()) return details;
             }
         } catch (...) {}
 
-        return "No fue posible entregar el mensaje a través de WhatsApp. Detalles: " + rawPayload.substr(0, 150);
+        return "Error devuelto por la API de Meta WhatsApp: " + rawPayload;
     }
 
     bool WhatsAppService::SendRequest(
@@ -264,9 +285,11 @@ namespace omnisphere::services
         const std::string& jsonString
     )
     {
-        omnisphere::utils::Logger::LogInfo("WhatsAppService", "Initiating WhatsApp " + messageType + " message dispatch to recipient: " + phoneNumber);
+        std::string cleanPhoneId = CleanString(m_config.phoneId);
+        std::string cleanToken = CleanString(m_config.token);
+        std::string cleanApiVersion = CleanString(m_config.apiVersion.empty() ? "v24.0" : m_config.apiVersion);
 
-        if (m_config.token.empty() || m_config.phoneId.empty())
+        if (cleanPhoneId.empty() || cleanToken.empty())
         {
             m_lastError = "Configuración incompleta: PhoneId o ApiToken de Meta WhatsApp no están configurados.";
             omnisphere::utils::Logger::LogError("WhatsAppService", m_lastError);
@@ -281,10 +304,9 @@ namespace omnisphere::services
         {
             std::string host = "graph.facebook.com";
             std::string port = "443";
-            std::string versionStr = m_config.apiVersion.empty() ? "v24.0" : m_config.apiVersion;
-            std::string target = "/" + versionStr + "/" + m_config.phoneId + "/messages";
+            std::string target = "/" + cleanApiVersion + "/" + cleanPhoneId + "/messages";
 
-            omnisphere::utils::Logger::LogInfo("WhatsAppService", "Sending HTTP POST request to https://" + host + target);
+            omnisphere::utils::Logger::LogInfo("WhatsAppService", "Sending HTTP POST request to https://" + host + target + "\nOutgoing Payload:\n" + jsonString);
 
             boost::asio::io_context ioc;
             ssl::context ctx(ssl::context::tlsv12_client);
@@ -310,7 +332,7 @@ namespace omnisphere::services
             req.set(http::field::host, host);
             req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
             req.set(http::field::content_type, "application/json");
-            req.set(http::field::authorization, "Bearer " + m_config.token);
+            req.set(http::field::authorization, "Bearer " + cleanToken);
             req.body() = jsonString;
             req.prepare_payload();
 

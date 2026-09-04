@@ -43,7 +43,7 @@ namespace omnisphere::repositories
             auto isPlain = [](const std::string& val) -> bool {
                 if (val.empty()) return false;
                 if (val.rfind("omni_", 0) == 0) return true;
-                if (val.rfind("EAAG", 0) == 0 || val.rfind("EAAB", 0) == 0) return true;
+                if (val.rfind("EAA", 0) == 0) return true;
                 bool allDigits = true;
                 for (char c : val) {
                     if (!std::isdigit(static_cast<unsigned char>(c))) { allDigits = false; break; }
