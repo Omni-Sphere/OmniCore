@@ -34,17 +34,30 @@ namespace omnisphere::repositories
         try
         {
             auto conn = m_dbPool->Acquire();
-            auto existingDt = GetSettings();
+            auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::WhatsAppSettings>({});
+            auto qp = omnisphere::types::BuildQueryParts(selectFields, {});
+            std::string selectSql = "SELECT " + qp.SelectClause + " FROM \"WhatsAppSettings\" LIMIT 1";
+            std::vector<omnisphere::types::SQLParam> selectParams;
+            auto existingDt = conn->FetchPrepared(selectSql, selectParams);
 
-            auto ensureEncrypted = [](const std::string& val) -> std::string {
+            auto isPlain = [](const std::string& val) -> bool {
+                if (val.empty()) return false;
+                if (val.rfind("omni_", 0) == 0) return true;
+                if (val.rfind("EAAG", 0) == 0 || val.rfind("EAAB", 0) == 0) return true;
+                bool allDigits = true;
+                for (char c : val) {
+                    if (!std::isdigit(static_cast<unsigned char>(c))) { allDigits = false; break; }
+                }
+                if (allDigits && val.length() > 5) return true;
+                return false;
+            };
+
+            auto ensureEncrypted = [&](const std::string& val) -> std::string {
                 if (val.empty()) return "";
-                try {
-                    std::string decoded = omnisphere::utils::Base64::Decode(val);
-                    if (omnisphere::utils::Base64::Encode(decoded) == val) {
-                        return val;
-                    }
-                } catch (...) {}
-                return omnisphere::utils::Base64::Encode(val);
+                if (isPlain(val)) {
+                    return omnisphere::utils::Base64::Encode(val);
+                }
+                return val;
             };
 
             std::string encPhoneId = ensureEncrypted(settings.phoneId);
@@ -84,7 +97,7 @@ namespace omnisphere::repositories
                     {"\"LastUpdatedBy\"", omnisphere::types::MakeSQLParam(settings.createdBy)}
                 };
 
-                auto updateQuery = omnisphere::types::BuildUpdateQuery("\"WhatsAppSettings\"", updateCols, "\"Code\"", omnisphere::types::MakeSQLParam("DEFAULT"));
+                auto updateQuery = omnisphere::types::BuildUpdateQuery("\"WhatsAppSettings\"", updateCols, "\"Code\"", omnisphere::types::MakeSQLParam(std::string("DEFAULT")));
                 return conn->RunPrepared(updateQuery.Query, updateQuery.Parameters);
             }
             else

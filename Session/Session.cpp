@@ -87,10 +87,7 @@ Session::Login(const omnisphere::dtos::Login &login) const {
     boost::json::object payload;
     payload["SessionUUID"] = authPayload.SessionUUID;
     if (data.RowsCount() > 0 && data[0].HasColumn("UserCode") && !data[0]["UserCode"].IsNull()) {
-      std::string uCode = std::string(data[0]["UserCode"]);
-      payload["UserCode"] = uCode;
-      payload["userCode"] = uCode;
-      payload["sub"] = uCode;
+      payload["sub"] = std::string(data[0]["UserCode"]);
     }
 
     authPayload.AccessToken =

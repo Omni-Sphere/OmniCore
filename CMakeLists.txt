@@ -58,6 +58,8 @@ add_library(OmniCore SHARED
     Notification/WhatsAppService.cpp
     Notification/Repositories/WhatsAppRepository.cpp
     Notification/WhatsAppWebhookRouter.cpp
+    Identity/IdentityService.cpp
+    Identity/Repositories/IdentityRepository.cpp
 )
 
 # --- Resolución de dependencias Omni ---
@@ -134,6 +136,7 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/Authorization/Authorization.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Notification/WhatsAppService.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Notification/WhatsAppWebhookRouter.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Identity/IdentityService.hpp
 )
 
 foreach(HDR ${PUBLIC_HEADERS})
@@ -166,6 +169,10 @@ set(
     Notification/DTOs
     Notification/Models
     Notification/Repositories
+    Identity
+    Identity/DTOs
+    Identity/Models
+    Identity/Repositories
 )
 
 foreach(DIR ${HEADER_DIRS})

@@ -54,9 +54,14 @@ namespace omnisphere::services
             const std::string& toleranceTime
         );
 
+        std::string GetLastErrorMessage() const { return m_lastError; }
+
     private:
         omnisphere::dtos::WhatsAppConfig m_config;
         std::shared_ptr<omnisphere::repositories::WhatsAppRepository> m_repository;
+        mutable std::string m_lastError;
+
+        static std::string ParseMetaErrorMessage(const std::string& rawPayload);
 
         bool SendRequest(
             const std::string& phoneNumber,

@@ -41,13 +41,23 @@ namespace omnisphere::services
             std::string rawToken = (std::string)dt[0]["ApiToken"];
             std::string rawWebhookToken = (std::string)dt[0]["WebhookVerifyToken"];
 
-            auto decryptVal = [](const std::string& val) -> std::string {
+            auto isPlain = [](const std::string& val) -> bool {
+                if (val.empty()) return false;
+                if (val.rfind("omni_", 0) == 0) return true;
+                if (val.rfind("EAAG", 0) == 0 || val.rfind("EAAB", 0) == 0) return true;
+                bool allDigits = true;
+                for (char c : val) {
+                    if (!std::isdigit(static_cast<unsigned char>(c))) { allDigits = false; break; }
+                }
+                if (allDigits && val.length() > 5) return true;
+                return false;
+            };
+
+            auto decryptVal = [&](const std::string& val) -> std::string {
                 if (val.empty()) return "";
+                if (isPlain(val)) return val;
                 try {
-                    std::string decoded = omnisphere::utils::Base64::Decode(val);
-                    if (omnisphere::utils::Base64::Encode(decoded) == val) {
-                        return decoded;
-                    }
+                    return omnisphere::utils::Base64::Decode(val);
                 } catch (...) {}
                 return val;
             };
@@ -95,16 +105,25 @@ namespace omnisphere::services
                     return "";
                 };
 
+                auto isPlain = [](const std::string& val) -> bool {
+                    if (val.empty()) return false;
+                    if (val.rfind("omni_", 0) == 0) return true;
+                    if (val.rfind("EAAG", 0) == 0 || val.rfind("EAAB", 0) == 0) return true;
+                    bool allDigits = true;
+                    for (char c : val) {
+                        if (!std::isdigit(static_cast<unsigned char>(c))) { allDigits = false; break; }
+                    }
+                    if (allDigits && val.length() > 5) return true;
+                    return false;
+                };
+
                 auto ensureEncryptedVal = [&](const std::string& colName) -> std::string {
                     std::string val = getVal(colName);
                     if (val.empty()) return "";
-                    try {
-                        std::string decoded = omnisphere::utils::Base64::Decode(val);
-                        if (omnisphere::utils::Base64::Encode(decoded) == val) {
-                            return val; // Already encrypted in DB
-                        }
-                    } catch (...) {}
-                    return omnisphere::utils::Base64::Encode(val);
+                    if (isPlain(val)) {
+                        return omnisphere::utils::Base64::Encode(val);
+                    }
+                    return val;
                 };
 
                 try {
@@ -137,24 +156,31 @@ namespace omnisphere::services
     {
         if (!m_repository) return false;
 
-        auto ensureEncrypted = [](const std::string& val) -> std::string {
-            if (val.empty()) return "";
-            try {
-                std::string decoded = omnisphere::utils::Base64::Decode(val);
-                if (omnisphere::utils::Base64::Encode(decoded) == val) {
-                    return val;
-                }
-            } catch (...) {}
-            return omnisphere::utils::Base64::Encode(val);
+        auto isPlain = [](const std::string& val) -> bool {
+            if (val.empty()) return false;
+            if (val.rfind("omni_", 0) == 0) return true;
+            if (val.rfind("EAAG", 0) == 0 || val.rfind("EAAB", 0) == 0) return true;
+            bool allDigits = true;
+            for (char c : val) {
+                if (!std::isdigit(static_cast<unsigned char>(c))) { allDigits = false; break; }
+            }
+            if (allDigits && val.length() > 5) return true;
+            return false;
         };
 
-        auto decryptVal = [](const std::string& val) -> std::string {
+        auto ensureEncrypted = [&](const std::string& val) -> std::string {
             if (val.empty()) return "";
+            if (isPlain(val)) {
+                return omnisphere::utils::Base64::Encode(val);
+            }
+            return val;
+        };
+
+        auto decryptVal = [&](const std::string& val) -> std::string {
+            if (val.empty()) return "";
+            if (isPlain(val)) return val;
             try {
-                std::string decoded = omnisphere::utils::Base64::Decode(val);
-                if (omnisphere::utils::Base64::Encode(decoded) == val) {
-                    return decoded;
-                }
+                return omnisphere::utils::Base64::Decode(val);
             } catch (...) {}
             return val;
         };
@@ -177,6 +203,58 @@ namespace omnisphere::services
         return ok;
     }
 
+    std::string WhatsAppService::ParseMetaErrorMessage(const std::string& rawPayload)
+    {
+        if (rawPayload.empty()) return "No se pudo establecer conexión con la API de Meta WhatsApp.";
+
+        try {
+            auto parsed = json::parse(rawPayload);
+            if (parsed.is_object() && parsed.as_object().contains("error")) {
+                auto errObj = parsed.as_object().at("error").as_object();
+                int code = 0;
+                if (errObj.contains("code") && errObj.at("code").is_int64()) {
+                    code = errObj.at("code").as_int64();
+                }
+                std::string msg;
+                if (errObj.contains("message")) {
+                    msg = std::string(errObj.at("message").as_string());
+                }
+
+                std::string details;
+                if (errObj.contains("error_data") && errObj.at("error_data").is_object()) {
+                    auto dataObj = errObj.at("error_data").as_object();
+                    if (dataObj.contains("details")) {
+                        details = std::string(dataObj.at("details").as_string());
+                    }
+                }
+
+                if (code == 131058 || msg.find("Public Test Numbers") != std::string::npos) {
+                    return "La plantilla de prueba por defecto (hello_world) solo puede enviarse desde números de prueba de Meta. Configura una plantilla aprobada para tu número real.";
+                }
+                if (code == 132001 || msg.find("does not exist") != std::string::npos || details.find("does not exist") != std::string::npos) {
+                    return "La plantilla solicitada no está registrada o aprobada en Meta WhatsApp para el idioma configurado.";
+                }
+                if (code == 100 || details.find("Parameter") != std::string::npos) {
+                    return "Los parámetros enviados no coinciden con las variables de la plantilla aprobada en Meta.";
+                }
+                if (code == 190 || msg.find("OAuth") != std::string::npos || msg.find("token") != std::string::npos) {
+                    return "El Token de Acceso (ApiToken) de Meta WhatsApp expiró o es inválido. Por favor actualízalo en la configuración.";
+                }
+                if (code == 131026) {
+                    return "El mensaje no pudo ser entregado. Verifica que el número de teléfono esté registrado y activo en WhatsApp.";
+                }
+                if (code == 131047) {
+                    return "Han transcurrido más de 24 horas desde la última interacción del usuario. Se debe iniciar la conversación enviando una plantilla aprobada.";
+                }
+
+                if (!details.empty()) return "Error de Meta API: " + details;
+                if (!msg.empty()) return "Error de Meta API: " + msg;
+            }
+        } catch (...) {}
+
+        return "No fue posible entregar el mensaje a través de WhatsApp. Detalles: " + rawPayload.substr(0, 150);
+    }
+
     bool WhatsAppService::SendRequest(
         const std::string& phoneNumber,
         const std::string& messageType,
@@ -189,7 +267,8 @@ namespace omnisphere::services
 
         if (m_config.token.empty() || m_config.phoneId.empty())
         {
-            omnisphere::utils::Logger::LogError("WhatsAppService", "Cannot dispatch WhatsApp message: ApiToken or PhoneId is empty/unconfigured.");
+            m_lastError = "Configuración incompleta: PhoneId o ApiToken de Meta WhatsApp no están configurados.";
+            omnisphere::utils::Logger::LogError("WhatsAppService", m_lastError);
             return false;
         }
 
@@ -220,8 +299,10 @@ namespace omnisphere::services
                 throw beast::system_error{ec};
             }
 
-            auto const results = resolver.resolve(host, port);
+            beast::get_lowest_layer(stream).expires_after(std::chrono::seconds(10));
+            auto const results = resolver.resolve(tcp::v4(), host, port);
             beast::get_lowest_layer(stream).connect(results);
+            beast::get_lowest_layer(stream).expires_after(std::chrono::seconds(10));
             stream.handshake(ssl::stream_base::client);
 
             http::request<http::string_body> req{http::verb::post, target, 11};
@@ -243,6 +324,7 @@ namespace omnisphere::services
 
             if (requestSuccess)
             {
+                m_lastError = "";
                 try
                 {
                     auto parsed = json::parse(responseBodyStr);
@@ -261,6 +343,7 @@ namespace omnisphere::services
             }
             else
             {
+                m_lastError = ParseMetaErrorMessage(responseBodyStr);
                 omnisphere::utils::Logger::LogError("WhatsAppService", "Meta API Request FAILED (HTTP " + std::to_string(res.result_int()) + "). Payload: " + responseBodyStr);
             }
 
@@ -269,7 +352,8 @@ namespace omnisphere::services
         }
         catch (const std::exception& ex)
         {
-            omnisphere::utils::Logger::LogError("WhatsAppService", "WhatsApp HTTP Exception: " + std::string(ex.what()));
+            m_lastError = "Error de conexión HTTP con Meta: " + std::string(ex.what());
+            omnisphere::utils::Logger::LogError("WhatsAppService", m_lastError);
             responseBodyStr = ex.what();
         }
 
@@ -324,7 +408,7 @@ namespace omnisphere::services
         json::object tmpl;
         tmpl["name"] = templateName;
         json::object lang;
-        lang["code"] = "es_MX";
+        lang["code"] = (templateName == "ticket_confirmation") ? "en" : "es_MX";
         tmpl["language"] = lang;
 
         if (!params.empty())
@@ -344,6 +428,7 @@ namespace omnisphere::services
             components.push_back(bodyComp);
             tmpl["components"] = components;
         }
+        
         body["template"] = tmpl;
 
         std::string jsonStr = json::serialize(body);
@@ -366,7 +451,7 @@ namespace omnisphere::services
         json::object tmpl;
         tmpl["name"] = templateName;
         json::object lang;
-        lang["code"] = "es_MX";
+        lang["code"] = (templateName == "ticket_confirmation") ? "en" : "es_MX";
         tmpl["language"] = lang;
 
         if (!params.empty())
@@ -435,46 +520,48 @@ namespace omnisphere::services
         json::object tmpl;
         tmpl["name"] = "ticket_confirmation";
         json::object lang;
-        lang["code"] = "es_MX";
+        lang["code"] = "en";
         tmpl["language"] = lang;
 
         json::array components;
 
-        // Header Component (customer_name)
+        // 1. Header Component (1 parameter: customer_name)
         json::object headerComp;
         headerComp["type"] = "header";
         json::array headerParams;
-        json::object hp1;
-        hp1["type"] = "text";
-        hp1["parameter_name"] = "customer_name";
-        hp1["text"] = customerName;
-        headerParams.push_back(hp1);
+        json::object hParam;
+        hParam["type"] = "text";
+        hParam["parameter_name"] = "customer_name";
+        hParam["text"] = customerName;
+        headerParams.push_back(hParam);
         headerComp["parameters"] = headerParams;
         components.push_back(headerComp);
 
-        // Body Component
+        // 2. Body Component (9 parameters)
         json::object bodyComp;
         bodyComp["type"] = "body";
         json::array bodyParams;
 
-        auto addBodyParam = [&](const std::string& paramName, const std::string& paramVal) {
-            json::object p;
-            p["type"] = "text";
-            p["parameter_name"] = paramName;
-            p["text"] = paramVal;
-            bodyParams.push_back(p);
+        std::vector<std::pair<std::string, std::string>> paramList = {
+            {"customer_name", customerName},
+            {"ticket_number", ticketNumber},
+            {"trip_type", tripType},
+            {"event_name", eventName},
+            {"event_date", eventDate},
+            {"event_time", eventTime},
+            {"departure_name", departureName},
+            {"references", references},
+            {"tolerance_time", toleranceTime}
         };
 
-        addBodyParam("customer_name", customerName);
-        addBodyParam("ticket_number", ticketNumber);
-        addBodyParam("trip_type", tripType);
-        addBodyParam("event_name", eventName);
-        addBodyParam("event_date", eventDate);
-        addBodyParam("event_time", eventTime);
-        addBodyParam("departure_name", departureName);
-        addBodyParam("references", references);
-        addBodyParam("tolerance_time", toleranceTime);
-
+        for (const auto& [key, val] : paramList)
+        {
+            json::object paramObj;
+            paramObj["type"] = "text";
+            paramObj["parameter_name"] = key;
+            paramObj["text"] = val;
+            bodyParams.push_back(paramObj);
+        }
         bodyComp["parameters"] = bodyParams;
         components.push_back(bodyComp);
 
@@ -482,7 +569,7 @@ namespace omnisphere::services
         body["template"] = tmpl;
 
         std::string jsonStr = json::serialize(body);
-        std::string contentStr = "Ticket Confirmation for " + customerName + " (" + ticketNumber + ")";
+        std::string contentStr = "Ticket Confirmation Template";
         return SendRequest(cleanPhone, "TEMPLATE", "ticket_confirmation", contentStr, jsonStr);
     }
 } // namespace omnisphere::services
