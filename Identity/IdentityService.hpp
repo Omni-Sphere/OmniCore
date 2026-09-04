@@ -6,7 +6,7 @@
 #include "Identity/Repositories/IdentityRepository.hpp"
 #include "Identity/DTOs/CreateIdentity.hpp"
 #include "Identity/Models/Identity.hpp"
-#include <OmniCore/Authorization/Models/SecurityContext.hpp>
+#include "Authorization/Models/SecurityContext.hpp"
 
 namespace omnisphere::services
 {
