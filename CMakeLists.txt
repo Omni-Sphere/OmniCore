@@ -75,10 +75,11 @@ find_package(OpenSSL REQUIRED)
 target_include_directories(OmniCore
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<BUILD_INTERFACE:${OMNI_BASE_DIR}/include/OmniSphere>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/Base
-        "${OMNI_BASE_DIR}/include"
+        "${OMNI_BASE_DIR}/include/OmniSphere"
 )
 
 add_library(OmniCore::OmniCore ALIAS OmniCore)
