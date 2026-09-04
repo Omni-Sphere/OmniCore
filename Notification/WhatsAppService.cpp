@@ -286,7 +286,7 @@ namespace omnisphere::services
 
             omnisphere::utils::Logger::LogInfo("WhatsAppService", "Sending HTTP POST request to https://" + host + target);
 
-            net::io_context ioc;
+            boost::asio::io_context ioc;
             ssl::context ctx(ssl::context::tlsv12_client);
             ctx.set_default_verify_paths();
             ctx.set_verify_mode(ssl::verify_peer);
@@ -296,7 +296,7 @@ namespace omnisphere::services
 
             if (!SSL_set_tlsext_host_name(stream.native_handle(), host.c_str()))
             {
-                beast::error_code ec{static_cast<int>(::ERR_get_error()), net::error::get_ssl_category()};
+                beast::error_code ec{static_cast<int>(::ERR_get_error()), boost::asio::error::get_ssl_category()};
                 throw beast::system_error{ec};
             }
 
