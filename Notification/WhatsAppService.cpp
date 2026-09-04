@@ -186,6 +186,7 @@ namespace omnisphere::services
         };
 
         omnisphere::models::WhatsAppSettings encSettings = settings;
+        if (encSettings.apiVersion.empty()) encSettings.apiVersion = "v24.0";
         encSettings.phoneId = ensureEncrypted(settings.phoneId);
         encSettings.apiToken = ensureEncrypted(settings.apiToken);
         encSettings.businessAccountId = ensureEncrypted(settings.businessAccountId);
