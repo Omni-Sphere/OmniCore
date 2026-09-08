@@ -60,6 +60,18 @@ namespace omnisphere::services
             const std::string& toleranceTime
         );
 
+#include "Notification/Models/CustomMessage.hpp"
+
+        bool SendCustomMessage(
+            const std::string& phoneNumber,
+            const std::string& messageCode,
+            const std::map<std::string, std::string>& placeholders = {}
+        );
+
+        std::optional<omnisphere::models::CustomMessage> GetCustomMessage(
+            const std::string& messageCode
+        ) const;
+
         std::string GetLastErrorMessage() const { return m_lastError; }
 
     private:

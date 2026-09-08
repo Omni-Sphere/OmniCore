@@ -642,4 +642,55 @@ namespace omnisphere::services
         std::string contentStr = "Ticket Confirmation Template";
         return SendRequest(cleanPhone, "TEMPLATE", "ticket_confirmation", contentStr, jsonStr);
     }
+
+    std::optional<omnisphere::models::CustomMessage> WhatsAppService::GetCustomMessage(const std::string& messageCode) const
+    {
+        if (!m_repository) return std::nullopt;
+        return m_repository->GetCustomMessageByCode(messageCode);
+    }
+
+    bool WhatsAppService::SendCustomMessage(
+        const std::string& phoneNumber,
+        const std::string& messageCode,
+        const std::map<std::string, std::string>& placeholders
+    )
+    {
+        auto msgOpt = GetCustomMessage(messageCode);
+        if (!msgOpt.has_value())
+        {
+            m_lastError = "Custom message code [" + messageCode + "] not found or inactive in database.";
+            omnisphere::utils::Logger::LogError("WhatsAppService", m_lastError);
+            return false;
+        }
+
+        auto msg = msgOpt.value();
+        std::string bodyText = msg.bodyTemplate;
+
+        // Interpolación de variables dinámicas {key} -> val
+        for (const auto& [key, val] : placeholders)
+        {
+            std::string token = "{" + key + "}";
+            size_t pos = 0;
+            while ((pos = bodyText.find(token, pos)) != std::string::npos)
+            {
+                bodyText.replace(pos, token.length(), val);
+                pos += val.length();
+            }
+        }
+
+        // Envío según el tipo de mensaje y botones configurados
+        if (msg.messageType == "INTERACTIVE_BUTTON" && !msg.buttons.empty())
+        {
+            std::vector<std::pair<std::string, std::string>> btnPairs;
+            for (const auto& btn : msg.buttons)
+            {
+                btnPairs.push_back({btn.buttonId, btn.title});
+            }
+            return SendInteractiveButtons(phoneNumber, bodyText, btnPairs);
+        }
+        else
+        {
+            return SendMessage(phoneNumber, bodyText);
+        }
+    }
 } // namespace omnisphere::services
