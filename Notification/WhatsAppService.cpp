@@ -506,23 +506,134 @@ namespace omnisphere::services
         return SendRequest(cleanPhone, "TEMPLATE", templateName, contentStr, jsonStr);
     }
 
+    static std::string DecodeUnicodeEscapes(const std::string& input)
+    {
+        std::string result;
+        result.reserve(input.size());
+
+        for (size_t i = 0; i < input.size(); ++i)
+        {
+            if (input[i] == '\\' && i + 5 < input.size() && input[i + 1] == 'u')
+            {
+                // Check if it's 5 hex digits \uXXXXX (e.g. \u1F68C)
+                if (i + 6 < input.size())
+                {
+                    char c6 = input[i + 6];
+                    if ((c6 >= '0' && c6 <= '9') || (c6 >= 'a' && c6 <= 'f') || (c6 >= 'A' && c6 <= 'F'))
+                    {
+                        uint32_t cp5 = 0;
+                        for (int k = 2; k <= 6; ++k)
+                        {
+                            char c = input[i + k];
+                            cp5 <<= 4;
+                            if (c >= '0' && c <= '9') cp5 |= (c - '0');
+                            else if (c >= 'a' && c <= 'f') cp5 |= (c - 'a' + 10);
+                            else if (c >= 'A' && c <= 'F') cp5 |= (c - 'A' + 10);
+                        }
+                        if (cp5 >= 0x10000 && cp5 <= 0x10FFFF)
+                        {
+                            result += static_cast<char>(0xF0 | ((cp5 >> 18) & 0x07));
+                            result += static_cast<char>(0x80 | ((cp5 >> 12) & 0x3F));
+                            result += static_cast<char>(0x80 | ((cp5 >> 6) & 0x3F));
+                            result += static_cast<char>(0x80 | (cp5 & 0x3F));
+                            i += 6; // skip \uXXXXX
+                            continue;
+                        }
+                    }
+                }
+
+                // 4 hex digits \uXXXX
+                uint32_t codepoint = 0;
+                bool valid = true;
+                for (int k = 2; k < 6; ++k)
+                {
+                    char c = input[i + k];
+                    codepoint <<= 4;
+                    if (c >= '0' && c <= '9') codepoint |= (c - '0');
+                    else if (c >= 'a' && c <= 'f') codepoint |= (c - 'a' + 10);
+                    else if (c >= 'A' && c <= 'F') codepoint |= (c - 'A' + 10);
+                    else { valid = false; break; }
+                }
+
+                if (valid)
+                {
+                    // Check for surrogate pair \uD8xx\uDCxx
+                    if (codepoint >= 0xD800 && codepoint <= 0xDBFF && i + 11 < input.size() && input[i + 6] == '\\' && input[i + 7] == 'u')
+                    {
+                        uint32_t lowSurrogate = 0;
+                        bool lowValid = true;
+                        for (int k = 8; k < 12; ++k)
+                        {
+                            char c = input[i + k];
+                            lowSurrogate <<= 4;
+                            if (c >= '0' && c <= '9') lowSurrogate |= (c - '0');
+                            else if (c >= 'a' && c <= 'f') lowSurrogate |= (c - 'a' + 10);
+                            else if (c >= 'A' && c <= 'F') lowSurrogate |= (c - 'A' + 10);
+                            else { lowValid = false; break; }
+                        }
+                        if (lowValid && lowSurrogate >= 0xDC00 && lowSurrogate <= 0xDFFF)
+                        {
+                            codepoint = 0x10000 + ((codepoint - 0xD800) << 10) + (lowSurrogate - 0xDC00);
+                            i += 11;
+                        }
+                        else
+                        {
+                            i += 5;
+                        }
+                    }
+                    else
+                    {
+                        i += 5;
+                    }
+
+                    if (codepoint <= 0x7F)
+                    {
+                        result += static_cast<char>(codepoint);
+                    }
+                    else if (codepoint <= 0x7FF)
+                    {
+                        result += static_cast<char>(0xC0 | ((codepoint >> 6) & 0x1F));
+                        result += static_cast<char>(0x80 | (codepoint & 0x3F));
+                    }
+                    else if (codepoint <= 0xFFFF)
+                    {
+                        result += static_cast<char>(0xE0 | ((codepoint >> 12) & 0x0F));
+                        result += static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F));
+                        result += static_cast<char>(0x80 | (codepoint & 0x3F));
+                    }
+                    else if (codepoint <= 0x10FFFF)
+                    {
+                        result += static_cast<char>(0xF0 | ((codepoint >> 18) & 0x07));
+                        result += static_cast<char>(0x80 | ((codepoint >> 12) & 0x3F));
+                        result += static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F));
+                        result += static_cast<char>(0x80 | (codepoint & 0x3F));
+                    }
+                    continue;
+                }
+            }
+            result += input[i];
+        }
+        return result;
+    }
+
     bool WhatsAppService::SendMessage(
         const std::string& phoneNumber,
         const std::string& message
     )
     {
         std::string cleanPhone = SanitizePhoneNumber(phoneNumber);
+        std::string decodedMessage = DecodeUnicodeEscapes(message);
         json::object body;
         body["messaging_product"] = "whatsapp";
         body["to"] = cleanPhone;
         body["type"] = "text";
 
         json::object textObj;
-        textObj["body"] = message;
+        textObj["body"] = decodedMessage;
         body["text"] = textObj;
 
         std::string jsonStr = json::serialize(body);
-        return SendRequest(cleanPhone, "TEXT", "", message, jsonStr);
+        return SendRequest(cleanPhone, "TEXT", "", decodedMessage, jsonStr);
     }
 
     bool WhatsAppService::SendInteractiveButtons(
@@ -532,6 +643,7 @@ namespace omnisphere::services
     )
     {
         std::string cleanPhone = SanitizePhoneNumber(phoneNumber);
+        std::string decodedBody = DecodeUnicodeEscapes(bodyText);
         json::object body;
         body["messaging_product"] = "whatsapp";
         body["to"] = cleanPhone;
@@ -541,7 +653,7 @@ namespace omnisphere::services
         interactiveObj["type"] = "button";
 
         json::object bodyObj;
-        bodyObj["text"] = bodyText;
+        bodyObj["text"] = decodedBody;
         interactiveObj["body"] = bodyObj;
 
         json::object actionObj;
@@ -553,7 +665,7 @@ namespace omnisphere::services
 
             json::object replyObj;
             replyObj["id"] = btnId;
-            replyObj["title"] = btnTitle;
+            replyObj["title"] = DecodeUnicodeEscapes(btnTitle);
 
             btnObj["reply"] = replyObj;
             btnArray.push_back(btnObj);
@@ -564,7 +676,7 @@ namespace omnisphere::services
         body["interactive"] = interactiveObj;
 
         std::string jsonStr = json::serialize(body);
-        return SendRequest(cleanPhone, "INTERACTIVE", "", bodyText, jsonStr);
+        return SendRequest(cleanPhone, "INTERACTIVE", "", decodedBody, jsonStr);
     }
 
 
