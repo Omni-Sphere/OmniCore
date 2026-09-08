@@ -525,6 +525,49 @@ namespace omnisphere::services
         return SendRequest(cleanPhone, "TEXT", "", message, jsonStr);
     }
 
+    bool WhatsAppService::SendInteractiveButtons(
+        const std::string& phoneNumber,
+        const std::string& bodyText,
+        const std::vector<std::pair<std::string, std::string>>& buttons
+    )
+    {
+        std::string cleanPhone = SanitizePhoneNumber(phoneNumber);
+        json::object body;
+        body["messaging_product"] = "whatsapp";
+        body["to"] = cleanPhone;
+        body["type"] = "interactive";
+
+        json::object interactiveObj;
+        interactiveObj["type"] = "button";
+
+        json::object bodyObj;
+        bodyObj["text"] = bodyText;
+        interactiveObj["body"] = bodyObj;
+
+        json::object actionObj;
+        json::array btnArray;
+        for (const auto& [btnId, btnTitle] : buttons)
+        {
+            json::object btnObj;
+            btnObj["type"] = "reply";
+
+            json::object replyObj;
+            replyObj["id"] = btnId;
+            replyObj["title"] = btnTitle;
+
+            btnObj["reply"] = replyObj;
+            btnArray.push_back(btnObj);
+        }
+        actionObj["buttons"] = btnArray;
+        interactiveObj["action"] = actionObj;
+
+        body["interactive"] = interactiveObj;
+
+        std::string jsonStr = json::serialize(body);
+        return SendRequest(cleanPhone, "INTERACTIVE", "", bodyText, jsonStr);
+    }
+
+
     bool WhatsAppService::SendTicketConfirmation(
         const std::string& phoneNumber,
         const std::string& customerName,

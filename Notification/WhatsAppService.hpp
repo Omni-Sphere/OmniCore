@@ -41,6 +41,12 @@ namespace omnisphere::services
             const std::string& message
         );
 
+        bool SendInteractiveButtons(
+            const std::string& phoneNumber,
+            const std::string& bodyText,
+            const std::vector<std::pair<std::string, std::string>>& buttons
+        );
+
         bool SendTicketConfirmation(
             const std::string& phoneNumber,
             const std::string& customerName,
