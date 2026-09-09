@@ -59,6 +59,13 @@ jobs:
 
             SQL_CHANGED=false
             echo "--> Pulling latest changes in all SDK library repositories..."
+            if [ ! -d "$TARGET_DIR/cppgraphqlgen/.git" ]; then
+              echo "--> Clonando repositorio cppgraphqlgen..."
+              git clone "https://github.com/microsoft/cppgraphqlgen.git" "$TARGET_DIR/cppgraphqlgen" 2>/dev/null || true
+            else
+              cd "$TARGET_DIR/cppgraphqlgen" && git pull origin main 2>/dev/null || true
+            fi
+
             for d in OmniUtils OmniData OmniCore OmniERP OmniRoute OmniGraph; do
               if [ ! -d "$TARGET_DIR/$d/.git" ]; then
                 echo "--> Clonando repositorio $d..."
@@ -100,10 +107,13 @@ jobs:
             echo "=================================================="
             echo " 4. Rebuilding Base SDK Image (localhost/omnisphere-sdk:latest)"
             echo "=================================================="
-            if [ -f "$TARGET_DIR/Dockerfile" ]; then
+            if [ -f "$TARGET_DIR/OmniCore/Dockerfile" ]; then
+              podman build -t localhost/omnisphere-sdk:latest -f "$TARGET_DIR/OmniCore/Dockerfile" "$TARGET_DIR"
+            elif [ -f "$TARGET_DIR/Dockerfile" ]; then
               podman build -t localhost/omnisphere-sdk:latest -f "$TARGET_DIR/Dockerfile" "$TARGET_DIR"
-            elif [ -f "$TARGET_DIR/OmniCore/Dockerfile" ]; then
-              podman build -t localhost/omnisphere-sdk:latest -f "$TARGET_DIR/OmniCore/Dockerfile" "$TARGET_DIR/OmniCore"
+            else
+              echo "Error: Base SDK Dockerfile not found in $TARGET_DIR/OmniCore/Dockerfile or $TARGET_DIR/Dockerfile"
+              exit 1
             fi
             podman tag localhost/omnisphere-sdk:latest omnisphere-sdk:latest || true
 
