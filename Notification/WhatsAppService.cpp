@@ -68,6 +68,11 @@ namespace omnisphere::services
             m_config.webhookVerifyToken = decryptVal(rawWebhookToken);
             m_config.apiVersion = (std::string)dt[0]["ApiVersion"];
             if (m_config.apiVersion.empty()) m_config.apiVersion = "v24.0";
+            try {
+                if (dt[0].HasColumn("IsActive") && !dt[0]["IsActive"].IsNull()) m_config.isActive = (bool)dt[0]["IsActive"];
+                else if (dt[0].HasColumn("isactive") && !dt[0]["isactive"].IsNull()) m_config.isActive = (bool)dt[0]["isactive"];
+                else m_config.isActive = true;
+            } catch (...) { m_config.isActive = true; }
             return true;
         }
         return false;
@@ -200,6 +205,7 @@ namespace omnisphere::services
             if (!settings.apiToken.empty()) m_config.token = decryptVal(settings.apiToken);
             if (!settings.webhookVerifyToken.empty()) m_config.webhookVerifyToken = decryptVal(settings.webhookVerifyToken);
             if (!settings.apiVersion.empty()) m_config.apiVersion = settings.apiVersion;
+            m_config.isActive = settings.isActive;
         }
         return ok;
     }
@@ -288,6 +294,13 @@ namespace omnisphere::services
         std::string cleanPhoneId = CleanString(m_config.phoneId);
         std::string cleanToken = CleanString(m_config.token);
         std::string cleanApiVersion = CleanString(m_config.apiVersion.empty() ? "v24.0" : m_config.apiVersion);
+
+        if (!m_config.isActive)
+        {
+            m_lastError = "La integración de Meta WhatsApp API está desactivada en la configuración.";
+            omnisphere::utils::Logger::LogInfo("WhatsAppService", "Envío de mensaje cancelado: La integración de WhatsApp está desactivada (IsActive = false).");
+            return false;
+        }
 
         if (cleanPhoneId.empty() || cleanToken.empty())
         {

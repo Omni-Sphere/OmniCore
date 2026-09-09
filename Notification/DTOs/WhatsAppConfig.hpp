@@ -11,5 +11,6 @@ namespace omnisphere::dtos
         std::optional<std::string> appSecret;
         std::optional<std::string> webhookVerifyToken;
         std::string apiVersion = "v24.0";
+        bool isActive = true;
     };
 }
