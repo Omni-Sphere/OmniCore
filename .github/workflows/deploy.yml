@@ -44,6 +44,7 @@ jobs:
             # 2. Asegurar Base de Datos PostgreSQL 18
             if ! podman container exists omniroute-db-dev 2>/dev/null; then
               echo "--> Creando contenedor de Base de Datos PostgreSQL 18 (omniroute-db-dev)..."
+              mkdir -p "$TARGET_DIR/volumes/postgres_data"
               podman run -d \
                 --name omniroute-db-dev \
                 --network omnisphere-test-net \
