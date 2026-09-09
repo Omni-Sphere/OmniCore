@@ -58,6 +58,9 @@ add_library(OmniCore SHARED
     Notification/WhatsAppService.cpp
     Notification/Repositories/WhatsAppRepository.cpp
     Notification/WhatsAppWebhookRouter.cpp
+    Payment/StripeService.cpp
+    Payment/Repositories/StripeRepository.cpp
+    Payment/StripeWebhookRouter.cpp
     Identity/IdentityService.cpp
     Identity/Repositories/IdentityRepository.cpp
 )
@@ -137,6 +140,8 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/Authorization/Authorization.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Notification/WhatsAppService.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Notification/WhatsAppWebhookRouter.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Payment/StripeService.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Payment/StripeWebhookRouter.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Identity/IdentityService.hpp
 )
 
@@ -170,6 +175,10 @@ set(
     Notification/DTOs
     Notification/Models
     Notification/Repositories
+    Payment
+    Payment/DTOs
+    Payment/Models
+    Payment/Repositories
     Identity
     Identity/DTOs
     Identity/Models
