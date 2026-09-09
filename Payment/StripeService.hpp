@@ -1,6 +1,6 @@
 #pragma once
 #include "Payment/Repositories/StripeRepository.hpp"
-#include <OmniCore/Authorization/Models/SecurityContext.hpp>
+#include "Authorization/Models/SecurityContext.hpp"
 #include <OmniData/DatabasePool.hpp>
 #include <memory>
 #include <string>
