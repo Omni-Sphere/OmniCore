@@ -33,15 +33,18 @@ jobs:
             echo " Rebuilding SDK Base Image for Branch: main"
             echo "=================================================="
 
-            cd /home/arodriguez/Proyectos
+            SDK_DIR="$(git rev-parse --show-show-toplevel 2>/dev/null || pwd)"
+            PROJECTS_DIR="$(cd "$SDK_DIR/.." 2>/dev/null && pwd)"
+
+            cd "$PROJECTS_DIR"
 
             SQL_CHANGED=false
             echo "--> Pulling latest changes in all SDK library repositories..."
             for d in OmniUtils OmniData OmniCore OmniERP OmniRoute OmniGraph; do
-              if [ -d "$d/.git" ]; then
-                cd "$d"
+              if [ -d "$PROJECTS_DIR/$d/.git" ]; then
+                cd "$PROJECTS_DIR/$d"
                 PREV_HEAD=$(git rev-parse HEAD 2>/dev/null || echo "")
-                (git checkout main 2>/dev/null || git checkout master 2>/dev/null)
+                (git checkout main 2>/dev/null || git checkout master 2>/dev/null || true)
                 git pull origin $(git branch --show-current 2>/dev/null || echo "main") 2>/dev/null || true
                 NEW_HEAD=$(git rev-parse HEAD 2>/dev/null || echo "")
 
@@ -50,14 +53,15 @@ jobs:
                     SQL_CHANGED=true
                   fi
                 fi
-                cd /home/arodriguez/Proyectos
               fi
             done
+
+            cd "$PROJECTS_DIR"
 
             echo "=================================================="
             echo " 1. Checking Database Schema Migrations (OmniRoute.sql)"
             echo "=================================================="
-            SQL_FILE="/home/arodriguez/Proyectos/OmniGraph/GraphQL/Route/OmniRoute.sql"
+            SQL_FILE="$PROJECTS_DIR/OmniGraph/GraphQL/Route/OmniRoute.sql"
             if [ "$SQL_CHANGED" = true ]; then
               echo "--> Changes detected in OmniRoute.sql! Applying migration to omniroute-db-dev..."
               if [ -f "$SQL_FILE" ] && podman container exists omniroute-db-dev 2>/dev/null; then
@@ -72,28 +76,31 @@ jobs:
             echo "=================================================="
             echo " 2. Rebuilding Base SDK Image (localhost/omnisphere-sdk:latest)"
             echo "=================================================="
-            podman build -t localhost/omnisphere-sdk:latest -f Dockerfile .
+            if [ -f "$PROJECTS_DIR/Dockerfile" ]; then
+              podman build -t localhost/omnisphere-sdk:latest -f "$PROJECTS_DIR/Dockerfile" "$PROJECTS_DIR"
+            elif [ -f "$SDK_DIR/Dockerfile" ]; then
+              podman build -t localhost/omnisphere-sdk:latest -f "$SDK_DIR/Dockerfile" "$SDK_DIR"
+            fi
             podman tag localhost/omnisphere-sdk:latest omnisphere-sdk:latest || true
 
             echo "=================================================="
-            echo " 3. Rebuilding OmniRouteAPI Image (omniroute-api-dev)"
+            echo " 3. Rebuilding OmniRouteAPI Image (omniroute-api:test)"
             echo "=================================================="
-            (cd /home/arodriguez/Proyectos/OmniRouteAPI && podman build -t omniroute-api-dev -f Dockerfile .)
+            if [ -d "$PROJECTS_DIR/OmniRouteAPI" ]; then
+              cd "$PROJECTS_DIR/OmniRouteAPI"
+              if [ -f "Dockerfile.test" ]; then
+                podman build -t omniroute-api:test -f Dockerfile.test .
+              else
+                podman build -t omniroute-api:test -f Dockerfile .
+              fi
+              podman tag omniroute-api:test omniroute-api-dev:latest 2>/dev/null || true
+            fi
 
             echo "=================================================="
             echo " 4. Restarting Container (omniroute-api-dev) & Nginx Proxy"
             echo "=================================================="
-            (podman restart omniroute-api-dev || podman restart omniroute-api-prod || true)
-            (podman restart nginx-proxy || podman run -d \
-              --name nginx-proxy \
-              --network omnisphere-dev-net \
-              --restart always \
-              -p 80:80 \
-              -p 443:443 \
-              -v /home/arodriguez/Proyectos/nginx.conf:/etc/nginx/nginx.conf:ro,Z \
-              -v /home/arodriguez/Proyectos/podman-proxy/certbot/conf:/etc/letsencrypt:ro,Z \
-              -v /home/arodriguez/Proyectos/podman-proxy/certbot/www:/var/www/certbot:ro,Z \
-              docker.io/library/nginx:alpine || true)
+            (podman restart omniroute-api-dev || podman restart omniroute-api || true)
+            (podman restart nginx-proxy || true)
 
             echo "=================================================="
             echo " SDK & OmniRouteAPI Deployment Complete!"
