@@ -43,18 +43,31 @@ jobs:
             done
 
             echo "=================================================="
-            echo " 1. Rebuilding Base SDK Image (localhost/omnisphere-sdk:latest)"
+            echo " 1. Executing Database Schema Migrations (OmniRoute.sql)"
+            echo "=================================================="
+            SQL_FILE="/home/arodriguez/Proyectos/OmniGraph/GraphQL/Route/OmniRoute.sql"
+            if [ -f "$SQL_FILE" ]; then
+              if podman container exists omniroute-db-dev 2>/dev/null; then
+                echo "--> Applying $SQL_FILE to omniroute-db-dev..."
+                podman exec -i omniroute-db-dev psql -U system -d OmniRoute < "$SQL_FILE" || true
+              else
+                echo "--> Container omniroute-db-dev not found, skipping DB execution."
+              fi
+            fi
+
+            echo "=================================================="
+            echo " 2. Rebuilding Base SDK Image (localhost/omnisphere-sdk:latest)"
             echo "=================================================="
             podman build -t localhost/omnisphere-sdk:latest -f Dockerfile .
             podman tag localhost/omnisphere-sdk:latest omnisphere-sdk:latest || true
 
             echo "=================================================="
-            echo " 2. Rebuilding OmniRouteAPI Image (omniroute-api-dev)"
+            echo " 3. Rebuilding OmniRouteAPI Image (omniroute-api-dev)"
             echo "=================================================="
             (cd /home/arodriguez/Proyectos/OmniRouteAPI && podman build -t omniroute-api-dev -f Dockerfile .)
 
             echo "=================================================="
-            echo " 3. Restarting Container (omniroute-api-dev) & Nginx Proxy"
+            echo " 4. Restarting Container (omniroute-api-dev) & Nginx Proxy"
             echo "=================================================="
             (podman restart omniroute-api-dev || podman restart omniroute-api-prod || true)
             (podman restart nginx-proxy || podman run -d \
