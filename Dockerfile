@@ -27,6 +27,7 @@ COPY . /tmp/src/
 RUN set -e && \
     # A. Compilar e instalar cppgraphqlgen (schemagen) desde fuentes locales
     rm -rf /tmp/src/cppgraphqlgen/build /tmp/cppgraphqlgen-build 2>/dev/null || true && \
+    (cd /tmp/src/cppgraphqlgen && git submodule update --init --recursive 2>/dev/null || true) && \
     cmake -B /tmp/cppgraphqlgen-build -S /tmp/src/cppgraphqlgen \
         -Wno-dev \
         -Wno-unused-cli \
@@ -41,6 +42,7 @@ RUN set -e && \
     cmake --build /tmp/cppgraphqlgen-build -j$(nproc) && \
     cmake --install /tmp/cppgraphqlgen-build && \
     cp /tmp/cppgraphqlgen-build/src/schemagen /usr/bin/ 2>/dev/null || true && \
+    cp /usr/bin/cppgraphqlgen/schemagen /usr/bin/ 2>/dev/null || true && \
     rm -rf /tmp/src/cppgraphqlgen/build /tmp/cppgraphqlgen-build 2>/dev/null || true && \
     \
     # B. Compilar e instalar las 6 librerías de OmniSphere en secuencia
