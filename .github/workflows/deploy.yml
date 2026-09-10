@@ -52,7 +52,7 @@ jobs:
                 -e POSTGRES_DB=OmniRoute \
                 -e POSTGRES_USER=system \
                 -e POSTGRES_PASSWORD=Development.. \
-                -v "$TARGET_DIR/volumes/postgres_data:/var/lib/postgresql/data:Z" \
+                -v "$TARGET_DIR/volumes/postgres_data:/var/lib/postgresql:Z" \
                 -p 5432:5432 \
                 docker.io/library/postgres:18-alpine
             fi
