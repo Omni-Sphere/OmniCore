@@ -27,7 +27,6 @@ COPY . /tmp/src/
 RUN set -e && \
     # A. Compilar e instalar cppgraphqlgen (schemagen) desde fuentes locales
     rm -rf /tmp/src/cppgraphqlgen/build /tmp/cppgraphqlgen-build 2>/dev/null || true && \
-    (cd /tmp/src/cppgraphqlgen && git submodule update --init --recursive 2>/dev/null || true) && \
     cmake -B /tmp/cppgraphqlgen-build -S /tmp/src/cppgraphqlgen \
         -Wno-dev \
         -Wno-unused-cli \
