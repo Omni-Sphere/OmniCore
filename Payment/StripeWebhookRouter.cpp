@@ -48,7 +48,65 @@ namespace omnisphere::services
                     if (sigHeader.empty()) sigHeader = req.Header("stripe-signature");
 
                     omnisphere::utils::Logger::LogInfo("StripeWebhook", req.TraceContext() + " Incoming POST event. Signature: " + sigHeader);
-                    omnisphere::utils::Logger::LogInfo("StripeWebhook", req.TraceContext() + " Stripe Webhook Payload: " + req.Body());
+
+                    // 1. Verificación de Firma Criptográfica HMAC-SHA256 si existe WebhookSecretKey configurado (whsec_...)
+                    std::string webhookSecret = "";
+                    try
+                    {
+                        auto dtSettings = repo->GetSettings();
+                        if (dtSettings.RowsCount() > 0 && dtSettings[0].HasColumn("WebhookSecretKey") && !dtSettings[0]["WebhookSecretKey"].IsNull())
+                        {
+                            webhookSecret = (std::string)dtSettings[0]["WebhookSecretKey"];
+                            if (webhookSecret.rfind("whsec_", 0) != 0)
+                            {
+                                try { webhookSecret = omnisphere::utils::Base64::Decode(webhookSecret); } catch (...) {}
+                            }
+                        }
+                    }
+                    catch (...) {}
+
+                    if (!webhookSecret.empty() && webhookSecret.rfind("whsec_", 0) == 0)
+                    {
+                        if (sigHeader.empty())
+                        {
+                            omnisphere::utils::Logger::LogError("StripeWebhook", req.TraceContext() + " Rejected: Missing Stripe-Signature header.");
+                            return omnisphere::net::Response(400, "application/json", R"({"error":"Missing Stripe-Signature header"})");
+                        }
+
+                        std::string timestamp = "";
+                        std::string signatureV1 = "";
+                        std::stringstream ss(sigHeader);
+                        std::string item;
+                        while (std::getline(ss, item, ','))
+                        {
+                            size_t eqPos = item.find('=');
+                            if (eqPos != std::string::npos)
+                            {
+                                std::string k = item.substr(0, eqPos);
+                                std::string v = item.substr(eqPos + 1);
+                                while (!k.empty() && k.front() == ' ') k.erase(k.begin());
+                                if (k == "t") timestamp = v;
+                                else if (k == "v1") signatureV1 = v;
+                            }
+                        }
+
+                        if (timestamp.empty() || signatureV1.empty())
+                        {
+                            omnisphere::utils::Logger::LogError("StripeWebhook", req.TraceContext() + " Rejected: Invalid Stripe-Signature header format.");
+                            return omnisphere::net::Response(400, "application/json", R"({"error":"Invalid Stripe-Signature header format"})");
+                        }
+
+                        std::string signedPayload = timestamp + "." + req.Body();
+                        std::string computedSig = omnisphere::utils::Hasher::HmacSha256(signedPayload, webhookSecret);
+
+                        if (computedSig != signatureV1)
+                        {
+                            omnisphere::utils::Logger::LogError("StripeWebhook", req.TraceContext() + " Rejected: HMAC-SHA256 signature mismatch.");
+                            return omnisphere::net::Response(401, "application/json", R"({"error":"Invalid signature"})");
+                        }
+
+                        omnisphere::utils::Logger::LogInfo("StripeWebhook", req.TraceContext() + " Signature verified successfully via HMAC-SHA256.");
+                    }
 
                     auto parsed = req.Json();
                     if (parsed.is_object())
