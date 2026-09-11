@@ -135,23 +135,34 @@ namespace omnisphere::services
             int qty = seats > 0 ? seats : 1;
             std::string curr = settings.currency.empty() ? "mxn" : settings.currency;
 
-            std::string succUrl = successUrl.empty() ? "https://omni-house.zapto.org/confirmation?session_id={CHECKOUT_SESSION_ID}" : successUrl;
-            std::string cancUrl = cancelUrl.empty() ? "https://omni-house.zapto.org/checkout" : cancelUrl;
+            auto encodeUrlParam = [](const std::string& value) -> std::string {
+                std::ostringstream escaped;
+                escaped.fill('0');
+                escaped << std::hex;
+                for (char c : value) {
+                    if (isalnum(static_cast<unsigned char>(c)) || c == '-' || c == '_' || c == '.' || c == '~') {
+                        escaped << c;
+                    } else {
+                        escaped << '%' << std::setw(2) << std::uppercase << static_cast<int>(static_cast<unsigned char>(c));
+                    }
+                }
+                return escaped.str();
+            };
+
+            std::string rawSuccUrl = successUrl.empty() ? "https://omni-house.zapto.org/confirmation?session_id={CHECKOUT_SESSION_ID}" : successUrl;
+            std::string rawCancUrl = cancelUrl.empty() ? "https://omni-house.zapto.org/checkout" : cancelUrl;
 
             // Form-urlencoded payload para Stripe Checkout API
             std::ostringstream ssPayload;
             ssPayload << "payment_method_types[0]=card"
-                      << "&payment_method_types[1]=customer_balance"
-                      << "&customer_balance[funding_type]=bank_transfer"
-                      << "&customer_balance[bank_transfer][type]=mx_bank_transfer"
-                      << "&line_items[0][price_data][currency]=" << curr
+                      << "&line_items[0][price_data][currency]=" << encodeUrlParam(curr)
                       << "&line_items[0][price_data][unit_amount]=" << unitAmountCentavos
-                      << "&line_items[0][price_data][product_data][name]=Reservacion%20" << reservationCode
+                      << "&line_items[0][price_data][product_data][name]=" << encodeUrlParam("Reservacion " + reservationCode)
                       << "&line_items[0][quantity]=" << qty
                       << "&mode=payment"
-                      << "&client_reference_id=" << reservationCode
-                      << "&success_url=" << succUrl
-                      << "&cancel_url=" << cancUrl;
+                      << "&client_reference_id=" << encodeUrlParam(reservationCode)
+                      << "&success_url=" << encodeUrlParam(rawSuccUrl)
+                      << "&cancel_url=" << encodeUrlParam(rawCancUrl);
 
             std::string payload = ssPayload.str();
 
