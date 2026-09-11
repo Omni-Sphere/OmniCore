@@ -118,7 +118,8 @@ namespace omnisphere::services
                             eventType = std::string(obj.at("type").as_string());
                         }
 
-                        omnisphere::utils::Logger::LogInfo("StripeWebhook", req.TraceContext() + " Event Type Received: [" + eventType + "]");
+                        omnisphere::utils::Logger::LogInfo("StripeWebhook", req.TraceContext() + " Webhook Event Received: [" + eventType + "]");
+                        omnisphere::utils::Logger::LogInfo("StripeWebhook", req.TraceContext() + " Payload Body: " + req.Body());
 
                         if (eventType == "checkout.session.completed" || eventType == "payment_intent.succeeded")
                         {
@@ -134,7 +135,11 @@ namespace omnisphere::services
                                 {
                                     auto sessObj = dataObj.at("object").as_object();
                                     if (sessObj.contains("id") && sessObj.at("id").is_string())
-                                        sessionId = std::string(sessObj.at("id").as_string());
+                                    {
+                                        std::string rawId = std::string(sessObj.at("id").as_string());
+                                        if (rawId.rfind("cs_", 0) == 0) sessionId = rawId;
+                                        else if (rawId.rfind("pi_", 0) == 0) paymentIntentId = rawId;
+                                    }
 
                                     if (sessObj.contains("client_reference_id") && sessObj.at("client_reference_id").is_string())
                                         reservationCode = std::string(sessObj.at("client_reference_id").as_string());
@@ -142,18 +147,48 @@ namespace omnisphere::services
                                     if (sessObj.contains("payment_intent") && sessObj.at("payment_intent").is_string())
                                         paymentIntentId = std::string(sessObj.at("payment_intent").as_string());
 
+                                    // Extract order_reference (Stripe Checkout Session ID) if inside payment_details
+                                    if (sessObj.contains("payment_details") && sessObj.at("payment_details").is_object())
+                                    {
+                                        auto pd = sessObj.at("payment_details").as_object();
+                                        if (pd.contains("order_reference") && pd.at("order_reference").is_string())
+                                        {
+                                            sessionId = std::string(pd.at("order_reference").as_string());
+                                        }
+                                    }
+
+                                    // Extract metadata if present
+                                    if (sessObj.contains("metadata") && sessObj.at("metadata").is_object())
+                                    {
+                                        auto meta = sessObj.at("metadata").as_object();
+                                        if (meta.contains("reservationCode") && meta.at("reservationCode").is_string())
+                                            reservationCode = std::string(meta.at("reservationCode").as_string());
+                                        else if (meta.contains("client_reference_id") && meta.at("client_reference_id").is_string())
+                                            reservationCode = std::string(meta.at("client_reference_id").as_string());
+                                    }
+
                                     if (sessObj.contains("amount_total") && sessObj.at("amount_total").is_number())
                                         amount = sessObj.at("amount_total").as_double() / 100.0;
+                                    else if (sessObj.contains("amount") && sessObj.at("amount").is_number())
+                                        amount = sessObj.at("amount").as_double() / 100.0;
                                 }
                             }
+
+                            omnisphere::utils::Logger::LogInfo("StripeWebhook", req.TraceContext() + " Parsed Event -> SessionId: [" + sessionId + "], PaymentIntent: [" + paymentIntentId + "], ReservationCode: [" + reservationCode + "], Amount: $" + std::to_string(amount));
 
                             // Buscar la sesión registrada si reservationCode estaba vacío
                             if (reservationCode.empty() && !sessionId.empty())
                             {
+                                omnisphere::utils::Logger::LogWarning("StripeWebhook", req.TraceContext() + " ReservationCode empty in event payload. Searching database for SessionId [" + sessionId + "]...");
                                 auto sessOpt = repo->GetSessionByStripeId(sessionId);
                                 if (sessOpt.has_value())
                                 {
                                     reservationCode = sessOpt->reservationCode;
+                                    omnisphere::utils::Logger::LogInfo("StripeWebhook", req.TraceContext() + " Successfully resolved ReservationCode [" + reservationCode + "] from database session.");
+                                }
+                                else
+                                {
+                                    omnisphere::utils::Logger::LogError("StripeWebhook", req.TraceContext() + " Could not find reservation in database for SessionId [" + sessionId + "].");
                                 }
                             }
 

@@ -161,6 +161,7 @@ namespace omnisphere::services
                       << "&line_items[0][quantity]=" << qty
                       << "&mode=payment"
                       << "&client_reference_id=" << encodeUrlParam(reservationCode)
+                      << "&metadata[reservationCode]=" << encodeUrlParam(reservationCode)
                       << "&success_url=" << encodeUrlParam(rawSuccUrl)
                       << "&cancel_url=" << encodeUrlParam(rawCancUrl);
 
