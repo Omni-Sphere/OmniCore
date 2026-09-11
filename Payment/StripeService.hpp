@@ -16,6 +16,22 @@ namespace omnisphere::services
         std::string errorMessage;
     };
 
+    struct StripePaymentIntentResult
+    {
+        bool success = false;
+        std::string clientSecret;
+        std::string publishableKey;
+        std::string paymentIntentId;
+        std::string errorMessage;
+    };
+
+    struct StripeTestIntegrationResult
+    {
+        bool isConfigured = false;
+        bool isFunctional = false;
+        std::string message;
+    };
+
     class StripeService
     {
     public:
@@ -32,6 +48,17 @@ namespace omnisphere::services
             int seats = 1,
             const std::string& successUrl = "",
             const std::string& cancelUrl = ""
+        ) const;
+
+        StripePaymentIntentResult CreatePaymentIntent(
+            const omnisphere::models::SecurityContext& ctx,
+            const std::string& reservationCode,
+            double amount,
+            const std::string& currency = "mxn"
+        ) const;
+
+        StripeTestIntegrationResult TestIntegration(
+            const omnisphere::models::SecurityContext& ctx
         ) const;
 
     private:

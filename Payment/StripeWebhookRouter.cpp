@@ -167,10 +167,17 @@ namespace omnisphere::services
                                             reservationCode = std::string(meta.at("client_reference_id").as_string());
                                     }
 
+                                    auto getDoubleFromValue = [](const boost::json::value& v) -> double {
+                                        if (v.is_double()) return v.as_double();
+                                        if (v.is_int64()) return static_cast<double>(v.as_int64());
+                                        if (v.is_uint64()) return static_cast<double>(v.as_uint64());
+                                        return 0.0;
+                                    };
+
                                     if (sessObj.contains("amount_total") && sessObj.at("amount_total").is_number())
-                                        amount = sessObj.at("amount_total").as_double() / 100.0;
+                                        amount = getDoubleFromValue(sessObj.at("amount_total")) / 100.0;
                                     else if (sessObj.contains("amount") && sessObj.at("amount").is_number())
-                                        amount = sessObj.at("amount").as_double() / 100.0;
+                                        amount = getDoubleFromValue(sessObj.at("amount")) / 100.0;
                                 }
                             }
 

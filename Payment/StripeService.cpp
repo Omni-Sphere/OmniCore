@@ -254,4 +254,208 @@ namespace omnisphere::services
 
         return res;
     }
+
+    StripePaymentIntentResult StripeService::CreatePaymentIntent(
+        const omnisphere::models::SecurityContext& ctx,
+        const std::string& reservationCode,
+        double amount,
+        const std::string& currency
+    ) const
+    {
+        StripePaymentIntentResult res;
+        auto settingsOpt = GetSettings(true);
+
+        if (!settingsOpt.has_value() || !settingsOpt->isActive)
+        {
+            res.errorMessage = "La integración de Stripe no está configurada o se encuentra desactivada.";
+            return res;
+        }
+
+        auto settings = settingsOpt.value();
+        if (settings.secretKey.empty())
+        {
+            res.errorMessage = "Configuración incompleta: Llave secreta (SecretKey) de Stripe no configurada.";
+            return res;
+        }
+
+        res.publishableKey = settings.publishableKey;
+
+        try
+        {
+            std::string host = "api.stripe.com";
+            std::string port = "443";
+            std::string target = "/v1/payment_intents";
+
+            boost::asio::io_context ioc;
+            ssl::context sslCtx(ssl::context::tlsv12_client);
+            sslCtx.set_default_verify_paths();
+
+            tcp::resolver resolver(ioc);
+            ssl::stream<tcp::socket> stream(ioc, sslCtx);
+
+            if (!SSL_set_tlsext_host_name(stream.native_handle(), host.c_str()))
+            {
+                res.errorMessage = "Error configurando SNI para SSL Stripe.";
+                return res;
+            }
+
+            auto const results = resolver.resolve(host, port);
+            boost::asio::connect(stream.next_layer(), results.begin(), results.end());
+            stream.handshake(ssl::stream_base::client);
+
+            int amountCents = static_cast<int>(std::round(amount * 100.0));
+            std::string curr = currency.empty() ? settings.currency : currency;
+
+            auto urlEncode = [](const std::string& value) -> std::string {
+                std::ostringstream escaped;
+                escaped.fill('0');
+                escaped << std::hex;
+                for (char c : value) {
+                    if (std::isalnum((unsigned char)c) || c == '-' || c == '_' || c == '.' || c == '~') {
+                        escaped << c;
+                    } else {
+                        escaped << '%' << std::setw(2) << std::uppercase << (int)(unsigned char)c;
+                    }
+                }
+                return escaped.str();
+            };
+
+            std::string reqBody = "amount=" + std::to_string(amountCents)
+                                + "&currency=" + urlEncode(curr)
+                                + "&automatic_payment_methods[enabled]=true"
+                                + "&metadata[reservationCode]=" + urlEncode(reservationCode);
+
+            http::request<http::string_body> req{http::verb::post, target, 11};
+            req.set(http::field::host, host);
+            req.set(http::field::user_agent, "OmniSphere-C++/1.0");
+            req.set(http::field::content_type, "application/x-www-form-urlencoded");
+            req.set(http::field::authorization, "Bearer " + settings.secretKey);
+            req.body() = reqBody;
+            req.prepare_payload();
+
+            omnisphere::utils::Logger::LogInfo("StripeService", "Creating PaymentIntent for reservation [" + reservationCode + "] amount $" + std::to_string(amount));
+            http::write(stream, req);
+
+            beast::flat_buffer buffer;
+            http::response<http::dynamic_body> response;
+            http::read(stream, buffer, response);
+
+            std::string responseBodyStr = beast::buffers_to_string(response.body().data());
+            omnisphere::utils::Logger::LogInfo("StripeService", "Stripe PaymentIntent Response Code: " + std::to_string(response.result_int()));
+
+            if (response.result() == http::status::ok || response.result() == http::status::created)
+            {
+                auto parsed = json::parse(responseBodyStr);
+                if (parsed.is_object())
+                {
+                    auto obj = parsed.as_object();
+                    if (obj.contains("client_secret") && obj.at("client_secret").is_string())
+                        res.clientSecret = std::string(obj.at("client_secret").as_string());
+                    if (obj.contains("id") && obj.at("id").is_string())
+                        res.paymentIntentId = std::string(obj.at("id").as_string());
+
+                    if (!res.clientSecret.empty())
+                    {
+                        res.success = true;
+                    }
+                }
+            }
+
+            if (!res.success)
+            {
+                res.errorMessage = "Error al crear el PaymentIntent en Stripe. Respuesta: " + responseBodyStr;
+                omnisphere::utils::Logger::LogError("StripeService", res.errorMessage);
+            }
+        }
+        catch (const std::exception& ex)
+        {
+            res.errorMessage = std::string("Excepción creando PaymentIntent: ") + ex.what();
+            omnisphere::utils::Logger::LogError("StripeService", res.errorMessage);
+        }
+
+        return res;
+    }
+
+    StripeTestIntegrationResult StripeService::TestIntegration(
+        const omnisphere::models::SecurityContext& ctx
+    ) const
+    {
+        StripeTestIntegrationResult res;
+        auto settingsOpt = GetSettings(true);
+
+        if (!settingsOpt.has_value() || !settingsOpt->isActive)
+        {
+            res.isConfigured = false;
+            res.isFunctional = false;
+            res.message = "La integración de Stripe no está configurada o se encuentra desactivada.";
+            return res;
+        }
+
+        auto settings = settingsOpt.value();
+        if (settings.secretKey.empty() || settings.publishableKey.empty())
+        {
+            res.isConfigured = false;
+            res.isFunctional = false;
+            res.message = "Configuración incompleta: Faltan las llaves SecretKey o PublishableKey.";
+            return res;
+        }
+
+        res.isConfigured = true;
+
+        try
+        {
+            std::string host = "api.stripe.com";
+            std::string port = "443";
+            std::string target = "/v1/account";
+
+            boost::asio::io_context ioc;
+            ssl::context sslCtx(ssl::context::tlsv12_client);
+            sslCtx.set_default_verify_paths();
+
+            tcp::resolver resolver(ioc);
+            ssl::stream<tcp::socket> stream(ioc, sslCtx);
+
+            if (!SSL_set_tlsext_host_name(stream.native_handle(), host.c_str()))
+            {
+                res.isFunctional = false;
+                res.message = "Error configurando SNI para prueba SSL.";
+                return res;
+            }
+
+            auto const results = resolver.resolve(host, port);
+            boost::asio::connect(stream.next_layer(), results.begin(), results.end());
+            stream.handshake(ssl::stream_base::client);
+
+            http::request<http::empty_body> req{http::verb::get, target, 11};
+            req.set(http::field::host, host);
+            req.set(http::field::user_agent, "OmniSphere-C++/1.0");
+            req.set(http::field::authorization, "Bearer " + settings.secretKey);
+            req.prepare_payload();
+
+            http::write(stream, req);
+
+            beast::flat_buffer buffer;
+            http::response<http::dynamic_body> response;
+            http::read(stream, buffer, response);
+
+            if (response.result() == http::status::ok)
+            {
+                res.isFunctional = true;
+                res.message = "Conexión exitosa con la API de Stripe. Integración activa y lista para operar.";
+            }
+            else
+            {
+                res.isFunctional = false;
+                std::string body = beast::buffers_to_string(response.body().data());
+                res.message = "Stripe devolvió un código de error (" + std::to_string(response.result_int()) + "): " + body;
+            }
+        }
+        catch (const std::exception& ex)
+        {
+            res.isFunctional = false;
+            res.message = std::string("Excepción al probar conexión con Stripe: ") + ex.what();
+        }
+
+        return res;
+    }
 }
