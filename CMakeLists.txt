@@ -63,6 +63,8 @@ add_library(OmniCore SHARED
     Payment/StripeWebhookRouter.cpp
     Identity/IdentityService.cpp
     Identity/Repositories/IdentityRepository.cpp
+    SystemConfig/SystemConfig.cpp
+    SystemConfig/Repositories/SystemConfig.cpp
 )
 
 # --- Resolución de dependencias Omni ---
@@ -183,6 +185,10 @@ set(
     Identity/DTOs
     Identity/Models
     Identity/Repositories
+    SystemConfig
+    SystemConfig/DTOs
+    SystemConfig/Models
+    SystemConfig/Repositories
 )
 
 foreach(DIR ${HEADER_DIRS})
