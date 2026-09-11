@@ -6,7 +6,7 @@
 #include "SystemConfig/Repositories/SystemConfig.hpp"
 #include "SystemConfig/DTOs/SystemConfig.hpp"
 #include "SystemConfig/Models/SystemConfig.hpp"
-#include <OmniCore/Authorization/Models/SecurityContext.hpp>
+#include "Authorization/Models/SecurityContext.hpp"
 
 namespace omnisphere::services
 {
