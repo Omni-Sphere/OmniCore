@@ -26,6 +26,12 @@ namespace omnisphere::services
         return m_repository->Update(mutableInput);
     }
 
+    bool SystemConfig::EnsureDefaultExists(const omnisphere::models::SecurityContext& ctx) const
+    {
+        if (!m_repository) return false;
+        return m_repository->EnsureDefaultExists();
+    }
+
     std::optional<omnisphere::models::SystemConfig> SystemConfig::GetModel(const omnisphere::models::SecurityContext& ctx, const std::vector<std::string>& fields) const
     {
         if (!m_repository) return std::nullopt;

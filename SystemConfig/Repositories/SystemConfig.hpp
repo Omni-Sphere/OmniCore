@@ -21,6 +21,7 @@ namespace omnisphere::repositories
 
         omnisphere::types::DataTable GetActiveConfig(const std::vector<std::string>& fields = {}) const;
         bool Update(const omnisphere::dtos::UpdateSystemConfigInput& input) const;
+        bool EnsureDefaultExists() const;
         double CalculateAuthorizedTotal(double baseAmount, int paymentMethodEntry) const;
     };
 } // namespace omnisphere::repositories

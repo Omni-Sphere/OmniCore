@@ -68,6 +68,30 @@ namespace omnisphere::repositories
         }
     }
 
+    bool SystemConfig::EnsureDefaultExists() const
+    {
+        if (!m_dbPool) return false;
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            std::string checkSql = "SELECT COUNT(*) as cnt FROM \"SystemConfigs\"";
+            std::vector<omnisphere::types::SQLParam> emptyParams;
+            auto dt = conn->FetchPrepared(checkSql, emptyParams);
+            if (dt.RowsCount() > 0 && static_cast<long long>(dt[0]["cnt"]) > 0)
+            {
+                return true;
+            }
+
+            std::string insertSql = "INSERT INTO \"SystemConfigs\" (\"FeeHandlingStrategy\", \"TaxRatePercent\", \"DefaultCurrency\", \"CompanyName\", \"EnableEmailNotifications\", \"EnableWhatsappNotifications\", \"AllowPartialPayments\", \"IsActive\") VALUES ('ABSORBED', 0.0, 'MXN', 'OmniRoute', true, true, false, true)";
+            return conn->RunPrepared(insertSql, emptyParams);
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[SystemConfigRepository::EnsureDefaultExists Exception] " << ex.what() << std::endl;
+            return false;
+        }
+    }
+
     double SystemConfig::CalculateAuthorizedTotal(double baseAmount, int paymentMethodEntry) const
     {
         if (baseAmount <= 0) return 0.0;
