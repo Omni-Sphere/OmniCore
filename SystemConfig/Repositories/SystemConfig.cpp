@@ -25,15 +25,7 @@ namespace omnisphere::repositories
             std::vector<omnisphere::types::SQLParam> params = {
                 omnisphere::types::MakeSQLParam(true)
             };
-            auto dt = conn->FetchPrepared(sql, params);
-            if (dt.RowsCount() == 0)
-            {
-                std::string insertSql = "INSERT INTO \"SystemConfigs\" (\"FeeHandlingStrategy\", \"TaxRatePercent\", \"DefaultCurrency\", \"CompanyName\", \"EnableEmailNotifications\", \"EnableWhatsappNotifications\", \"AllowPartialPayments\", \"IsActive\") VALUES ('ABSORBED', 0.0, 'MXN', 'OmniRoute', true, true, false, true)";
-                std::vector<omnisphere::types::SQLParam> emptyParams;
-                conn->RunPrepared(insertSql, emptyParams);
-                dt = conn->FetchPrepared(sql, params);
-            }
-            return dt;
+            return conn->FetchPrepared(sql, params);
         }
         catch (const std::exception& ex)
         {
