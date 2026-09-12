@@ -77,7 +77,7 @@ namespace omnisphere::repositories
             std::string checkSql = "SELECT COUNT(*) as cnt FROM \"SystemConfigs\"";
             std::vector<omnisphere::types::SQLParam> emptyParams;
             auto dt = conn->FetchPrepared(checkSql, emptyParams);
-            if (dt.RowsCount() > 0 && static_cast<long long>(dt[0]["cnt"]) > 0)
+            if (dt.RowsCount() > 0 && (int)dt[0]["cnt"] > 0)
             {
                 return true;
             }
