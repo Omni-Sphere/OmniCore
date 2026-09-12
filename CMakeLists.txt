@@ -52,6 +52,7 @@ add_library(OmniCore SHARED
     GlobalConfiguration/GlobalConfiguration.cpp
     GlobalConfiguration/Repositories/GlobalConfiguration.cpp
     File/File.cpp
+    File/FileRouter.cpp
     File/Repositories/File.cpp
     Authorization/Authorization.cpp
     Authorization/Repositories/Authorization.cpp
@@ -139,6 +140,7 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/Session/Session.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/GlobalConfiguration/GlobalConfiguration.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/File/File.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/File/FileRouter.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Authorization/Authorization.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Notification/WhatsAppService.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Notification/WhatsAppWebhookRouter.hpp
