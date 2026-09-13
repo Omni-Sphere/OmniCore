@@ -206,14 +206,27 @@ namespace omnisphere::services
                     }
 
                     // Fallback para resolver reservationCode desde la BD si no vino en el webhook
-                    if (reservationCode.empty() && !sessionId.empty() && m_repo)
+                    if (reservationCode.empty() && m_repo)
                     {
-                        omnisphere::utils::Logger::LogWarning("StripeWebhookHandler", req.TraceContext() + " ReservationCode empty in event payload. Searching database for SessionId [" + sessionId + "]...");
-                        auto sessOpt = m_repo->GetSessionByStripeId(sessionId);
-                        if (sessOpt.has_value())
+                        if (!sessionId.empty())
                         {
-                            reservationCode = sessOpt->reservationCode;
-                            omnisphere::utils::Logger::LogInfo("StripeWebhookHandler", req.TraceContext() + " Successfully resolved ReservationCode [" + reservationCode + "] from database session.");
+                            omnisphere::utils::Logger::LogWarning("StripeWebhookHandler", req.TraceContext() + " ReservationCode empty in event payload. Searching database for SessionId [" + sessionId + "]...");
+                            auto sessOpt = m_repo->GetSessionByStripeId(sessionId);
+                            if (sessOpt.has_value() && !sessOpt->reservationCode.empty())
+                            {
+                                reservationCode = sessOpt->reservationCode;
+                                omnisphere::utils::Logger::LogInfo("StripeWebhookHandler", req.TraceContext() + " Successfully resolved ReservationCode [" + reservationCode + "] from database session.");
+                            }
+                        }
+                        if (reservationCode.empty() && !paymentIntentId.empty())
+                        {
+                            omnisphere::utils::Logger::LogWarning("StripeWebhookHandler", req.TraceContext() + " ReservationCode empty in event payload. Searching database for PaymentIntentId [" + paymentIntentId + "]...");
+                            auto txOpt = m_repo->GetTransactionByPaymentIntent(paymentIntentId);
+                            if (txOpt.has_value() && !txOpt->reservationCode.empty())
+                            {
+                                reservationCode = txOpt->reservationCode;
+                                omnisphere::utils::Logger::LogInfo("StripeWebhookHandler", req.TraceContext() + " Successfully resolved ReservationCode [" + reservationCode + "] from database transaction.");
+                            }
                         }
                     }
 

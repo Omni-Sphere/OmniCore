@@ -60,6 +60,11 @@ namespace omnisphere::payment
         };
     }
 
+    bool OpenPayPaymentProvider::CancelPayment(const std::string& /*transactionOrReferenceId*/, const std::string& /*reason*/)
+    {
+        return false;
+    }
+
     bool OpenPayPaymentProvider::VerifyWebhookSignature(const omnisphere::net::Request& req) const
     {
         // Verificación de autenticación básica o firma HMAC de OpenPay

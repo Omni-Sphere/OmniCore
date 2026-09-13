@@ -60,6 +60,11 @@ namespace omnisphere::payment
         };
     }
 
+    bool MercadoPagoPaymentProvider::CancelPayment(const std::string& /*transactionOrReferenceId*/, const std::string& /*reason*/)
+    {
+        return false;
+    }
+
     bool MercadoPagoPaymentProvider::VerifyWebhookSignature(const omnisphere::net::Request& req) const
     {
         // Verificación de x-signature de Mercado Pago

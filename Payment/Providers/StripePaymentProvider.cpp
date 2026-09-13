@@ -87,6 +87,31 @@ namespace omnisphere::payment
         };
     }
 
+    bool StripePaymentProvider::CancelPayment(const std::string& transactionOrReferenceId, const std::string& reason)
+    {
+        if (transactionOrReferenceId.empty()) return false;
+        if (!m_stripeService)
+        {
+            if (m_dbPool)
+            {
+                m_stripeService = std::make_shared<omnisphere::services::StripeService>(m_dbPool);
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        if (transactionOrReferenceId.rfind("cs_", 0) == 0)
+        {
+            return m_stripeService->ExpireCheckoutSession(transactionOrReferenceId);
+        }
+        else
+        {
+            return m_stripeService->CancelPaymentIntent(transactionOrReferenceId, reason);
+        }
+    }
+
     bool StripePaymentProvider::VerifyWebhookSignature(const omnisphere::net::Request& req) const
     {
         if (!m_dbPool) return true;
@@ -207,14 +232,33 @@ namespace omnisphere::payment
                         evt.metadata = meta;
 
                         if (meta.contains("entityType")) evt.entityType = json::value_to<std::string>(meta["entityType"]);
+                        else if (meta.contains("EntityType")) evt.entityType = json::value_to<std::string>(meta["EntityType"]);
                         else evt.entityType = "ROUTE_RESERVATION";
 
                         if (meta.contains("entityCode")) evt.entityCode = json::value_to<std::string>(meta["entityCode"]);
+                        else if (meta.contains("EntityCode")) evt.entityCode = json::value_to<std::string>(meta["EntityCode"]);
                         else if (meta.contains("reservationCode")) evt.entityCode = json::value_to<std::string>(meta["reservationCode"]);
+                        else if (meta.contains("ReservationCode")) evt.entityCode = json::value_to<std::string>(meta["ReservationCode"]);
+                        else if (meta.contains("client_reference_id")) evt.entityCode = json::value_to<std::string>(meta["client_reference_id"]);
                     }
                     else
                     {
                         evt.entityType = "ROUTE_RESERVATION";
+                    }
+
+                    // Fallback para resolver entityCode desde base de datos si no vino en metadata
+                    if (evt.entityCode.empty() && !evt.paymentIntentId.empty() && m_dbPool)
+                    {
+                        try
+                        {
+                            auto repo = std::make_shared<omnisphere::repositories::StripeRepository>(m_dbPool);
+                            auto txOpt = repo->GetTransactionByPaymentIntent(evt.paymentIntentId);
+                            if (txOpt.has_value() && !txOpt->reservationCode.empty())
+                            {
+                                evt.entityCode = txOpt->reservationCode;
+                            }
+                        }
+                        catch (...) {}
                     }
 
                     // 3. Payment Method detection (Customer Balance / SPEI vs Card)

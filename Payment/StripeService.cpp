@@ -652,4 +652,151 @@ namespace omnisphere::services
 
         return res;
     }
+
+    bool StripeService::CancelPaymentIntent(const std::string& paymentIntentId, const std::string& reason) const
+    {
+        if (paymentIntentId.empty()) return false;
+
+        auto settingsOpt = GetSettings(true);
+        if (!settingsOpt.has_value() || !settingsOpt->isActive || settingsOpt->secretKey.empty())
+        {
+            return false;
+        }
+
+        auto settings = settingsOpt.value();
+        try
+        {
+            std::string host = "api.stripe.com";
+            std::string port = "443";
+            std::string target = "/v1/payment_intents/" + paymentIntentId + "/cancel";
+            std::string body = "cancellation_reason=" + (reason.empty() ? "abandoned" : reason);
+
+            boost::asio::io_context ioc;
+            ssl::context sslCtx(ssl::context::tlsv12_client);
+            sslCtx.set_default_verify_paths();
+
+            tcp::resolver resolver(ioc);
+            ssl::stream<tcp::socket> stream(ioc, sslCtx);
+
+            if (!SSL_set_tlsext_host_name(stream.native_handle(), host.c_str()))
+            {
+                return false;
+            }
+
+            auto const results = resolver.resolve(host, port);
+            boost::asio::connect(stream.next_layer(), results.begin(), results.end());
+            stream.handshake(ssl::stream_base::client);
+
+            http::request<http::string_body> req{http::verb::post, target, 11};
+            req.set(http::field::host, host);
+            req.set(http::field::user_agent, "OmniSphere-C++/1.0");
+            req.set(http::field::content_type, "application/x-www-form-urlencoded");
+            req.set(http::field::authorization, "Bearer " + settings.secretKey);
+            req.body() = body;
+            req.prepare_payload();
+
+            http::write(stream, req);
+
+            beast::flat_buffer buffer;
+            http::response<http::dynamic_body> response;
+            http::read(stream, buffer, response);
+
+            int status = static_cast<int>(response.result_int());
+            if (status == 200 || status == 201)
+            {
+                omnisphere::utils::Logger::LogInfo("StripeService",
+                    "PaymentIntent [" + paymentIntentId + "] canceled successfully in Stripe.");
+                if (m_repository)
+                {
+                    m_repository->UpdateTransactionStatus(paymentIntentId, "canceled");
+                }
+                return true;
+            }
+            else
+            {
+                std::string respBody = beast::buffers_to_string(response.body().data());
+                omnisphere::utils::Logger::LogWarning("StripeService",
+                    "Failed to cancel PaymentIntent [" + paymentIntentId + "] in Stripe (Status " + std::to_string(status) + "): " + respBody);
+                return false;
+            }
+        }
+        catch (const std::exception& ex)
+        {
+            omnisphere::utils::Logger::LogError("StripeService",
+                "Exception canceling PaymentIntent [" + paymentIntentId + "]: " + std::string(ex.what()));
+            return false;
+        }
+    }
+
+    bool StripeService::ExpireCheckoutSession(const std::string& sessionId) const
+    {
+        if (sessionId.empty()) return false;
+
+        auto settingsOpt = GetSettings(true);
+        if (!settingsOpt.has_value() || !settingsOpt->isActive || settingsOpt->secretKey.empty())
+        {
+            return false;
+        }
+
+        auto settings = settingsOpt.value();
+        try
+        {
+            std::string host = "api.stripe.com";
+            std::string port = "443";
+            std::string target = "/v1/checkout/sessions/" + sessionId + "/expire";
+
+            boost::asio::io_context ioc;
+            ssl::context sslCtx(ssl::context::tlsv12_client);
+            sslCtx.set_default_verify_paths();
+
+            tcp::resolver resolver(ioc);
+            ssl::stream<tcp::socket> stream(ioc, sslCtx);
+
+            if (!SSL_set_tlsext_host_name(stream.native_handle(), host.c_str()))
+            {
+                return false;
+            }
+
+            auto const results = resolver.resolve(host, port);
+            boost::asio::connect(stream.next_layer(), results.begin(), results.end());
+            stream.handshake(ssl::stream_base::client);
+
+            http::request<http::empty_body> req{http::verb::post, target, 11};
+            req.set(http::field::host, host);
+            req.set(http::field::user_agent, "OmniSphere-C++/1.0");
+            req.set(http::field::authorization, "Bearer " + settings.secretKey);
+            req.prepare_payload();
+
+            http::write(stream, req);
+
+            beast::flat_buffer buffer;
+            http::response<http::dynamic_body> response;
+            http::read(stream, buffer, response);
+
+            int status = static_cast<int>(response.result_int());
+            if (status == 200 || status == 201)
+            {
+                omnisphere::utils::Logger::LogInfo("StripeService",
+                    "CheckoutSession [" + sessionId + "] expired successfully in Stripe.");
+                if (m_repository)
+                {
+                    m_repository->UpdateSessionStatus(sessionId, "expired");
+                }
+                return true;
+            }
+            else
+            {
+                std::string respBody = beast::buffers_to_string(response.body().data());
+                omnisphere::utils::Logger::LogWarning("StripeService",
+                    "Failed to expire CheckoutSession [" + sessionId + "] in Stripe (Status " + std::to_string(status) + "): " + respBody);
+                return false;
+            }
+        }
+        catch (const std::exception& ex)
+        {
+            omnisphere::utils::Logger::LogError("StripeService",
+                "Exception expiring CheckoutSession [" + sessionId + "]: " + std::string(ex.what()));
+            return false;
+        }
+    }
 }

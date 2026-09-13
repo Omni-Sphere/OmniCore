@@ -19,6 +19,8 @@ namespace omnisphere::payment
 
         ProviderDiagnosticResult TestIntegration() override;
 
+        bool CancelPayment(const std::string& transactionOrReferenceId, const std::string& reason = "abandoned") override;
+
         bool VerifyWebhookSignature(const omnisphere::net::Request& req) const override;
         std::optional<PaymentEvent> ParseWebhookEvent(const omnisphere::net::Request& req) const override;
 

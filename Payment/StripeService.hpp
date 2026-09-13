@@ -81,6 +81,17 @@ namespace omnisphere::services
             const omnisphere::models::SecurityContext& ctx
         ) const;
 
+        // Cancela un PaymentIntent en Stripe (invalida la CLABE virtual SPEI / intención de cobro)
+        bool CancelPaymentIntent(
+            const std::string& paymentIntentId,
+            const std::string& reason = "abandoned"
+        ) const;
+
+        // Expira una sesión de checkout en Stripe
+        bool ExpireCheckoutSession(
+            const std::string& sessionId
+        ) const;
+
     private:
         std::shared_ptr<omnisphere::repositories::StripeRepository> m_repository;
         std::shared_ptr<omnisphere::data::DatabasePool> m_dbPool;

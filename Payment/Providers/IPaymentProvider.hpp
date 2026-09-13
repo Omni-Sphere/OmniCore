@@ -75,6 +75,8 @@ namespace omnisphere::payment
 
         virtual ProviderDiagnosticResult TestIntegration() = 0;
 
+        virtual bool CancelPayment(const std::string& transactionOrReferenceId, const std::string& reason = "abandoned") { return false; }
+
         virtual bool VerifyWebhookSignature(const omnisphere::net::Request& req) const = 0;
         virtual std::optional<PaymentEvent> ParseWebhookEvent(const omnisphere::net::Request& req) const = 0;
     };
