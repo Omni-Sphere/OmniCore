@@ -51,7 +51,8 @@ namespace omnisphere::payment
                           AND "IsActive" = true
                     )";
 
-                    auto dt = conn->RunQuery(sql);
+                    std::vector<omnisphere::types::SQLParam> emptyParams;
+                    auto dt = conn->FetchPrepared(sql, emptyParams);
                     for (size_t i = 0; i < dt.RowsCount(); ++i)
                     {
                         int entry = static_cast<int>(dt[i]["Entry"]);
