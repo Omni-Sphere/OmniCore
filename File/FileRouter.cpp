@@ -58,11 +58,15 @@ namespace omnisphere::services
     {
         if (!router) return;
 
-        try {
-            if (!fs::exists(uploadDir)) {
-                fs::create_directories(uploadDir);
+        std::error_code dirEc;
+        if (!fs::exists(uploadDir, dirEc)) {
+            fs::create_directories(uploadDir, dirEc);
+            if (dirEc) {
+                omnisphere::utils::Logger::LogError("FileRouter", "Failed to create upload directory '" + uploadDir + "': " + dirEc.message());
+            } else {
+                omnisphere::utils::Logger::LogInfo("FileRouter", "Upload directory initialized: " + fs::absolute(uploadDir, dirEc).string());
             }
-        } catch (...) {}
+        }
 
         // 1. Endpoint POST Protegido por JWT (PostAuthorized) para Carga de Archivos
         auto handleUpload = [uploadDir](const omnisphere::net::Request& req) {
@@ -104,9 +108,14 @@ namespace omnisphere::services
             std::string secureName = GenerateSecureFilename(ext);
             fs::path destinationPath = fs::path(uploadDir) / secureName;
 
+            std::error_code writeEc;
+            fs::create_directories(destinationPath.parent_path(), writeEc);
+
             std::ofstream outFile(destinationPath.string(), std::ios::binary);
             if (!outFile.is_open()) {
-                omnisphere::utils::Logger::LogError("FileRouter", "Failed to write file to: " + destinationPath.string());
+                std::string absPath = "";
+                try { absPath = fs::absolute(destinationPath).string(); } catch (...) { absPath = destinationPath.string(); }
+                omnisphere::utils::Logger::LogError("FileRouter", "Failed to write file to: " + destinationPath.string() + " (absolute: " + absPath + ")");
                 return omnisphere::net::Response::InternalError(R"({"error":"Failed to save uploaded file"})");
             }
 
