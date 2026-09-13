@@ -52,15 +52,18 @@ add_library(OmniCore SHARED
     GlobalConfiguration/GlobalConfiguration.cpp
     GlobalConfiguration/Repositories/GlobalConfiguration.cpp
     File/File.cpp
+    File/FileHandler.cpp
     File/FileRouter.cpp
     File/Repositories/File.cpp
     Authorization/Authorization.cpp
     Authorization/Repositories/Authorization.cpp
     Notification/WhatsAppService.cpp
     Notification/Repositories/WhatsAppRepository.cpp
+    Notification/WhatsAppWebhookHandler.cpp
     Notification/WhatsAppWebhookRouter.cpp
     Payment/StripeService.cpp
     Payment/Repositories/StripeRepository.cpp
+    Payment/StripeWebhookHandler.cpp
     Payment/StripeWebhookRouter.cpp
     Payment/PaymentMethodService.cpp
     Payment/Repositories/PaymentMethodRepository.cpp
@@ -68,6 +71,7 @@ add_library(OmniCore SHARED
     Payment/Providers/StripePaymentProvider.cpp
     Payment/Providers/OpenPayPaymentProvider.cpp
     Payment/Providers/MercadoPagoPaymentProvider.cpp
+    Payment/UniversalPaymentWebhookHandler.cpp
     Payment/UniversalPaymentWebhookRouter.cpp
     Payment/PaymentExpiryDaemon.cpp
     Identity/IdentityService.cpp
@@ -187,10 +191,13 @@ set(
     Notification/DTOs
     Notification/Models
     Notification/Repositories
+    Notification/Hooks
     Payment
     Payment/DTOs
     Payment/Models
     Payment/Repositories
+    Payment/Providers
+    Payment/Hooks
     Identity
     Identity/DTOs
     Identity/Models
