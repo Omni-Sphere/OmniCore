@@ -17,8 +17,13 @@ RUN pacman -Syu --noconfirm && \
         postgresql-libs \
         libpqxx \
         mariadb-libs \
-        openssl && \
+        openssl \
+        tzdata && \
+    ln -sf /usr/share/zoneinfo/America/Mexico_City /etc/localtime && \
+    echo "America/Mexico_City" > /etc/timezone && \
     pacman -Scc --noconfirm
+
+ENV TZ=America/Mexico_City
 
 # 2. Copiar contexto local de fuentes ($TARGET_DIR que contiene todos los repos de OmniSphere)
 COPY . /tmp/src/
