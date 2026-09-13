@@ -1,4 +1,5 @@
 #include "Notification/WhatsAppWebhookRouter.hpp"
+#include "Notification/Hooks/WhatsAppHook.hpp"
 #include <OmniUtils/Logger.hpp>
 #include <OmniUtils/Base64.hpp>
 #include <OmniUtils/Hasher.hpp>
@@ -154,6 +155,9 @@ namespace omnisphere::services
                                             std::string msgType = std::string(mObj.at("type").as_string());
                                             std::string bodyText = "";
 
+                                            std::string buttonPayload = "";
+                                            std::string buttonTitle = "";
+
                                             if (mObj.contains("text") && mObj.at("text").is_object())
                                             {
                                                 bodyText = std::string(mObj.at("text").as_object().at("body").as_string());
@@ -161,8 +165,14 @@ namespace omnisphere::services
                                             else if (mObj.contains("button") && mObj.at("button").is_object())
                                             {
                                                 auto btnObj = mObj.at("button").as_object();
-                                                if (btnObj.contains("text")) bodyText = std::string(btnObj.at("text").as_string());
-                                                else if (btnObj.contains("payload")) bodyText = std::string(btnObj.at("payload").as_string());
+                                                if (btnObj.contains("text")) {
+                                                    bodyText = std::string(btnObj.at("text").as_string());
+                                                    buttonTitle = bodyText;
+                                                }
+                                                if (btnObj.contains("payload")) {
+                                                    buttonPayload = std::string(btnObj.at("payload").as_string());
+                                                    if (bodyText.empty()) bodyText = buttonPayload;
+                                                }
                                             }
                                             else if (mObj.contains("interactive") && mObj.at("interactive").is_object())
                                             {
@@ -170,8 +180,26 @@ namespace omnisphere::services
                                                 if (interObj.contains("button_reply") && interObj.at("button_reply").is_object())
                                                 {
                                                     auto brObj = interObj.at("button_reply").as_object();
-                                                    if (brObj.contains("title")) bodyText = std::string(brObj.at("title").as_string());
-                                                    else if (brObj.contains("id")) bodyText = std::string(brObj.at("id").as_string());
+                                                    if (brObj.contains("title")) {
+                                                        buttonTitle = std::string(brObj.at("title").as_string());
+                                                        bodyText = buttonTitle;
+                                                    }
+                                                    if (brObj.contains("id")) {
+                                                        buttonPayload = std::string(brObj.at("id").as_string());
+                                                        if (bodyText.empty()) bodyText = buttonPayload;
+                                                    }
+                                                }
+                                                else if (interObj.contains("list_reply") && interObj.at("list_reply").is_object())
+                                                {
+                                                    auto lrObj = interObj.at("list_reply").as_object();
+                                                    if (lrObj.contains("title")) {
+                                                        buttonTitle = std::string(lrObj.at("title").as_string());
+                                                        bodyText = buttonTitle;
+                                                    }
+                                                    if (lrObj.contains("id")) {
+                                                        buttonPayload = std::string(lrObj.at("id").as_string());
+                                                        if (bodyText.empty()) bodyText = buttonPayload;
+                                                    }
                                                 }
                                             }
 
@@ -190,7 +218,22 @@ namespace omnisphere::services
                                                 repo->LogMessage(msg);
                                                 omnisphere::utils::Logger::LogInfo("WhatsAppWebhook", req.TraceContext() + " Inbound Message Logged to DB (WAMID: " + wamid + ", From: " + fromPhone + ", Body: '" + bodyText + "')");
 
-                                                // Invocar el handler de negocio si está registrado
+                                                // 1. Dispatch through Inversion-of-Control WhatsApp Hooks
+                                                omnisphere::notification::InboundMessageEvent hookEvent;
+                                                hookEvent.fromPhone = fromPhone;
+                                                hookEvent.customerName = customerName;
+                                                hookEvent.messageText = bodyText;
+                                                hookEvent.buttonPayload = buttonPayload;
+                                                hookEvent.buttonTitle = buttonTitle;
+                                                hookEvent.messageType = msgType;
+                                                hookEvent.wamid = wamid;
+                                                hookEvent.traceContext = req.TraceContext();
+                                                hookEvent.rawPayload = req.Body();
+                                                hookEvent.dbPool = dbPool;
+
+                                                omnisphere::notification::WhatsAppHookRegistry::Instance().DispatchInboundMessage(hookEvent);
+
+                                                // 2. Invocar el handler legado de negocio si está registrado
                                                 if (messageHandler)
                                                 {
                                                     messageHandler(req, fromPhone, customerName, bodyText);
