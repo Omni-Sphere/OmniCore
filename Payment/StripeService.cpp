@@ -540,7 +540,7 @@ namespace omnisphere::services
                             omnisphere::models::StripeTransaction tx;
                             tx.code = "TX-SPEI-" + (res.paymentIntentId.length() > 12 ? res.paymentIntentId.substr(0, 12) : res.paymentIntentId);
                             tx.reservationCode = reservationCode;
-                            tx.stripePaymentIntentId = res.paymentIntentId;
+                            tx.paymentIntentId = res.paymentIntentId;
                             tx.amount = amount;
                             tx.currency = "mxn";
                             tx.status = "requires_action";
@@ -551,6 +551,18 @@ namespace omnisphere::services
                             tx.createdBy = 1;
 
                             m_repository->SaveTransaction(tx);
+                        }
+
+                        if (m_dbPool && !reservationCode.empty()) {
+                            try {
+                                auto conn = m_dbPool->Acquire();
+                                std::string updateSql = "UPDATE \"Reservations\" SET \"PaymentReference\" = ? WHERE \"Code\" = ?";
+                                std::vector<omnisphere::types::SQLParam> updateParams = {
+                                    omnisphere::types::MakeSQLParam(res.paymentIntentId),
+                                    omnisphere::types::MakeSQLParam(reservationCode)
+                                };
+                                conn->RunPrepared(updateSql, updateParams);
+                            } catch (...) {}
                         }
                     }
                 }

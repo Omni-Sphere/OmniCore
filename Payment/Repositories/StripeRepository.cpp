@@ -258,7 +258,7 @@ namespace omnisphere::repositories
         try
         {
             auto conn = m_dbPool->Acquire();
-            std::string codeVal = tx.code.empty() ? ("TX-" + tx.stripePaymentIntentId) : tx.code;
+            std::string codeVal = tx.code.empty() ? ("TX-" + tx.paymentIntentId) : tx.code;
 
             std::vector<std::string> cols = {
                 "\"Code\"", "\"ReservationCode\"", "\"PaymentIntentId\"", "\"ChargeId\"",
@@ -272,8 +272,8 @@ namespace omnisphere::repositories
             std::vector<omnisphere::types::SQLParam> params = {
                 omnisphere::types::MakeSQLParam(codeVal),
                 omnisphere::types::MakeSQLParam(tx.reservationCode),
-                omnisphere::types::MakeSQLParam(tx.stripePaymentIntentId),
-                omnisphere::types::MakeSQLParam(tx.stripeChargeId.value_or("")),
+                omnisphere::types::MakeSQLParam(tx.paymentIntentId),
+                omnisphere::types::MakeSQLParam(tx.chargeId.value_or("")),
                 omnisphere::types::MakeSQLParam(tx.amount),
                 omnisphere::types::MakeSQLParam(tx.currency.empty() ? std::string("mxn") : tx.currency),
                 omnisphere::types::MakeSQLParam(tx.status.empty() ? std::string("succeeded") : tx.status),
@@ -282,7 +282,7 @@ namespace omnisphere::repositories
                 omnisphere::types::MakeSQLParam(tx.bankName.value_or("")),
                 omnisphere::types::MakeSQLParam(tx.cardBrand.value_or("")),
                 omnisphere::types::MakeSQLParam(tx.cardLast4.value_or("")),
-                omnisphere::types::MakeSQLParam(tx.cardFunding.value_or("")),
+                omnisphere::types::MakeSQLParam(tx.cardType.value_or("")),
                 omnisphere::types::MakeSQLParam(tx.authorizationCode.value_or("")),
                 omnisphere::types::MakeSQLParam(tx.cardFingerprint.value_or("")),
                 omnisphere::types::MakeSQLParam(tx.receiptUrl.value_or("")),
@@ -361,9 +361,9 @@ namespace omnisphere::repositories
                 tx.entry = (int)dt[0]["Entry"];
                 tx.code = (std::string)dt[0]["Code"];
                 tx.reservationCode = (std::string)dt[0]["ReservationCode"];
-                tx.stripePaymentIntentId = (std::string)dt[0]["PaymentIntentId"];
+                tx.paymentIntentId = (std::string)dt[0]["PaymentIntentId"];
                 if (dt[0].HasColumn("ChargeId") && !dt[0]["ChargeId"].IsNull())
-                    tx.stripeChargeId = (std::string)dt[0]["ChargeId"];
+                    tx.chargeId = (std::string)dt[0]["ChargeId"];
                 tx.amount = (double)dt[0]["Amount"];
                 tx.currency = (std::string)dt[0]["Currency"];
                 tx.status = (std::string)dt[0]["Status"];
@@ -379,6 +379,8 @@ namespace omnisphere::repositories
                     tx.cardBrand = (std::string)dt[0]["CardBrand"];
                 if (dt[0].HasColumn("CardLast4") && !dt[0]["CardLast4"].IsNull())
                     tx.cardLast4 = (std::string)dt[0]["CardLast4"];
+                if (dt[0].HasColumn("CardType") && !dt[0]["CardType"].IsNull())
+                    tx.cardType = (std::string)dt[0]["CardType"];
                 if (dt[0].HasColumn("ReceiptUrl") && !dt[0]["ReceiptUrl"].IsNull())
                     tx.receiptUrl = (std::string)dt[0]["ReceiptUrl"];
                 tx.isActive = (bool)dt[0]["IsActive"];
