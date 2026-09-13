@@ -134,7 +134,7 @@ namespace omnisphere::payment
 
         if (timestampStr.empty() || signaturesV1.empty()) return false;
         std::string payloadToSign = timestampStr + "." + req.Body();
-        std::string expectedSig = omnisphere::utils::Hasher::HMAC_SHA256(webhookSecret, payloadToSign);
+        std::string expectedSig = omnisphere::utils::Hasher::HmacSha256(payloadToSign, webhookSecret);
 
         for (const auto& sig : signaturesV1)
         {
