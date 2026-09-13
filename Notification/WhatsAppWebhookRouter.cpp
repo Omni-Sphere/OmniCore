@@ -80,7 +80,7 @@ namespace omnisphere::services
             });
 
             // 2. POST Endpoint for Meta Status Updates & Inbound Messages
-            router->Post(p, [repo, messageHandler](const omnisphere::net::Request& req) -> omnisphere::net::Response {
+            router->Post(p, [repo, dbPool, messageHandler](const omnisphere::net::Request& req) -> omnisphere::net::Response {
                 omnisphere::utils::Logger::LogHttpRequest(req);
                 try
                 {
