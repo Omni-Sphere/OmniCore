@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <cctype>
 #include <random>
+#include <cerrno>
+#include <cstring>
 
 namespace fs = std::filesystem;
 
@@ -110,12 +112,18 @@ namespace omnisphere::services
 
             std::error_code writeEc;
             fs::create_directories(destinationPath.parent_path(), writeEc);
+            if (writeEc) {
+                omnisphere::utils::Logger::LogError("FileRouter", "create_directories failed for '" + destinationPath.parent_path().string() + "': " + writeEc.message());
+            }
 
+            int lastErrno = 0;
             std::ofstream outFile(destinationPath.string(), std::ios::binary);
             if (!outFile.is_open()) {
+                lastErrno = errno;
                 std::string absPath = "";
                 try { absPath = fs::absolute(destinationPath).string(); } catch (...) { absPath = destinationPath.string(); }
-                omnisphere::utils::Logger::LogError("FileRouter", "Failed to write file to: " + destinationPath.string() + " (absolute: " + absPath + ")");
+                std::string errStr = (lastErrno != 0) ? std::string(std::strerror(lastErrno)) : "Unknown I/O error";
+                omnisphere::utils::Logger::LogError("FileRouter", "Failed to write file to: " + destinationPath.string() + " (absolute: " + absPath + ", reason: " + errStr + ")");
                 return omnisphere::net::Response::InternalError(R"({"error":"Failed to save uploaded file"})");
             }
 
