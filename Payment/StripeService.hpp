@@ -32,6 +32,18 @@ namespace omnisphere::services
         std::string message;
     };
 
+    struct StripeBankTransferResult
+    {
+        bool success = false;
+        std::string paymentIntentId;
+        std::string clabe;
+        std::string bankName;
+        std::string hostedInstructionsUrl;
+        double amount = 0.0;
+        std::string currency = "mxn";
+        std::string errorMessage;
+    };
+
     class StripeService
     {
     public:
@@ -55,6 +67,14 @@ namespace omnisphere::services
             const std::string& reservationCode,
             double amount,
             const std::string& currency = "mxn"
+        ) const;
+
+        StripeBankTransferResult CreateBankTransferPaymentIntent(
+            const omnisphere::models::SecurityContext& ctx,
+            const std::string& reservationCode,
+            double amount,
+            const std::string& customerName = "",
+            const std::string& customerEmail = ""
         ) const;
 
         StripeTestIntegrationResult TestIntegration(

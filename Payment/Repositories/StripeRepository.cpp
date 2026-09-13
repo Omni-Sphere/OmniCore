@@ -251,4 +251,144 @@ namespace omnisphere::repositories
         }
         return std::nullopt;
     }
+
+    bool StripeRepository::SaveTransaction(const omnisphere::models::StripeTransaction& tx) const
+    {
+        if (!m_dbPool) return false;
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            std::string codeVal = tx.code.empty() ? ("TX-" + tx.stripePaymentIntentId) : tx.code;
+
+            std::vector<std::string> cols = {
+                "\"Code\"", "\"ReservationCode\"", "\"PaymentIntentId\"", "\"ChargeId\"",
+                "\"Amount\"", "\"Currency\"", "\"Status\"", "\"PaymentMethodType\"",
+                "\"Clabe\"", "\"BankName\"", "\"CardBrand\"", "\"CardLast4\"", "\"CardType\"",
+                "\"AuthorizationCode\"", "\"CardFingerprint\"", "\"ReceiptUrl\"", "\"HostedInstructionsUrl\"",
+                "\"ClientIp\"", "\"IsActive\"", "\"CreatedBy\""
+            };
+
+            std::string sql = omnisphere::types::BuildInsertQuery("\"StripeTransactions\"", cols);
+            std::vector<omnisphere::types::SQLParam> params = {
+                omnisphere::types::MakeSQLParam(codeVal),
+                omnisphere::types::MakeSQLParam(tx.reservationCode),
+                omnisphere::types::MakeSQLParam(tx.stripePaymentIntentId),
+                omnisphere::types::MakeSQLParam(tx.stripeChargeId.value_or("")),
+                omnisphere::types::MakeSQLParam(tx.amount),
+                omnisphere::types::MakeSQLParam(tx.currency.empty() ? std::string("mxn") : tx.currency),
+                omnisphere::types::MakeSQLParam(tx.status.empty() ? std::string("succeeded") : tx.status),
+                omnisphere::types::MakeSQLParam(tx.paymentMethodType.value_or("card")),
+                omnisphere::types::MakeSQLParam(tx.clabe.value_or("")),
+                omnisphere::types::MakeSQLParam(tx.bankName.value_or("")),
+                omnisphere::types::MakeSQLParam(tx.cardBrand.value_or("")),
+                omnisphere::types::MakeSQLParam(tx.cardLast4.value_or("")),
+                omnisphere::types::MakeSQLParam(tx.cardFunding.value_or("")),
+                omnisphere::types::MakeSQLParam(tx.authorizationCode.value_or("")),
+                omnisphere::types::MakeSQLParam(tx.cardFingerprint.value_or("")),
+                omnisphere::types::MakeSQLParam(tx.receiptUrl.value_or("")),
+                omnisphere::types::MakeSQLParam(tx.hostedInstructionsUrl.value_or("")),
+                omnisphere::types::MakeSQLParam(tx.clientIp.value_or("")),
+                omnisphere::types::MakeSQLParam(tx.isActive),
+                omnisphere::types::MakeSQLParam(tx.createdBy)
+            };
+
+            return conn->RunPrepared(sql, params);
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[StripeRepository::SaveTransaction Exception] " << ex.what() << std::endl;
+            return false;
+        }
+    }
+
+    bool StripeRepository::UpdateTransactionStatus(const std::string& paymentIntentId, const std::string& newStatus, const std::string& receiptUrl) const
+    {
+        if (!m_dbPool || paymentIntentId.empty()) return false;
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            std::vector<omnisphere::types::ColumnValue> updateCols = {
+                {"\"Status\"", omnisphere::types::MakeSQLParam(newStatus)}
+            };
+            if (!receiptUrl.empty())
+            {
+                updateCols.push_back({"\"ReceiptUrl\"", omnisphere::types::MakeSQLParam(receiptUrl)});
+            }
+
+            auto updateQuery = omnisphere::types::BuildUpdateQuery("\"StripeTransactions\"", updateCols, "\"PaymentIntentId\"", omnisphere::types::MakeSQLParam(paymentIntentId));
+            return conn->RunPrepared(updateQuery.Query, updateQuery.Parameters);
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[StripeRepository::UpdateTransactionStatus Exception] " << ex.what() << std::endl;
+            return false;
+        }
+    }
+
+    omnisphere::types::DataTable StripeRepository::GetTransactionsByReservation(const std::string& reservationCode) const
+    {
+        if (!m_dbPool || reservationCode.empty()) return {};
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::StripeTransaction>({});
+            auto qp = omnisphere::types::BuildQueryParts(selectFields, {});
+            std::string sql = "SELECT " + qp.SelectClause + " FROM \"StripeTransactions\" WHERE \"ReservationCode\" = $1 ORDER BY \"Entry\" DESC";
+            std::vector<omnisphere::types::SQLParam> params = { omnisphere::types::MakeSQLParam(reservationCode) };
+            return conn->FetchPrepared(sql, params);
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[StripeRepository::GetTransactionsByReservation Exception] " << ex.what() << std::endl;
+            return {};
+        }
+    }
+
+    std::optional<omnisphere::models::StripeTransaction> StripeRepository::GetTransactionByPaymentIntent(const std::string& paymentIntentId) const
+    {
+        if (!m_dbPool || paymentIntentId.empty()) return std::nullopt;
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::StripeTransaction>({});
+            auto qp = omnisphere::types::BuildQueryParts(selectFields, {});
+            std::string sql = "SELECT " + qp.SelectClause + " FROM \"StripeTransactions\" WHERE \"PaymentIntentId\" = $1 LIMIT 1";
+            std::vector<omnisphere::types::SQLParam> params = { omnisphere::types::MakeSQLParam(paymentIntentId) };
+            auto dt = conn->FetchPrepared(sql, params);
+            if (dt.RowsCount() > 0)
+            {
+                omnisphere::models::StripeTransaction tx;
+                tx.entry = (int)dt[0]["Entry"];
+                tx.code = (std::string)dt[0]["Code"];
+                tx.reservationCode = (std::string)dt[0]["ReservationCode"];
+                tx.stripePaymentIntentId = (std::string)dt[0]["PaymentIntentId"];
+                if (dt[0].HasColumn("ChargeId") && !dt[0]["ChargeId"].IsNull())
+                    tx.stripeChargeId = (std::string)dt[0]["ChargeId"];
+                tx.amount = (double)dt[0]["Amount"];
+                tx.currency = (std::string)dt[0]["Currency"];
+                tx.status = (std::string)dt[0]["Status"];
+                if (dt[0].HasColumn("PaymentMethodType") && !dt[0]["PaymentMethodType"].IsNull())
+                    tx.paymentMethodType = (std::string)dt[0]["PaymentMethodType"];
+                if (dt[0].HasColumn("Clabe") && !dt[0]["Clabe"].IsNull())
+                    tx.clabe = (std::string)dt[0]["Clabe"];
+                if (dt[0].HasColumn("BankName") && !dt[0]["BankName"].IsNull())
+                    tx.bankName = (std::string)dt[0]["BankName"];
+                if (dt[0].HasColumn("HostedInstructionsUrl") && !dt[0]["HostedInstructionsUrl"].IsNull())
+                    tx.hostedInstructionsUrl = (std::string)dt[0]["HostedInstructionsUrl"];
+                if (dt[0].HasColumn("CardBrand") && !dt[0]["CardBrand"].IsNull())
+                    tx.cardBrand = (std::string)dt[0]["CardBrand"];
+                if (dt[0].HasColumn("CardLast4") && !dt[0]["CardLast4"].IsNull())
+                    tx.cardLast4 = (std::string)dt[0]["CardLast4"];
+                if (dt[0].HasColumn("ReceiptUrl") && !dt[0]["ReceiptUrl"].IsNull())
+                    tx.receiptUrl = (std::string)dt[0]["ReceiptUrl"];
+                tx.isActive = (bool)dt[0]["IsActive"];
+                return tx;
+            }
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[StripeRepository::GetTransactionByPaymentIntent Exception] " << ex.what() << std::endl;
+        }
+        return std::nullopt;
+    }
 }

@@ -376,6 +376,200 @@ namespace omnisphere::services
         return res;
     }
 
+    StripeBankTransferResult StripeService::CreateBankTransferPaymentIntent(
+        const omnisphere::models::SecurityContext& ctx,
+        const std::string& reservationCode,
+        double amount,
+        const std::string& customerName,
+        const std::string& customerEmail
+    ) const
+    {
+        StripeBankTransferResult res;
+        res.amount = amount;
+        res.currency = "mxn";
+
+        auto settingsOpt = GetSettings(true);
+        if (!settingsOpt.has_value() || !settingsOpt->isActive)
+        {
+            res.errorMessage = "La integración de Stripe no está configurada o se encuentra desactivada.";
+            return res;
+        }
+
+        auto settings = settingsOpt.value();
+        if (settings.secretKey.empty())
+        {
+            res.errorMessage = "Configuración incompleta: Llave secreta (SecretKey) de Stripe no configurada.";
+            return res;
+        }
+
+        try
+        {
+            std::string host = "api.stripe.com";
+            std::string port = "443";
+
+            auto urlEncode = [](const std::string& value) -> std::string {
+                std::ostringstream escaped;
+                escaped.fill('0');
+                escaped << std::hex;
+                for (char c : value) {
+                    if (std::isalnum((unsigned char)c) || c == '-' || c == '_' || c == '.' || c == '~') {
+                        escaped << c;
+                    } else {
+                        escaped << '%' << std::setw(2) << std::uppercase << (int)(unsigned char)c;
+                    }
+                }
+                return escaped.str();
+            };
+
+            auto sendStripePost = [&](const std::string& target, const std::string& body) -> std::pair<int, std::string> {
+                boost::asio::io_context ioc;
+                ssl::context sslCtx(ssl::context::tlsv12_client);
+                sslCtx.set_default_verify_paths();
+
+                tcp::resolver resolver(ioc);
+                ssl::stream<tcp::socket> stream(ioc, sslCtx);
+
+                if (!SSL_set_tlsext_host_name(stream.native_handle(), host.c_str())) {
+                    throw std::runtime_error("Error al configurar SNI SSL para Stripe.");
+                }
+
+                auto const results = resolver.resolve(host, port);
+                boost::asio::connect(stream.next_layer(), results.begin(), results.end());
+                stream.handshake(ssl::stream_base::client);
+
+                http::request<http::string_body> req{http::verb::post, target, 11};
+                req.set(http::field::host, host);
+                req.set(http::field::user_agent, "OmniSphere-C++/1.0");
+                req.set(http::field::content_type, "application/x-www-form-urlencoded");
+                req.set(http::field::authorization, "Bearer " + settings.secretKey);
+                req.body() = body;
+                req.prepare_payload();
+
+                http::write(stream, req);
+
+                beast::flat_buffer buffer;
+                http::response<http::dynamic_body> response;
+                http::read(stream, buffer, response);
+
+                return { static_cast<int>(response.result_int()), beast::buffers_to_string(response.body().data()) };
+            };
+
+            // Paso 1: Crear o vincular Customer en Stripe para recibir transferencia SPEI (customer_balance)
+            std::string clientName = customerName.empty() ? ("Cliente " + reservationCode) : customerName;
+            std::string custBody = "name=" + urlEncode(clientName) + "&metadata[reservationCode]=" + urlEncode(reservationCode);
+            if (!customerEmail.empty()) {
+                custBody += "&email=" + urlEncode(customerEmail);
+            }
+
+            omnisphere::utils::Logger::LogInfo("StripeService", "[BankTransfer] Creating Stripe Customer for reservation: " + reservationCode);
+            auto [custStatus, custResp] = sendStripePost("/v1/customers", custBody);
+
+            std::string customerId = "";
+            if (custStatus == 200 || custStatus == 201) {
+                auto parsedCust = json::parse(custResp);
+                if (parsedCust.is_object() && parsedCust.as_object().contains("id")) {
+                    customerId = std::string(parsedCust.as_object().at("id").as_string());
+                }
+            }
+
+            if (customerId.empty()) {
+                res.errorMessage = "No se pudo crear el cliente en Stripe para la transferencia SPEI. Respuesta: " + custResp;
+                omnisphere::utils::Logger::LogError("StripeService", res.errorMessage);
+                return res;
+            }
+
+            // Paso 2: Crear y confirmar PaymentIntent con mx_bank_transfer
+            int amountCents = static_cast<int>(std::round(amount * 100.0));
+            std::ostringstream piBody;
+            piBody << "amount=" << amountCents
+                   << "&currency=mxn"
+                   << "&customer=" << urlEncode(customerId)
+                   << "&payment_method_types[0]=customer_balance"
+                   << "&payment_method_data[type]=customer_balance"
+                   << "&payment_method_options[customer_balance][funding_type]=bank_transfer"
+                   << "&payment_method_options[customer_balance][bank_transfer][type]=mx_bank_transfer"
+                   << "&confirm=true"
+                   << "&metadata[reservationCode]=" << urlEncode(reservationCode)
+                   << "&description=" << urlEncode("Pago de reservación " + reservationCode);
+
+            omnisphere::utils::Logger::LogInfo("StripeService", "[BankTransfer] Creating and Confirming SPEI PaymentIntent for reservation: " + reservationCode + " ($" + std::to_string(amount) + ")");
+            auto [piStatus, piResp] = sendStripePost("/v1/payment_intents", piBody.str());
+
+            if (piStatus == 200 || piStatus == 201) {
+                auto parsedPI = json::parse(piResp);
+                if (parsedPI.is_object()) {
+                    auto const& piObj = parsedPI.as_object();
+                    if (piObj.contains("id") && piObj.at("id").is_string()) {
+                        res.paymentIntentId = std::string(piObj.at("id").as_string());
+                    }
+
+                    if (piObj.contains("next_action") && piObj.at("next_action").is_object()) {
+                        auto const& nextAction = piObj.at("next_action").as_object();
+                        if (nextAction.contains("display_bank_transfer_instructions") && nextAction.at("display_bank_transfer_instructions").is_object()) {
+                            auto const& instr = nextAction.at("display_bank_transfer_instructions").as_object();
+                            if (instr.contains("hosted_instructions_url") && instr.at("hosted_instructions_url").is_string()) {
+                                res.hostedInstructionsUrl = std::string(instr.at("hosted_instructions_url").as_string());
+                            }
+
+                            if (instr.contains("financial_addresses") && instr.at("financial_addresses").is_array()) {
+                                for (auto const& faVal : instr.at("financial_addresses").as_array()) {
+                                    if (faVal.is_object()) {
+                                        auto const& fa = faVal.as_object();
+                                        if (fa.contains("spei") && fa.at("spei").is_object()) {
+                                            auto const& spei = fa.at("spei").as_object();
+                                            if (spei.contains("clabe") && spei.at("clabe").is_string()) {
+                                                res.clabe = std::string(spei.at("clabe").as_string());
+                                            }
+                                            if (spei.contains("bank_name") && spei.at("bank_name").is_string()) {
+                                                res.bankName = std::string(spei.at("bank_name").as_string());
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (res.bankName.empty()) res.bankName = "STP";
+
+                    if (!res.clabe.empty()) {
+                        res.success = true;
+                        omnisphere::utils::Logger::LogInfo("StripeService", "[BankTransfer] Successfully generated virtual CLABE [" + res.clabe + "] for reservation [" + reservationCode + "]");
+
+                        if (m_repository) {
+                            omnisphere::models::StripeTransaction tx;
+                            tx.code = "TX-SPEI-" + (res.paymentIntentId.length() > 12 ? res.paymentIntentId.substr(0, 12) : res.paymentIntentId);
+                            tx.reservationCode = reservationCode;
+                            tx.stripePaymentIntentId = res.paymentIntentId;
+                            tx.amount = amount;
+                            tx.currency = "mxn";
+                            tx.status = "requires_action";
+                            tx.paymentMethodType = "spei";
+                            tx.clabe = res.clabe;
+                            tx.bankName = res.bankName;
+                            tx.hostedInstructionsUrl = res.hostedInstructionsUrl;
+                            tx.createdBy = 1;
+
+                            m_repository->SaveTransaction(tx);
+                        }
+                    }
+                }
+            }
+
+            if (!res.success) {
+                res.errorMessage = "Error al generar la transferencia bancaria SPEI en Stripe. Respuesta: " + piResp;
+                omnisphere::utils::Logger::LogError("StripeService", res.errorMessage);
+            }
+        }
+        catch (const std::exception& ex)
+        {
+            res.errorMessage = std::string("Excepción creando transferencia bancaria SPEI: ") + ex.what();
+            omnisphere::utils::Logger::LogError("StripeService", res.errorMessage);
+        }
+
+        return res;
+    }
+
     StripeTestIntegrationResult StripeService::TestIntegration(
         const omnisphere::models::SecurityContext& ctx
     ) const

@@ -206,6 +206,11 @@ namespace omnisphere::services
                                 repo->UpdateSessionStatus(sessionId, "complete", paymentIntentId);
                             }
 
+                            if (!paymentIntentId.empty())
+                            {
+                                repo->UpdateTransactionStatus(paymentIntentId, "succeeded");
+                            }
+
                             if (paymentCompletedHandler)
                             {
                                 paymentCompletedHandler(req, sessionId, reservationCode, paymentIntentId, amount);

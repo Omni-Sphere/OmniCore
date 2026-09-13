@@ -15,6 +15,10 @@ namespace omnisphere::models
         double amount = 0.0;
         std::string currency = "mxn";
         std::string status = "succeeded";
+        std::optional<std::string> paymentMethodType;
+        std::optional<std::string> clabe;
+        std::optional<std::string> bankName;
+        std::optional<std::string> hostedInstructionsUrl;
         std::optional<std::string> cardBrand;
         std::optional<std::string> cardLast4;
         std::optional<std::string> cardExpMonthYear;
@@ -40,6 +44,10 @@ namespace omnisphere::models
         amount,
         currency,
         status,
+        paymentMethodType,
+        clabe,
+        bankName,
+        hostedInstructionsUrl,
         cardBrand,
         cardLast4,
         cardExpMonthYear,
