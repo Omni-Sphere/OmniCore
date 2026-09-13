@@ -360,7 +360,7 @@ namespace omnisphere::repositories
             auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::CustomMessage>({});
             std::vector<omnisphere::types::Condition> conditions = {
                 {"", "\"Code\"", "=", "?"},
-                {"AND", "\"IsActive\"", "=", "?"}
+                {"", "\"IsActive\"", "=", "?"}
             };
             auto qp = omnisphere::types::BuildQueryParts(selectFields, conditions);
             std::string sql = "SELECT " + qp.SelectClause + " FROM \"CustomMessages\" WHERE " + qp.WhereClause + " LIMIT 1";
