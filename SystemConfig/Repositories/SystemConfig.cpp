@@ -55,7 +55,20 @@ namespace omnisphere::repositories
 
             updateCols.push_back({"\"LastUpdatedBy\"", omnisphere::types::MakeSQLParam(input.LastUpdatedBy)});
 
-            int targetEntry = input.Entry > 0 ? input.Entry : 1;
+            int targetEntry = input.Entry;
+            if (targetEntry <= 0)
+            {
+                auto dtActive = GetActiveConfig({"Entry"});
+                if (dtActive.RowsCount() > 0 && dtActive[0].HasColumn("Entry"))
+                {
+                    targetEntry = (int)dtActive[0]["Entry"];
+                }
+                else
+                {
+                    targetEntry = 1;
+                }
+            }
+
             auto updateResult = omnisphere::types::BuildUpdateQuery(
                 "\"SystemConfigs\"", updateCols, "\"Entry\"", omnisphere::types::MakeSQLParam(targetEntry)
             );
