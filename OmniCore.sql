@@ -334,3 +334,258 @@ CREATE TABLE IF NOT EXISTS "WhatsAppTemplates" (
 );
 
 CREATE INDEX IF NOT EXISTS "IDX_WhatsAppTemplates_TemplateName" ON "WhatsAppTemplates" ("TemplateName");
+
+-- 16. CustomMessages (Plantillas Internas Dinámicas de OmniSphere / OmniRoute)
+CREATE TABLE IF NOT EXISTS "CustomMessages" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(50) NOT NULL UNIQUE,
+    "Title" VARCHAR(255) NOT NULL,
+    "MessageType" VARCHAR(50) NOT NULL DEFAULT 'TEXT',
+    "HeaderType" VARCHAR(20) NOT NULL DEFAULT 'NONE',
+    "HeaderContent" TEXT,
+    "BodyTemplate" TEXT NOT NULL,
+    "FooterText" VARCHAR(255),
+    "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" INT,
+    "UpdateDate" TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS "IDX_CustomMessages_Code" ON "CustomMessages" ("Code");
+
+-- 17. CustomMessageParameters (Parámetros y Tipos de Datos de Plantillas Internas)
+CREATE TABLE IF NOT EXISTS "CustomMessageParameters" (
+    "Entry" SERIAL PRIMARY KEY,
+    "MessageCode" VARCHAR(50) NOT NULL,
+    "ParamKey" VARCHAR(50) NOT NULL,
+    "ParamName" VARCHAR(100) NOT NULL,
+    "DataType" VARCHAR(30) NOT NULL DEFAULT 'STRING',
+    "DefaultValue" VARCHAR(255),
+    "IsRequired" BOOLEAN NOT NULL DEFAULT true,
+    "Description" TEXT,
+    "SortOrder" INT NOT NULL DEFAULT 1,
+    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "FK_MsgParams_MessageCode" FOREIGN KEY ("MessageCode") REFERENCES "CustomMessages"("Code") ON DELETE CASCADE,
+    CONSTRAINT "UQ_MsgParams_Key" UNIQUE ("MessageCode", "ParamKey")
+);
+
+CREATE INDEX IF NOT EXISTS "IDX_CustomMessageParameters_MessageCode" ON "CustomMessageParameters" ("MessageCode");
+
+-- 18. CustomButtons (Botones Interactivos de Plantillas Internas)
+CREATE TABLE IF NOT EXISTS "CustomButtons" (
+    "Entry" SERIAL PRIMARY KEY,
+    "MessageCode" VARCHAR(50) NOT NULL,
+    "ButtonId" VARCHAR(50) NOT NULL,
+    "Title" VARCHAR(50) NOT NULL,
+    "ActionType" VARCHAR(50) NOT NULL DEFAULT 'TRIGGER_MESSAGE',
+    "ActionPayload" TEXT,
+    "SortOrder" INT NOT NULL DEFAULT 1,
+    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "FK_MsgButtons_MessageCode" FOREIGN KEY ("MessageCode") REFERENCES "CustomMessages"("Code") ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS "IDX_CustomButtons_MessageCode" ON "CustomButtons" ("MessageCode");
+
+-- Seed Default Internal Custom Templates
+INSERT INTO "CustomMessages" ("Code", "Title", "MessageType", "BodyTemplate", "CreatedBy") VALUES
+('TPL_WELCOME_WITH_RESERVATION', 'Bienvenida a Cliente Reconocido', 'TEXT', 
+'¡Hola {nombre_registrado}! 👋 Qué gusto saludarte.
+
+Vemos que tienes una reservación activa para:
+🎪 *{evento}*
+🎟️ Folio: *{folio}*
+📍 Origen: *{parada_inicial}*
+⏰ Salida: *{hora_salida}*
+💳 Estatus: *{estatus}*
+
+¿Deseas consultar los detalles completos de tu viaje o necesitas ayuda adicional?', 1),
+
+('TPL_WELCOME_PROMPT', 'Bienvenida a Cliente No Registrado', 'TEXT',
+'¡Hola {nombre_cliente}! 👋 Bienvenido al asistente de {empresa} 🚌✨
+
+No encontramos reservaciones activas vinculadas a este número de WhatsApp.
+
+Si compraste con otro número o deseas consultar tu boleto:
+🎟️ Escribe el folio de tu boleto (ejemplo: *{ejemplo_folio}*), o
+📱 Los *10 dígitos* del número celular con el que te registraste.', 1),
+
+('TPL_RESERVATION_DETAILS', 'Detalle Completo de Reservación', 'TEXT',
+'📋 *DETALLES DE TU RESERVACIÓN* 🚌✨
+
+🎟️ *Folio:* {folio}
+📱 *Teléfono:* {numero_registrado}
+👤 *Pasajero:* {nombre_registrado}
+💺 *Asientos:* {numero_asientos}
+🎪 *Evento:* {evento}
+📍 *Origen:* {parada_inicial}
+🏁 *Destino:* {destino}
+⏰ *Hora de Salida:* {hora_salida}
+🏁 *Hora Estimada de Llegada:* {hora_llegada}
+💰 *Importe Pagado:* {importe_pagado}
+💳 *Forma de Pago:* {detalle_pago}
+
+✅ *Estatus:* {estatus}
+
+¡Te esperamos puntualmente en tu punto de abordaje! 🎒', 1),
+
+('TPL_NOT_FOUND_ERROR', 'Reservación No Encontrada', 'TEXT',
+'Lo sentimos {nombre_cliente}, no pudimos encontrar ninguna reservación activa con los datos ingresados: "{dato_ingresado}". 🔍
+
+Por favor verifica que:
+• El folio inicie con *RSV* (ejemplo: *{ejemplo_folio}*), o
+• Hayas escrito los *10 dígitos* del número celular registrado.
+
+Si necesitas ayuda personalizada, nuestro equipo con gusto te atenderá.', 1),
+
+('TPL_CARD_PAYMENT_SUCCESS', 'Pago con Tarjeta Exitoso', 'TEXT',
+'¡Tu pago con tarjeta ha sido exitoso! 🎉💳
+
+Hola {nombre_registrado}, confirmamos la acreditación de tu pago:
+🎟️ *Folio:* {folio}
+🎪 *Evento:* {evento}
+💺 *Asientos:* {numero_asientos}
+💰 *Monto Pagado:* {monto_pagado}
+💳 *Tarjeta:* {marca_tarjeta} terminación •••• {ultimos_4_digitos}
+📍 *Salida:* {parada_inicial} ({hora_salida})
+
+✅ *Estatus:* CONFIRMADO Y PAGADO
+
+¡Tu lugar está 100% asegurado! Nos vemos en el evento. 🚌✨', 1),
+
+('TPL_CARD_PAYMENT_FAILED', 'Pago con Tarjeta Declinado', 'TEXT',
+'Aviso sobre el pago de tu reservación ⚠️💳
+
+Hola {nombre_registrado}, no pudimos procesar el cobro con tu tarjeta para el folio *{folio}*:
+💰 Monto: *{monto_pagado}*
+Motivo: {motivo_fallo}
+
+Para no perder tus lugares, por favor intenta con otra tarjeta o cambia tu forma de pago a Transferencia bancaria.', 1),
+
+('TPL_TRANSFER_INSTRUCTIONS', 'Instrucciones de Transferencia Bancaria', 'TEXT',
+'Instrucciones para Pago por Transferencia 🏦📋
+
+Hola {nombre_registrado}, para completar tu reservación *{folio}*, realiza tu transferencia con los siguientes datos:
+
+🏦 *Banco:* {banco}
+👤 *Beneficiario:* {beneficiario}
+🔢 *CLABE:* `{clabe}`
+💰 *Monto Exacto:* *{monto_a_pagar}*
+📝 *Concepto / Referencia:* `{folio}`
+
+📸 *Importante:* Una vez realizada, envía la captura de tu comprobante por este chat para validar y asegurar tus lugares.', 1),
+
+('TPL_TRANSFER_APPROVED', 'Transferencia Acreditada', 'TEXT',
+'¡Tu transferencia ha sido verificada con éxito! 🎉✅
+
+Hola {nombre_registrado}, validamos tu comprobante de pago:
+🎟️ *Folio:* {folio}
+🎪 *Evento:* {evento}
+💺 *Asientos:* {numero_asientos}
+💰 *Monto Acreditado:* {monto_pagado}
+📍 *Salida:* {parada_inicial} ({hora_salida})
+
+✅ *Estatus:* CONFIRMADO Y PAGADO
+
+¡Tu viaje está confirmado! Te esperamos en tu punto de abordaje. 🚌✨', 1),
+
+('TPL_TRANSFER_REJECTED', 'Comprobante de Transferencia Rechazado', 'TEXT',
+'Aviso sobre tu comprobante de transferencia ⚠️📄
+
+Hola {nombre_registrado}, tuvimos un inconveniente al validar tu comprobante para el folio *{folio}*:
+Motivo: {motivo_rechazo}
+
+Por favor envía un nuevo comprobante legible o comunícate por este chat para asistirte.', 1)
+ON CONFLICT ("Code") DO NOTHING;
+
+-- Seed Parameters for TPL_WELCOME_WITH_RESERVATION
+INSERT INTO "CustomMessageParameters" ("MessageCode", "ParamKey", "ParamName", "DataType", "DefaultValue", "IsRequired", "SortOrder") VALUES
+('TPL_WELCOME_WITH_RESERVATION', 'nombre_registrado', 'Nombre del Pasajero', 'STRING', 'estimado(a) cliente', true, 1),
+('TPL_WELCOME_WITH_RESERVATION', 'evento', 'Nombre del Evento', 'STRING', 'Evento General', true, 2),
+('TPL_WELCOME_WITH_RESERVATION', 'folio', 'Folio de Reservación', 'STRING', 'RSV000000', true, 3),
+('TPL_WELCOME_WITH_RESERVATION', 'parada_inicial', 'Parada de Salida', 'STRING', 'Punto de Abordaje', true, 4),
+('TPL_WELCOME_WITH_RESERVATION', 'hora_salida', 'Hora de Salida', 'TIME', 'Por confirmar', true, 5),
+('TPL_WELCOME_WITH_RESERVATION', 'estatus', 'Estatus de la Reserva', 'STRING', 'CONFIRMADO', true, 6)
+ON CONFLICT ("MessageCode", "ParamKey") DO NOTHING;
+
+-- Seed Parameters for TPL_WELCOME_PROMPT
+INSERT INTO "CustomMessageParameters" ("MessageCode", "ParamKey", "ParamName", "DataType", "DefaultValue", "IsRequired", "SortOrder") VALUES
+('TPL_WELCOME_PROMPT', 'nombre_cliente', 'Nombre del Perfil', 'STRING', 'estimado(a) cliente', false, 1),
+('TPL_WELCOME_PROMPT', 'empresa', 'Nombre de Empresa', 'STRING', 'OmniRoute', true, 2),
+('TPL_WELCOME_PROMPT', 'ejemplo_folio', 'Ejemplo de Folio', 'STRING', 'RSV000001', true, 3)
+ON CONFLICT ("MessageCode", "ParamKey") DO NOTHING;
+
+-- Seed Parameters for TPL_RESERVATION_DETAILS
+INSERT INTO "CustomMessageParameters" ("MessageCode", "ParamKey", "ParamName", "DataType", "DefaultValue", "IsRequired", "SortOrder") VALUES
+('TPL_RESERVATION_DETAILS', 'folio', 'Folio de Reserva', 'STRING', 'RSV000000', true, 1),
+('TPL_RESERVATION_DETAILS', 'numero_registrado', 'Teléfono Registrado', 'STRING', '', true, 2),
+('TPL_RESERVATION_DETAILS', 'nombre_registrado', 'Nombre del Pasajero', 'STRING', 'Pasajero', true, 3),
+('TPL_RESERVATION_DETAILS', 'numero_asientos', 'Número de Asientos', 'INTEGER', '1', true, 4),
+('TPL_RESERVATION_DETAILS', 'evento', 'Nombre del Evento', 'STRING', 'Evento', true, 5),
+('TPL_RESERVATION_DETAILS', 'parada_inicial', 'Parada de Salida', 'STRING', 'Origen', true, 6),
+('TPL_RESERVATION_DETAILS', 'destino', 'Destino Final', 'STRING', 'Destino', true, 7),
+('TPL_RESERVATION_DETAILS', 'hora_salida', 'Hora de Salida', 'TIME', '00:00', true, 8),
+('TPL_RESERVATION_DETAILS', 'hora_llegada', 'Hora Estimada de Llegada', 'TIME', '00:00', false, 9),
+('TPL_RESERVATION_DETAILS', 'importe_pagado', 'Monto Pagado', 'CURRENCY', '$0.00 MXN', true, 10),
+('TPL_RESERVATION_DETAILS', 'detalle_pago', 'Detalle de Pago', 'STRING', 'Pago General', true, 11),
+('TPL_RESERVATION_DETAILS', 'estatus', 'Estatus de la Reserva', 'STRING', 'CONFIRMADO', true, 12)
+ON CONFLICT ("MessageCode", "ParamKey") DO NOTHING;
+
+-- Seed Parameters for TPL_NOT_FOUND_ERROR
+INSERT INTO "CustomMessageParameters" ("MessageCode", "ParamKey", "ParamName", "DataType", "DefaultValue", "IsRequired", "SortOrder") VALUES
+('TPL_NOT_FOUND_ERROR', 'nombre_cliente', 'Nombre del Perfil', 'STRING', 'estimado(a) cliente', false, 1),
+('TPL_NOT_FOUND_ERROR', 'dato_ingresado', 'Dato Ingresado', 'STRING', '', true, 2),
+('TPL_NOT_FOUND_ERROR', 'ejemplo_folio', 'Ejemplo de Folio', 'STRING', 'RSV000001', true, 3)
+ON CONFLICT ("MessageCode", "ParamKey") DO NOTHING;
+
+-- Seed Parameters for TPL_CARD_PAYMENT_SUCCESS
+INSERT INTO "CustomMessageParameters" ("MessageCode", "ParamKey", "ParamName", "DataType", "DefaultValue", "IsRequired", "SortOrder") VALUES
+('TPL_CARD_PAYMENT_SUCCESS', 'nombre_registrado', 'Nombre del Pasajero', 'STRING', 'Pasajero', true, 1),
+('TPL_CARD_PAYMENT_SUCCESS', 'folio', 'Folio de Reserva', 'STRING', '', true, 2),
+('TPL_CARD_PAYMENT_SUCCESS', 'evento', 'Nombre del Evento', 'STRING', '', true, 3),
+('TPL_CARD_PAYMENT_SUCCESS', 'numero_asientos', 'Número de Asientos', 'INTEGER', '1', true, 4),
+('TPL_CARD_PAYMENT_SUCCESS', 'monto_pagado', 'Monto Pagado', 'CURRENCY', '$0.00 MXN', true, 5),
+('TPL_CARD_PAYMENT_SUCCESS', 'marca_tarjeta', 'Marca de Tarjeta', 'STRING', 'Tarjeta', true, 6),
+('TPL_CARD_PAYMENT_SUCCESS', 'ultimos_4_digitos', 'Últimos 4 Dígitos', 'MASKED_CARD', '••••', true, 7),
+('TPL_CARD_PAYMENT_SUCCESS', 'parada_inicial', 'Parada de Salida', 'STRING', '', true, 8),
+('TPL_CARD_PAYMENT_SUCCESS', 'hora_salida', 'Hora de Salida', 'TIME', '', true, 9)
+ON CONFLICT ("MessageCode", "ParamKey") DO NOTHING;
+
+-- Seed Parameters for TPL_CARD_PAYMENT_FAILED
+INSERT INTO "CustomMessageParameters" ("MessageCode", "ParamKey", "ParamName", "DataType", "DefaultValue", "IsRequired", "SortOrder") VALUES
+('TPL_CARD_PAYMENT_FAILED', 'nombre_registrado', 'Nombre del Pasajero', 'STRING', 'Pasajero', true, 1),
+('TPL_CARD_PAYMENT_FAILED', 'folio', 'Folio de Reserva', 'STRING', '', true, 2),
+('TPL_CARD_PAYMENT_FAILED', 'monto_pagado', 'Monto Intentado', 'CURRENCY', '$0.00 MXN', true, 3),
+('TPL_CARD_PAYMENT_FAILED', 'motivo_fallo', 'Motivo del Fallo', 'STRING', 'Fondos insuficientes o declinada', true, 4)
+ON CONFLICT ("MessageCode", "ParamKey") DO NOTHING;
+
+-- Seed Parameters for TPL_TRANSFER_INSTRUCTIONS
+INSERT INTO "CustomMessageParameters" ("MessageCode", "ParamKey", "ParamName", "DataType", "DefaultValue", "IsRequired", "SortOrder") VALUES
+('TPL_TRANSFER_INSTRUCTIONS', 'nombre_registrado', 'Nombre del Pasajero', 'STRING', 'Pasajero', true, 1),
+('TPL_TRANSFER_INSTRUCTIONS', 'folio', 'Folio de Reserva', 'STRING', '', true, 2),
+('TPL_TRANSFER_INSTRUCTIONS', 'banco', 'Banco Destino', 'STRING', 'BBVA', true, 3),
+('TPL_TRANSFER_INSTRUCTIONS', 'beneficiario', 'Nombre del Beneficiario', 'STRING', 'OmniRoute Transportes S.A. de C.V.', true, 4),
+('TPL_TRANSFER_INSTRUCTIONS', 'clabe', 'CLABE Interbancaria', 'STRING', '012180001234567890', true, 5),
+('TPL_TRANSFER_INSTRUCTIONS', 'monto_a_pagar', 'Monto a Pagar', 'CURRENCY', '$0.00 MXN', true, 6)
+ON CONFLICT ("MessageCode", "ParamKey") DO NOTHING;
+
+-- Seed Parameters for TPL_TRANSFER_APPROVED
+INSERT INTO "CustomMessageParameters" ("MessageCode", "ParamKey", "ParamName", "DataType", "DefaultValue", "IsRequired", "SortOrder") VALUES
+('TPL_TRANSFER_APPROVED', 'nombre_registrado', 'Nombre del Pasajero', 'STRING', 'Pasajero', true, 1),
+('TPL_TRANSFER_APPROVED', 'folio', 'Folio de Reserva', 'STRING', '', true, 2),
+('TPL_TRANSFER_APPROVED', 'evento', 'Nombre del Evento', 'STRING', '', true, 3),
+('TPL_TRANSFER_APPROVED', 'numero_asientos', 'Número de Asientos', 'INTEGER', '1', true, 4),
+('TPL_TRANSFER_APPROVED', 'monto_pagado', 'Monto Acreditado', 'CURRENCY', '$0.00 MXN', true, 5),
+('TPL_TRANSFER_APPROVED', 'parada_inicial', 'Parada de Salida', 'STRING', '', true, 6),
+('TPL_TRANSFER_APPROVED', 'hora_salida', 'Hora de Salida', 'TIME', '', true, 7)
+ON CONFLICT ("MessageCode", "ParamKey") DO NOTHING;
+
+-- Seed Parameters for TPL_TRANSFER_REJECTED
+INSERT INTO "CustomMessageParameters" ("MessageCode", "ParamKey", "ParamName", "DataType", "DefaultValue", "IsRequired", "SortOrder") VALUES
+('TPL_TRANSFER_REJECTED', 'nombre_registrado', 'Nombre del Pasajero', 'STRING', 'Pasajero', true, 1),
+('TPL_TRANSFER_REJECTED', 'folio', 'Folio de Reserva', 'STRING', '', true, 2),
+('TPL_TRANSFER_REJECTED', 'motivo_rechazo', 'Motivo del Rechazo', 'STRING', 'Comprobante ilegible o monto incompleto', true, 3)
+ON CONFLICT ("MessageCode", "ParamKey") DO NOTHING;
+

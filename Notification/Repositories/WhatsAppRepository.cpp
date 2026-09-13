@@ -317,6 +317,40 @@ namespace omnisphere::repositories
         }
     }
 
+    std::vector<omnisphere::models::CustomMessageParameter> WhatsAppRepository::GetParametersForMessage(const std::string& messageCode) const
+    {
+        if (!m_dbPool || messageCode.empty()) return {};
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            std::string sql = "SELECT \"Entry\", \"MessageCode\", \"ParamKey\", \"ParamName\", \"DataType\", \"DefaultValue\", \"IsRequired\", \"Description\", \"SortOrder\", \"CreatedBy\" FROM \"CustomMessageParameters\" WHERE \"MessageCode\" = ? ORDER BY \"SortOrder\" ASC";
+            std::vector<omnisphere::types::SQLParam> params = { omnisphere::types::MakeSQLParam(messageCode) };
+            auto dt = conn->FetchPrepared(sql, params);
+            std::vector<omnisphere::models::CustomMessageParameter> result;
+            for (std::size_t i = 0; i < dt.RowsCount(); ++i)
+            {
+                omnisphere::models::CustomMessageParameter p;
+                p.entry = dt[i]["Entry"];
+                p.messageCode = (std::string)dt[i]["MessageCode"];
+                p.paramKey = (std::string)dt[i]["ParamKey"];
+                p.paramName = (std::string)dt[i]["ParamName"];
+                p.dataType = (std::string)dt[i]["DataType"];
+                try { if (dt[i].HasColumn("DefaultValue") && !dt[i]["DefaultValue"].IsNull()) p.defaultValue = (std::string)dt[i]["DefaultValue"]; } catch(...) {}
+                p.isRequired = dt[i]["IsRequired"];
+                try { if (dt[i].HasColumn("Description") && !dt[i]["Description"].IsNull()) p.description = (std::string)dt[i]["Description"]; } catch(...) {}
+                p.sortOrder = dt[i]["SortOrder"];
+                p.createdBy = dt[i]["CreatedBy"];
+                result.push_back(p);
+            }
+            return result;
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[WhatsAppRepository::GetParametersForMessage Exception] " << ex.what() << std::endl;
+            return {};
+        }
+    }
+
     std::optional<omnisphere::models::CustomMessage> WhatsAppRepository::GetCustomMessageByCode(const std::string& code) const
     {
         if (!m_dbPool || code.empty()) return std::nullopt;
@@ -348,6 +382,7 @@ namespace omnisphere::repositories
             try { msg.footerText = (std::string)dt[0]["FooterText"]; } catch(...) {}
             msg.isActive = dt[0]["IsActive"];
             msg.buttons = GetButtonsForMessage(msg.entry);
+            msg.parameters = GetParametersForMessage(msg.code);
 
             return msg;
         }
@@ -384,6 +419,7 @@ namespace omnisphere::repositories
                 try { msg.footerText = (std::string)dt[i]["FooterText"]; } catch(...) {}
                 msg.isActive = dt[i]["IsActive"];
                 msg.buttons = GetButtonsForMessage(msg.entry);
+                msg.parameters = GetParametersForMessage(msg.code);
                 result.push_back(msg);
             }
             return result;

@@ -791,8 +791,24 @@ namespace omnisphere::services
         auto msg = msgOpt.value();
         std::string bodyText = msg.bodyTemplate;
 
-        // Interpolación de variables dinámicas {key} -> val
+        // 1. Crear mapa consolidado con valores por defecto de los parámetros definidos
+        std::map<std::string, std::string> finalPlaceholders;
+        for (const auto& param : msg.parameters)
+        {
+            if (param.defaultValue.has_value() && !param.defaultValue.value().empty())
+            {
+                finalPlaceholders[param.paramKey] = param.defaultValue.value();
+            }
+        }
+
+        // 2. Sobrescribir con los valores proporcionados explícitamente
         for (const auto& [key, val] : placeholders)
+        {
+            finalPlaceholders[key] = val;
+        }
+
+        // 3. Interpolación de variables dinámicas {key} -> val
+        for (const auto& [key, val] : finalPlaceholders)
         {
             std::string token = "{" + key + "}";
             size_t pos = 0;

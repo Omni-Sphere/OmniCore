@@ -4,6 +4,7 @@
 #include "Notification/Models/WhatsAppMessage.hpp"
 #include "Notification/Models/CustomMessage.hpp"
 #include "Notification/Models/CustomButton.hpp"
+#include "Notification/Models/CustomMessageParameter.hpp"
 #include <OmniData/DatabasePool.hpp>
 #include <OmniData/DataTable.hpp>
 #include <memory>
@@ -32,6 +33,7 @@ namespace omnisphere::repositories
         std::optional<omnisphere::models::CustomMessage> GetCustomMessageByCode(const std::string& code) const;
         std::vector<omnisphere::models::CustomMessage> GetAllCustomMessages() const;
         std::vector<omnisphere::models::CustomButton> GetButtonsForMessage(int messageEntry) const;
+        std::vector<omnisphere::models::CustomMessageParameter> GetParametersForMessage(const std::string& messageCode) const;
         bool SaveCustomMessage(const omnisphere::models::CustomMessage& msg) const;
 
     private:

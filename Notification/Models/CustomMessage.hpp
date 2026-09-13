@@ -1,5 +1,6 @@
 #pragma once
 #include "Notification/Models/CustomButton.hpp"
+#include "Notification/Models/CustomMessageParameter.hpp"
 #include <boost/describe.hpp>
 #include <optional>
 #include <string>
@@ -23,8 +24,9 @@ namespace omnisphere::models
         std::optional<int> lastUpdatedBy;
         std::optional<std::string> updateDate;
 
-        // Relation loaded at runtime
+        // Relations loaded at runtime
         std::vector<CustomButton> buttons;
+        std::vector<CustomMessageParameter> parameters;
     };
 
     BOOST_DESCRIBE_STRUCT(CustomMessage, (), (
