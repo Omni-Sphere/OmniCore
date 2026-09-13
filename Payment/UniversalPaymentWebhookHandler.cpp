@@ -49,10 +49,22 @@ namespace omnisphere::payment
             "], EntityCode: [" + event.entityCode + "], Provider: [" + providerCode + "], Amount: $" + std::to_string(event.amount));
 
         // 3. Despachar a los Hooks registrados en Core
-        PaymentHookRegistry::Instance().DispatchCompleted(event);
+        if (event.eventType == "PAYMENT_COMPLETED")
+        {
+            PaymentHookRegistry::Instance().DispatchCompleted(event);
+        }
+        else if (event.eventType == "PAYMENT_FAILED")
+        {
+            PaymentHookRegistry::Instance().DispatchFailed(event);
+        }
+        else if (event.eventType == "PAYMENT_EXPIRED")
+        {
+            PaymentHookRegistry::Instance().DispatchExpired(event);
+        }
 
         boost::json::object resObj;
         resObj["received"] = true;
+        resObj["eventType"] = event.eventType;
         resObj["entityType"] = event.entityType;
         resObj["entityCode"] = event.entityCode;
         resObj["status"] = "DISPATCHED";

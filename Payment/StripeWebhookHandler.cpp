@@ -110,16 +110,34 @@ namespace omnisphere::services
             {
                 auto obj = parsed.as_object();
                 std::string eventType = obj.contains("type") && obj.at("type").is_string() ? std::string(obj.at("type").as_string()) : "";
+                std::string eventId = obj.contains("id") && obj.at("id").is_string() ? std::string(obj.at("id").as_string()) : "";
 
                 omnisphere::utils::Logger::LogInfo("StripeWebhookHandler",
-                    req.TraceContext() + " Webhook Event Received: [" + eventType + "]");
+                    req.TraceContext() + " Webhook Event Received: [" + eventType + "] (ID: " + eventId + ")");
 
-                if (eventType == "checkout.session.completed" || eventType == "payment_intent.succeeded")
+                bool isSuccessEvent = (eventType == "checkout.session.completed" ||
+                                       eventType == "checkout.session.async_payment_succeeded" ||
+                                       eventType == "payment_intent.succeeded" ||
+                                       eventType == "charge.succeeded");
+
+                bool isFailedEvent = (eventType == "checkout.session.async_payment_failed" ||
+                                      eventType == "payment_intent.payment_failed" ||
+                                      eventType == "payment_intent.canceled" ||
+                                      eventType == "charge.failed" ||
+                                      eventType == "charge.dispute.created" ||
+                                      eventType == "radar.early_fraud_warning.created" ||
+                                      eventType == "review.opened" ||
+                                      eventType == "review.closed");
+
+                bool isExpiredEvent = (eventType == "checkout.session.expired");
+
+                if (isSuccessEvent || isFailedEvent || isExpiredEvent)
                 {
                     std::string sessionId = "";
                     std::string reservationCode = "";
                     std::string paymentIntentId = "";
                     double amount = 0.0;
+                    std::string currency = "mxn";
 
                     if (obj.contains("data") && obj.at("data").is_object())
                     {
@@ -137,6 +155,11 @@ namespace omnisphere::services
                             if (sessObj.contains("payment_intent") && sessObj.at("payment_intent").is_string())
                             {
                                 paymentIntentId = std::string(sessObj.at("payment_intent").as_string());
+                            }
+
+                            if (sessObj.contains("currency") && sessObj.at("currency").is_string())
+                            {
+                                currency = std::string(sessObj.at("currency").as_string());
                             }
 
                             if (sessObj.contains("client_reference_id") && sessObj.at("client_reference_id").is_string())
@@ -194,40 +217,65 @@ namespace omnisphere::services
                         }
                     }
 
-                    omnisphere::utils::Logger::LogInfo("StripeWebhookHandler",
-                        req.TraceContext() + " Payment verified for EntityCode: [" + reservationCode +
-                        "], SessionID: [" + sessionId + "], PaymentIntentID: [" + paymentIntentId +
-                        "], Amount: $" + std::to_string(amount) + " MXN");
-
-                    if (m_repo)
-                    {
-                        if (!sessionId.empty())
-                        {
-                            m_repo->UpdateSessionStatus(sessionId, "complete", paymentIntentId);
-                        }
-                        if (!paymentIntentId.empty())
-                        {
-                            m_repo->UpdateTransactionStatus(paymentIntentId, "succeeded");
-                        }
-                    }
-
-                    // 1. Despacho desacoplado al Hook Registry en Core
                     omnisphere::payment::PaymentEvent hookEvent;
-                    hookEvent.eventType = "PAYMENT_COMPLETED";
+                    hookEvent.eventId = eventId;
                     hookEvent.entityType = "ROUTE_RESERVATION";
                     hookEvent.entityCode = reservationCode;
                     hookEvent.paymentIntentId = paymentIntentId;
                     hookEvent.sessionId = sessionId;
                     hookEvent.provider = "STRIPE";
                     hookEvent.amount = amount;
-                    hookEvent.currency = "mxn";
+                    hookEvent.currency = currency;
 
-                    omnisphere::payment::PaymentHookRegistry::Instance().DispatchCompleted(hookEvent);
-
-                    // 2. Invocación de callback legado si está presente
-                    if (m_paymentCompletedHandler)
+                    if (isSuccessEvent)
                     {
-                        m_paymentCompletedHandler(req, sessionId, reservationCode, paymentIntentId, amount);
+                        omnisphere::utils::Logger::LogInfo("StripeWebhookHandler",
+                            req.TraceContext() + " Payment SUCCEEDED for EntityCode: [" + reservationCode +
+                            "], SessionID: [" + sessionId + "], PaymentIntentID: [" + paymentIntentId +
+                            "], Amount: $" + std::to_string(amount) + " MXN");
+
+                        if (m_repo)
+                        {
+                            if (!sessionId.empty()) m_repo->UpdateSessionStatus(sessionId, "complete", paymentIntentId);
+                            if (!paymentIntentId.empty()) m_repo->UpdateTransactionStatus(paymentIntentId, "succeeded");
+                        }
+
+                        hookEvent.eventType = "PAYMENT_COMPLETED";
+                        omnisphere::payment::PaymentHookRegistry::Instance().DispatchCompleted(hookEvent);
+
+                        if (m_paymentCompletedHandler)
+                        {
+                            m_paymentCompletedHandler(req, sessionId, reservationCode, paymentIntentId, amount);
+                        }
+                    }
+                    else if (isFailedEvent)
+                    {
+                        omnisphere::utils::Logger::LogWarning("StripeWebhookHandler",
+                            req.TraceContext() + " Payment FAILED/DECLINED/FRAUDULENT [" + eventType + "] for EntityCode: [" + reservationCode +
+                            "], SessionID: [" + sessionId + "], PaymentIntentID: [" + paymentIntentId + "]");
+
+                        if (m_repo)
+                        {
+                            if (!sessionId.empty()) m_repo->UpdateSessionStatus(sessionId, "failed", paymentIntentId);
+                            if (!paymentIntentId.empty()) m_repo->UpdateTransactionStatus(paymentIntentId, "failed");
+                        }
+
+                        hookEvent.eventType = "PAYMENT_FAILED";
+                        omnisphere::payment::PaymentHookRegistry::Instance().DispatchFailed(hookEvent);
+                    }
+                    else if (isExpiredEvent)
+                    {
+                        omnisphere::utils::Logger::LogWarning("StripeWebhookHandler",
+                            req.TraceContext() + " Checkout Session EXPIRED for EntityCode: [" + reservationCode +
+                            "], SessionID: [" + sessionId + "]");
+
+                        if (m_repo)
+                        {
+                            if (!sessionId.empty()) m_repo->UpdateSessionStatus(sessionId, "expired", paymentIntentId);
+                        }
+
+                        hookEvent.eventType = "PAYMENT_EXPIRED";
+                        omnisphere::payment::PaymentHookRegistry::Instance().DispatchExpired(hookEvent);
                     }
                 }
             }

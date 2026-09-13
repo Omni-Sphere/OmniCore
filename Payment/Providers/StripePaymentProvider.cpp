@@ -151,16 +151,37 @@ namespace omnisphere::payment
             std::string eventType = rootObj.contains("type") ? json::value_to<std::string>(rootObj["type"]) : "";
             std::string eventId = rootObj.contains("id") ? json::value_to<std::string>(rootObj["id"]) : "";
 
-            if (eventType != "payment_intent.succeeded" &&
-                eventType != "checkout.session.completed" &&
-                eventType != "charge.succeeded")
+            std::string normalizedEventType = "";
+            if (eventType == "payment_intent.succeeded" ||
+                eventType == "checkout.session.completed" ||
+                eventType == "checkout.session.async_payment_succeeded" ||
+                eventType == "charge.succeeded")
+            {
+                normalizedEventType = "PAYMENT_COMPLETED";
+            }
+            else if (eventType == "checkout.session.async_payment_failed" ||
+                     eventType == "payment_intent.payment_failed" ||
+                     eventType == "payment_intent.canceled" ||
+                     eventType == "charge.failed" ||
+                     eventType == "charge.dispute.created" ||
+                     eventType == "radar.early_fraud_warning.created" ||
+                     eventType == "review.opened" ||
+                     eventType == "review.closed")
+            {
+                normalizedEventType = "PAYMENT_FAILED";
+            }
+            else if (eventType == "checkout.session.expired")
+            {
+                normalizedEventType = "PAYMENT_EXPIRED";
+            }
+            else
             {
                 return std::nullopt;
             }
 
             PaymentEvent evt;
             evt.eventId = eventId;
-            evt.eventType = "PAYMENT_COMPLETED";
+            evt.eventType = normalizedEventType;
             evt.provider = "STRIPE";
 
             if (rootObj.contains("data") && rootObj["data"].is_object())
