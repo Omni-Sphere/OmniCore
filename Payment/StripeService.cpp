@@ -799,4 +799,141 @@ namespace omnisphere::services
             return false;
         }
     }
+
+    std::optional<std::string> StripeService::GetPaymentIntentStatus(const std::string& paymentIntentId) const
+    {
+        if (paymentIntentId.empty()) return std::nullopt;
+
+        auto settingsOpt = GetSettings(true);
+        if (!settingsOpt.has_value() || !settingsOpt->isActive || settingsOpt->secretKey.empty())
+        {
+            return std::nullopt;
+        }
+
+        auto settings = settingsOpt.value();
+        try
+        {
+            std::string host = "api.stripe.com";
+            std::string port = "443";
+            std::string target = "/v1/payment_intents/" + paymentIntentId;
+
+            boost::asio::io_context ioc;
+            ssl::context sslCtx(ssl::context::tlsv12_client);
+            sslCtx.set_default_verify_paths();
+
+            tcp::resolver resolver(ioc);
+            ssl::stream<tcp::socket> stream(ioc, sslCtx);
+
+            if (!SSL_set_tlsext_host_name(stream.native_handle(), host.c_str()))
+            {
+                return std::nullopt;
+            }
+
+            auto const results = resolver.resolve(host, port);
+            boost::asio::connect(stream.next_layer(), results.begin(), results.end());
+            stream.handshake(ssl::stream_base::client);
+
+            http::request<http::empty_body> req{http::verb::get, target, 11};
+            req.set(http::field::host, host);
+            req.set(http::field::user_agent, "OmniSphere-C++/1.0");
+            req.set(http::field::authorization, "Bearer " + settings.secretKey);
+            req.prepare_payload();
+
+            http::write(stream, req);
+
+            beast::flat_buffer buffer;
+            http::response<http::dynamic_body> response;
+            http::read(stream, buffer, response);
+
+            int status = static_cast<int>(response.result_int());
+            if (status == 200)
+            {
+                std::string respBody = beast::buffers_to_string(response.body().data());
+                auto parsed = json::parse(respBody);
+                if (parsed.is_object() && parsed.as_object().contains("status") && parsed.as_object().at("status").is_string())
+                {
+                    std::string piStatus = std::string(parsed.as_object().at("status").as_string());
+                    omnisphere::utils::Logger::LogInfo("StripeService", "Queried PaymentIntent [" + paymentIntentId + "] Live Status: [" + piStatus + "]");
+                    if (m_repository)
+                    {
+                        m_repository->UpdateTransactionStatus(paymentIntentId, piStatus);
+                    }
+                    return piStatus;
+                }
+            }
+        }
+        catch (const std::exception& ex)
+        {
+            omnisphere::utils::Logger::LogError("StripeService", "Exception querying PaymentIntent [" + paymentIntentId + "]: " + std::string(ex.what()));
+        }
+        return std::nullopt;
+    }
+
+    std::optional<std::string> StripeService::GetCheckoutSessionStatus(const std::string& sessionId) const
+    {
+        if (sessionId.empty()) return std::nullopt;
+
+        auto settingsOpt = GetSettings(true);
+        if (!settingsOpt.has_value() || !settingsOpt->isActive || settingsOpt->secretKey.empty())
+        {
+            return std::nullopt;
+        }
+
+        auto settings = settingsOpt.value();
+        try
+        {
+            std::string host = "api.stripe.com";
+            std::string port = "443";
+            std::string target = "/v1/checkout/sessions/" + sessionId;
+
+            boost::asio::io_context ioc;
+            ssl::context sslCtx(ssl::context::tlsv12_client);
+            sslCtx.set_default_verify_paths();
+
+            tcp::resolver resolver(ioc);
+            ssl::stream<tcp::socket> stream(ioc, sslCtx);
+
+            if (!SSL_set_tlsext_host_name(stream.native_handle(), host.c_str()))
+            {
+                return std::nullopt;
+            }
+
+            auto const results = resolver.resolve(host, port);
+            boost::asio::connect(stream.next_layer(), results.begin(), results.end());
+            stream.handshake(ssl::stream_base::client);
+
+            http::request<http::empty_body> req{http::verb::get, target, 11};
+            req.set(http::field::host, host);
+            req.set(http::field::user_agent, "OmniSphere-C++/1.0");
+            req.set(http::field::authorization, "Bearer " + settings.secretKey);
+            req.prepare_payload();
+
+            http::write(stream, req);
+
+            beast::flat_buffer buffer;
+            http::response<http::dynamic_body> response;
+            http::read(stream, buffer, response);
+
+            int status = static_cast<int>(response.result_int());
+            if (status == 200)
+            {
+                std::string respBody = beast::buffers_to_string(response.body().data());
+                auto parsed = json::parse(respBody);
+                if (parsed.is_object() && parsed.as_object().contains("status") && parsed.as_object().at("status").is_string())
+                {
+                    std::string sessStatus = std::string(parsed.as_object().at("status").as_string());
+                    if (m_repository)
+                    {
+                        m_repository->UpdateSessionStatus(sessionId, sessStatus);
+                    }
+                    return sessStatus;
+                }
+            }
+        }
+        catch (const std::exception& ex)
+        {
+            omnisphere::utils::Logger::LogError("StripeService", "Exception querying CheckoutSession [" + sessionId + "]: " + std::string(ex.what()));
+        }
+        return std::nullopt;
+    }
 }

@@ -92,6 +92,16 @@ namespace omnisphere::services
             const std::string& sessionId
         ) const;
 
+        // Consulta el estatus en vivo de un PaymentIntent en Stripe ("succeeded", "canceled", "processing", "requires_action", etc.)
+        std::optional<std::string> GetPaymentIntentStatus(
+            const std::string& paymentIntentId
+        ) const;
+
+        // Consulta el estatus en vivo de una Checkout Session en Stripe ("complete", "expired", "open")
+        std::optional<std::string> GetCheckoutSessionStatus(
+            const std::string& sessionId
+        ) const;
+
     private:
         std::shared_ptr<omnisphere::repositories::StripeRepository> m_repository;
         std::shared_ptr<omnisphere::data::DatabasePool> m_dbPool;
