@@ -571,7 +571,8 @@ namespace omnisphere::repositories
                 "JOIN \"WhatsAppConversations\" c ON c.\"Entry\" = m.\"ConversationEntry\" "
                 "WHERE (c.\"CustomerPhone\" ILIKE ? OR RIGHT(REGEXP_REPLACE(c.\"CustomerPhone\", '[^0-9]', '', 'g'), 10) = ?) "
                 "  AND m.\"SenderType\" = 'OUTBOUND' "
-                "  AND (m.\"Content\" ILIKE '%Ver Detalles%' OR m.\"Content\" ILIKE '%BTN_DETAILS%' OR m.\"Content\" ILIKE '%TPL_WELCOME_WITH_RESERVATION%' OR m.\"Content\" ILIKE '%reservación activa%') "
+                "  AND m.\"MessageType\" = 'interactive' "
+                "  AND (m.\"Content\" ILIKE '%Ver Detalles%' OR m.\"Content\" ILIKE '%BTN_DETAILS%' OR m.\"Content\" ILIKE '%TPL_WELCOME_WITH_RESERVATION%') "
                 "  AND m.\"CreateDate\" >= (NOW() - (INTERVAL '1 minute' * ?)) "
                 "ORDER BY m.\"Entry\" DESC LIMIT 1";
 
