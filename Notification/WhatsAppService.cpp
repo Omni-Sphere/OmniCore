@@ -839,8 +839,12 @@ namespace omnisphere::services
             }
         }
 
-        // Envío según el tipo de mensaje y botones configurados
-        if (msg.messageType == "INTERACTIVE_BUTTON" && !msg.buttons.empty())
+        bool success = false;
+        if (msg.messageType == "TEMPLATE")
+        {
+            success = SendNamedNotification(phoneNumber, !msg.bodyTemplate.empty() ? msg.bodyTemplate : messageCode, finalPlaceholders);
+        }
+        else if (msg.messageType == "INTERACTIVE_BUTTON" && !msg.buttons.empty())
         {
             std::vector<std::pair<std::string, std::string>> btnPairs;
             for (const auto& btn : msg.buttons)
@@ -865,12 +869,29 @@ namespace omnisphere::services
                 }
                 btnPairs.push_back({btnId, btnTitle});
             }
-            return SendInteractiveButtons(phoneNumber, bodyText, btnPairs);
+            success = SendInteractiveButtons(phoneNumber, bodyText, btnPairs);
         }
         else
         {
-            return SendMessage(phoneNumber, bodyText);
+            success = SendMessage(phoneNumber, bodyText);
         }
+
+        if (!success && (m_lastError.find("131047") != std::string::npos || m_lastError.find("24 hours") != std::string::npos))
+        {
+            omnisphere::utils::Logger::LogWarning("WhatsAppService",
+                "Custom message failed due to Meta 24h window (131047). Falling back to official Meta template 'ticket_confirmation' for " + phoneNumber);
+
+            std::string name = finalPlaceholders.count("nombre_registrado") ? finalPlaceholders["nombre_registrado"] : (finalPlaceholders.count("nombre_cliente") ? finalPlaceholders["nombre_cliente"] : "Pasajero");
+            std::string folio = finalPlaceholders.count("folio") ? finalPlaceholders["folio"] : "RSV000000";
+            std::string seats = finalPlaceholders.count("numero_asientos") ? finalPlaceholders["numero_asientos"] : "1 lugar";
+            std::string event = finalPlaceholders.count("evento") ? finalPlaceholders["evento"] : "Evento";
+            std::string pickup = finalPlaceholders.count("parada_inicial") ? finalPlaceholders["parada_inicial"] : "Punto de Abordaje";
+            std::string depTime = finalPlaceholders.count("hora_salida") ? finalPlaceholders["hora_salida"] : "Por confirmar";
+
+            return SendTicketConfirmation(phoneNumber, name, folio, seats, event, "Por confirmar", depTime, pickup, "Sin referencias", "15 minutos");
+        }
+
+        return success;
     }
 
     bool WhatsAppService::HasRecentWelcomeCard(const std::string& phoneNumber, int minutesWindow) const
