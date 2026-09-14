@@ -81,40 +81,35 @@ Session::Read(const omnisphere::dtos::Login &login) const {
   auto conn = database->Acquire();
   try {
     std::string sQuery = "SELECT "
-                         "T0.\"SessionEntry\", "
-                         "T0.\"SessionUUID\", "
-                         "T0.\"UserCode\", "
-                         "T0.\"UserEmail\", "
-                         "T0.\"UserPhone\", "
-                         "T0.\"IsActive\", "
-                         "T0.\"StartDate\", "
-                         "T0.\"DeviceIP\", "
-                         "T0.\"HostName\", "
-                         "T0.\"EndDate\", "
-                         "T0.\"DurationSeconds\" "
-                         "FROM \"Sessions\" T0 "
-                         "JOIN \"Users\" T1 ON ";
+                         "\"SessionEntry\", "
+                         "\"SessionUUID\", "
+                         "\"UserCode\", "
+                         "\"UserEmail\", "
+                         "\"UserPhone\", "
+                         "\"IsActive\", "
+                         "\"StartDate\", "
+                         "\"DeviceIP\", "
+                         "\"HostName\", "
+                         "\"EndDate\", "
+                         "\"DurationSeconds\" "
+                         "FROM \"Sessions\" WHERE ";
 
     std::vector<omnisphere::types::SQLParam> vParams;
 
     if (login.Code.has_value()) {
-      sQuery += "T0.\"UserCode\" = T1.\"Code\" WHERE T1.\"Code\" = ? ";
+      sQuery += "\"UserCode\" = ? ";
       vParams.emplace_back(omnisphere::types::MakeSQLParam(login.Code.value()));
-    }
-
-    if (login.Email.has_value()) {
-      sQuery += "T0.\"UserEmail\" = T1.\"Email\" WHERE T1.\"Email\" = ? ";
+    } else if (login.Email.has_value()) {
+      sQuery += "\"UserEmail\" = ? ";
       vParams.emplace_back(
           omnisphere::types::MakeSQLParam(login.Email.value()));
-    }
-
-    if (login.Phone.has_value()) {
-      sQuery += "T0.\"UserPhone\" = T1.\"Phone\" WHERE T1.\"Phone\" = ? ";
+    } else if (login.Phone.has_value()) {
+      sQuery += "\"UserPhone\" = ? ";
       vParams.emplace_back(
           omnisphere::types::MakeSQLParam(login.Phone.value()));
     }
 
-    sQuery += "AND T0.\"DeviceIP\" = ? AND T0.\"HostName\" = ? AND T0.\"IsActive\" = 'Y'";
+    sQuery += "AND \"DeviceIP\" = ? AND \"HostName\" = ? AND \"IsActive\" = 'Y'";
     vParams.emplace_back(omnisphere::types::MakeSQLParam(login.DeviceIP));
     vParams.emplace_back(omnisphere::types::MakeSQLParam(login.HostName));
 

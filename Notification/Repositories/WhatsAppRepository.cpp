@@ -338,9 +338,12 @@ namespace omnisphere::repositories
         try
         {
             auto conn = m_dbPool->Acquire();
-            std::string sql = "SELECT b.\"Entry\", b.\"MessageEntry\", b.\"ButtonId\", b.\"Title\", b.\"ActionType\", b.\"ActionPayload\", b.\"SortOrder\" FROM \"CustomButtons\" b JOIN \"CustomMessages\" m ON m.\"Entry\" = b.\"MessageEntry\" WHERE m.\"Code\" = ? ORDER BY b.\"SortOrder\" ASC";
-            std::vector<omnisphere::types::SQLParam> params = { omnisphere::types::MakeSQLParam(messageCode) };
-            auto dt = conn->FetchPrepared(sql, params);
+            auto dtMsg = conn->FetchPrepared("SELECT \"Entry\" FROM \"CustomMessages\" WHERE \"Code\" = ? LIMIT 1", { omnisphere::types::MakeSQLParam(messageCode) });
+            if (dtMsg.RowsCount() == 0) return {};
+
+            int msgEntry = dtMsg[0]["Entry"];
+            std::string sql = "SELECT \"Entry\", \"MessageEntry\", \"ButtonId\", \"Title\", \"ActionType\", \"ActionPayload\", \"SortOrder\" FROM \"CustomButtons\" WHERE \"MessageEntry\" = ? ORDER BY \"SortOrder\" ASC";
+            auto dt = conn->FetchPrepared(sql, { omnisphere::types::MakeSQLParam(msgEntry) });
 
             std::vector<omnisphere::models::CustomButton> result;
             for (std::size_t i = 0; i < dt.RowsCount(); ++i)
@@ -569,25 +572,31 @@ namespace omnisphere::repositories
             }
             std::string suffix = (digits.length() > 10) ? digits.substr(digits.length() - 10) : digits;
 
-            std::string sql = 
-                "SELECT m.\"Entry\" "
-                "FROM \"WhatsAppMessages\" m "
-                "JOIN \"WhatsAppConversations\" c ON c.\"Entry\" = m.\"ConversationEntry\" "
-                "WHERE (c.\"CustomerPhone\" ILIKE ? OR RIGHT(REGEXP_REPLACE(c.\"CustomerPhone\", '[^0-9]', '', 'g'), 10) = ?) "
-                "  AND m.\"SenderType\" = 'OUTBOUND' "
-                "  AND m.\"MessageType\" = 'interactive' "
-                "  AND (m.\"Content\" ILIKE '%Ver Detalles%' OR m.\"Content\" ILIKE '%BTN_DETAILS%' OR m.\"Content\" ILIKE '%TPL_WELCOME_WITH_RESERVATION%') "
-                "  AND m.\"CreateDate\" >= (NOW() - (INTERVAL '1 minute' * ?)) "
-                "ORDER BY m.\"Entry\" DESC LIMIT 1";
+            // 1. Consultar la conversación por teléfono del cliente (sin JOINs)
+            auto dtConv = conn->FetchPrepared(
+                "SELECT \"Entry\" FROM \"WhatsAppConversations\" "
+                "WHERE (\"CustomerPhone\" ILIKE ? OR RIGHT(REGEXP_REPLACE(\"CustomerPhone\", '[^0-9]', '', 'g'), 10) = ?) "
+                "ORDER BY \"Entry\" DESC LIMIT 1",
+                { omnisphere::types::MakeSQLParam("%" + suffix + "%"), omnisphere::types::MakeSQLParam(suffix) }
+            );
 
-            std::vector<omnisphere::types::SQLParam> params = {
-                omnisphere::types::MakeSQLParam("%" + suffix + "%"),
-                omnisphere::types::MakeSQLParam(suffix),
-                omnisphere::types::MakeSQLParam(minutesWindow)
-            };
+            if (dtConv.RowsCount() == 0) return false;
 
-            auto dt = conn->FetchPrepared(sql, params);
-            return dt.RowsCount() > 0;
+            int convEntry = dtConv[0]["Entry"];
+
+            // 2. Consultar mensajes recientes para esa conversación
+            auto dtMsg = conn->FetchPrepared(
+                "SELECT \"Entry\" FROM \"WhatsAppMessages\" "
+                "WHERE \"ConversationEntry\" = ? "
+                "  AND \"SenderType\" = 'OUTBOUND' "
+                "  AND \"MessageType\" = 'interactive' "
+                "  AND (\"Content\" ILIKE '%Ver Detalles%' OR \"Content\" ILIKE '%BTN_DETAILS%' OR \"Content\" ILIKE '%TPL_WELCOME_WITH_RESERVATION%') "
+                "  AND \"CreateDate\" >= (NOW() - (INTERVAL '1 minute' * ?)) "
+                "LIMIT 1",
+                { omnisphere::types::MakeSQLParam(convEntry), omnisphere::types::MakeSQLParam(minutesWindow) }
+            );
+
+            return dtMsg.RowsCount() > 0;
         }
         catch (const std::exception& ex)
         {
