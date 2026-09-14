@@ -123,6 +123,14 @@ namespace omnisphere::services
 
             std::string fromPhone = mObj.contains("from") ? json::value_to<std::string>(mObj["from"]) : "";
             std::string wamid = mObj.contains("id") ? json::value_to<std::string>(mObj["id"]) : "";
+
+            if (!wamid.empty() && m_repo->IsMessageProcessed(wamid))
+            {
+                omnisphere::utils::Logger::LogWarning("WhatsAppWebhookHandler",
+                    req.TraceContext() + " WAMID [" + wamid + "] has already been processed. Ignoring duplicate webhook delivery.");
+                continue;
+            }
+
             std::string msgType = mObj.contains("type") ? json::value_to<std::string>(mObj["type"]) : "text";
             std::string bodyText = "";
             std::string buttonPayload = "";

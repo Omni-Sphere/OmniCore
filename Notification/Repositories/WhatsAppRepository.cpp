@@ -282,6 +282,24 @@ namespace omnisphere::repositories
         }
     }
 
+    bool WhatsAppRepository::IsMessageProcessed(const std::string& wamidCode) const
+    {
+        if (!m_dbPool || wamidCode.empty()) return false;
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            std::string sql = "SELECT \"Entry\" FROM \"WhatsAppMessages\" WHERE \"Code\" = ? LIMIT 1";
+            std::vector<omnisphere::types::SQLParam> params = { omnisphere::types::MakeSQLParam(wamidCode) };
+            auto dt = conn->FetchPrepared(sql, params);
+            return dt.RowsCount() > 0;
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[WhatsAppRepository::IsMessageProcessed Exception] " << ex.what() << std::endl;
+            return false;
+        }
+    }
+
     std::vector<omnisphere::models::CustomButton> WhatsAppRepository::GetButtonsForMessage(int messageEntry) const
     {
         if (!m_dbPool || messageEntry <= 0) return {};
@@ -553,7 +571,7 @@ namespace omnisphere::repositories
                 "JOIN \"WhatsAppConversations\" c ON c.\"Entry\" = m.\"ConversationEntry\" "
                 "WHERE (c.\"CustomerPhone\" ILIKE ? OR RIGHT(REGEXP_REPLACE(c.\"CustomerPhone\", '[^0-9]', '', 'g'), 10) = ?) "
                 "  AND m.\"SenderType\" = 'OUTBOUND' "
-                "  AND (m.\"Content\" ILIKE '%Ver Detalles%' OR m.\"Content\" ILIKE '%BTN_DETAILS%' OR m.\"Content\" ILIKE '%TPL_WELCOME_WITH_RESERVATION%') "
+                "  AND (m.\"Content\" ILIKE '%Ver Detalles%' OR m.\"Content\" ILIKE '%BTN_DETAILS%' OR m.\"Content\" ILIKE '%TPL_WELCOME_WITH_RESERVATION%' OR m.\"Content\" ILIKE '%reservación activa%') "
                 "  AND m.\"CreateDate\" >= (NOW() - (INTERVAL '1 minute' * ?)) "
                 "ORDER BY m.\"Entry\" DESC LIMIT 1";
 
