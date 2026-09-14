@@ -1,6 +1,8 @@
 #pragma once
 #include <string>
 #include <optional>
+#include <vector>
+#include <unordered_map>
 #include <type_traits>
 #include <cstdint>
 
@@ -73,5 +75,34 @@ namespace omnisphere::utils
             return Join(sourceKey, targetKey, sourceVal.value(), targetVal);
         }
         return false;
+    }
+
+    /**
+     * @brief Unir dos colecciones de objetos en memoria con rendimiento O(N+M) usando HashMap
+     * 
+     * @tparam TSource Tipo del objeto fuente
+     * @tparam TTarget Tipo del objeto destino
+     * @tparam TKeyGetter1 Lambda o función para obtener la clave del objeto fuente
+     * @tparam TKeyGetter2 Lambda o función para obtener la clave del objeto destino
+     * @tparam TAssigner Lambda para transferir/asignar campos cuando la clave coincide (=)
+     */
+    template <typename TSource, typename TTarget, typename TKeyGetter1, typename TKeyGetter2, typename TAssigner>
+    inline void JoinList(const std::vector<TSource>& sourceList, std::vector<TTarget>& targetList, TKeyGetter1 getKey1, TKeyGetter2 getKey2, TAssigner assigner)
+    {
+        std::unordered_map<std::string, const TSource*> sourceMap;
+        for (const auto& item : sourceList)
+        {
+            std::string k = getKey1(item);
+            if (!k.empty()) sourceMap[k] = &item;
+        }
+
+        for (auto& target : targetList)
+        {
+            std::string k = getKey2(target);
+            if (!k.empty() && sourceMap.count(k) > 0)
+            {
+                assigner(target, *sourceMap[k]);
+            }
+        }
     }
 } // namespace omnisphere::utils
