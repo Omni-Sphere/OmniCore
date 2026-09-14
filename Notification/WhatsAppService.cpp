@@ -649,6 +649,26 @@ namespace omnisphere::services
         return SendRequest(cleanPhone, "TEXT", "", decodedMessage, jsonStr);
     }
 
+    bool WhatsAppService::MarkAsRead(const std::string& wamid) const
+    {
+        if (wamid.empty() || m_config.phoneId.empty() || m_config.token.empty()) return false;
+        try
+        {
+            json::object body;
+            body["messaging_product"] = "whatsapp";
+            body["status"] = "read";
+            body["message_id"] = wamid;
+
+            std::string jsonStr = json::serialize(body);
+            return const_cast<WhatsAppService*>(this)->SendRequest("", "READ_STATUS", "", "", jsonStr);
+        }
+        catch (const std::exception& ex)
+        {
+            omnisphere::utils::Logger::LogError("WhatsAppService", "Error marking message [" + wamid + "] as read: " + std::string(ex.what()));
+            return false;
+        }
+    }
+
     bool WhatsAppService::SendInteractiveButtons(
         const std::string& phoneNumber,
         const std::string& bodyText,

@@ -41,6 +41,8 @@ namespace omnisphere::services
             const std::string& message
         );
 
+        bool MarkAsRead(const std::string& wamid) const;
+
         bool SendInteractiveButtons(
             const std::string& phoneNumber,
             const std::string& bodyText,

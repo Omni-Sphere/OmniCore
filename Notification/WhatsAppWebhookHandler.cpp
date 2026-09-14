@@ -1,4 +1,5 @@
 #include "Notification/WhatsAppWebhookHandler.hpp"
+#include "Notification/WhatsAppService.hpp"
 #include "Notification/Hooks/WhatsAppHook.hpp"
 #include <OmniUtils/Logger.hpp>
 #include <OmniUtils/Base64.hpp>
@@ -202,6 +203,13 @@ namespace omnisphere::services
                 m_repo->LogMessage(msg);
                 omnisphere::utils::Logger::LogInfo("WhatsAppWebhookHandler",
                     req.TraceContext() + " Inbound Message Logged to DB (WAMID: " + wamid + ", From: " + fromPhone + ", Body: '" + bodyText + "')");
+
+                // Marcar el mensaje como LEÍDO en la Cloud API de Meta (doble palomita azul para el cliente)
+                if (!wamid.empty())
+                {
+                    omnisphere::services::WhatsAppService waService(m_dbPool);
+                    waService.MarkAsRead(wamid);
+                }
 
                 // 1. Despacho desacoplado a través del Hook Registry (Inversion of Control)
                 omnisphere::notification::InboundMessageEvent hookEvent;
