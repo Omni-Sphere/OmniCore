@@ -430,6 +430,10 @@ namespace omnisphere::services
         {
             clean = "52" + clean;
         }
+        else if (clean.length() == 13 && clean.rfind("521", 0) == 0)
+        {
+            clean = "52" + clean.substr(3);
+        }
         return clean;
     }
 
