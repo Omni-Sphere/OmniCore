@@ -72,6 +72,8 @@ namespace omnisphere::services
             const std::string& messageCode
         ) const;
 
+        bool HasRecentWelcomeCard(const std::string& phoneNumber, int minutesWindow = 30) const;
+
         std::string GetLastErrorMessage() const { return m_lastError; }
 
     private:

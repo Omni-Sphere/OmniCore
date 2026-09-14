@@ -391,7 +391,7 @@ CREATE INDEX IF NOT EXISTS "IDX_CustomButtons_MessageCode" ON "CustomButtons" ("
 
 -- Seed Default Internal Custom Templates
 INSERT INTO "CustomMessages" ("Code", "Title", "MessageType", "BodyTemplate", "CreatedBy") VALUES
-('TPL_WELCOME_WITH_RESERVATION', 'Bienvenida a Cliente Reconocido', 'TEXT', 
+('TPL_WELCOME_WITH_RESERVATION', 'Bienvenida a Cliente Reconocido', 'INTERACTIVE_BUTTON', 
 '¡Hola {nombre_registrado}! 👋 Qué gusto saludarte.
 
 Vemos que tienes una reservación activa para:
@@ -499,6 +499,10 @@ Motivo: {motivo_rechazo}
 
 Por favor envía un nuevo comprobante legible o comunícate por este chat para asistirte.', 1)
 ON CONFLICT ("Code") DO NOTHING;
+
+-- Seed Buttons for TPL_WELCOME_WITH_RESERVATION
+INSERT INTO "CustomButtons" ("MessageCode", "ButtonId", "Title", "OrderIndex", "IsActive", "CreatedBy") VALUES
+('TPL_WELCOME_WITH_RESERVATION', 'BTN_DETAILS_{folio}', 'Ver Detalles', 1, true, 1);
 
 -- Seed Parameters for TPL_WELCOME_WITH_RESERVATION
 INSERT INTO "CustomMessageParameters" ("MessageCode", "ParamKey", "ParamName", "DataType", "DefaultValue", "IsRequired", "SortOrder") VALUES

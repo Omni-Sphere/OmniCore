@@ -825,7 +825,25 @@ namespace omnisphere::services
             std::vector<std::pair<std::string, std::string>> btnPairs;
             for (const auto& btn : msg.buttons)
             {
-                btnPairs.push_back({btn.buttonId, btn.title});
+                std::string btnId = btn.buttonId;
+                std::string btnTitle = btn.title;
+                for (const auto& [key, val] : finalPlaceholders)
+                {
+                    std::string token = "{" + key + "}";
+                    size_t pos = 0;
+                    while ((pos = btnId.find(token, pos)) != std::string::npos)
+                    {
+                        btnId.replace(pos, token.length(), val);
+                        pos += val.length();
+                    }
+                    pos = 0;
+                    while ((pos = btnTitle.find(token, pos)) != std::string::npos)
+                    {
+                        btnTitle.replace(pos, token.length(), val);
+                        pos += val.length();
+                    }
+                }
+                btnPairs.push_back({btnId, btnTitle});
             }
             return SendInteractiveButtons(phoneNumber, bodyText, btnPairs);
         }
@@ -833,5 +851,11 @@ namespace omnisphere::services
         {
             return SendMessage(phoneNumber, bodyText);
         }
+    }
+
+    bool WhatsAppService::HasRecentWelcomeCard(const std::string& phoneNumber, int minutesWindow) const
+    {
+        if (!m_repository) return false;
+        return m_repository->HasRecentWelcomeCard(phoneNumber, minutesWindow);
     }
 } // namespace omnisphere::services

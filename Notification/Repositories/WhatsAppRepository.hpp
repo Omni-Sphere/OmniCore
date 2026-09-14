@@ -28,6 +28,7 @@ namespace omnisphere::repositories
 
         bool LogMessage(const omnisphere::models::WhatsAppMessage& msg) const;
         bool UpdateMessageStatus(const std::string& wamidCode, const std::string& newStatus, const std::string& responsePayload = "") const;
+        bool HasRecentWelcomeCard(const std::string& phone, int minutesWindow = 30) const;
 
         // Dynamic Custom Messages Engine
         std::optional<omnisphere::models::CustomMessage> GetCustomMessageByCode(const std::string& code) const;

@@ -480,4 +480,43 @@ namespace omnisphere::repositories
             return false;
         }
     }
+
+    bool WhatsAppRepository::HasRecentWelcomeCard(const std::string& phone, int minutesWindow) const
+    {
+        if (!m_dbPool || phone.empty()) return false;
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            std::string digits;
+            for (char c : phone)
+            {
+                if (std::isdigit(static_cast<unsigned char>(c))) digits += c;
+            }
+            std::string suffix = (digits.length() > 10) ? digits.substr(digits.length() - 10) : digits;
+
+            std::string sql = 
+                "SELECT m.\"Entry\" "
+                "FROM \"WhatsAppMessages\" m "
+                "JOIN \"WhatsAppConversations\" c ON c.\"Entry\" = m.\"ConversationEntry\" "
+                "WHERE (c.\"CustomerPhone\" ILIKE ? OR RIGHT(REGEXP_REPLACE(c.\"CustomerPhone\", '[^0-9]', '', 'g'), 10) = ?) "
+                "  AND m.\"SenderType\" = 'OUTBOUND' "
+                "  AND (m.\"Content\" ILIKE '%Ver Detalles%' OR m.\"Content\" ILIKE '%BTN_DETAILS%' OR m.\"Content\" ILIKE '%TPL_WELCOME_WITH_RESERVATION%') "
+                "  AND m.\"CreateDate\" >= (NOW() - (INTERVAL '1 minute' * ?)) "
+                "ORDER BY m.\"Entry\" DESC LIMIT 1";
+
+            std::vector<omnisphere::types::SQLParam> params = {
+                omnisphere::types::MakeSQLParam("%" + suffix + "%"),
+                omnisphere::types::MakeSQLParam(suffix),
+                omnisphere::types::MakeSQLParam(minutesWindow)
+            };
+
+            auto dt = conn->FetchPrepared(sql, params);
+            return dt.RowsCount() > 0;
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[WhatsAppRepository::HasRecentWelcomeCard Exception] " << ex.what() << std::endl;
+            return false;
+        }
+    }
 } // namespace omnisphere::repositories
