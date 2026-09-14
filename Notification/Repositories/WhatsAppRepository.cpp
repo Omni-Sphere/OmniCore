@@ -306,10 +306,7 @@ namespace omnisphere::repositories
         try
         {
             auto conn = m_dbPool->Acquire();
-            auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::CustomButton>({});
-            std::vector<omnisphere::types::Condition> conditions = {{"", "\"MessageEntry\"", "=", "?"}};
-            auto qp = omnisphere::types::BuildQueryParts(selectFields, conditions);
-            std::string sql = "SELECT " + qp.SelectClause + " FROM \"CustomButtons\" WHERE " + qp.WhereClause + " ORDER BY \"SortOrder\" ASC";
+            std::string sql = "SELECT b.\"Entry\", b.\"MessageCode\", b.\"ButtonId\", b.\"Title\", b.\"ActionType\", b.\"ActionPayload\", b.\"SortOrder\" FROM \"CustomButtons\" b JOIN \"CustomMessages\" m ON m.\"Code\" = b.\"MessageCode\" WHERE m.\"Entry\" = ? ORDER BY b.\"SortOrder\" ASC";
             std::vector<omnisphere::types::SQLParam> params = { omnisphere::types::MakeSQLParam(messageEntry) };
             auto dt = conn->FetchPrepared(sql, params);
 
@@ -318,11 +315,12 @@ namespace omnisphere::repositories
             {
                 omnisphere::models::CustomButton btn;
                 btn.entry = dt[i]["Entry"];
-                btn.messageEntry = dt[i]["MessageEntry"];
+                btn.messageEntry = messageEntry;
+                btn.messageCode = (std::string)dt[i]["MessageCode"];
                 btn.buttonId = (std::string)dt[i]["ButtonId"];
                 btn.title = (std::string)dt[i]["Title"];
                 btn.actionType = (std::string)dt[i]["ActionType"];
-                try { btn.actionPayload = (std::string)dt[i]["ActionPayload"]; } catch(...) {}
+                try { if (dt[i].HasColumn("ActionPayload") && !dt[i]["ActionPayload"].IsNull()) btn.actionPayload = (std::string)dt[i]["ActionPayload"]; } catch(...) {}
                 btn.sortOrder = dt[i]["SortOrder"];
                 result.push_back(btn);
             }
@@ -341,7 +339,7 @@ namespace omnisphere::repositories
         try
         {
             auto conn = m_dbPool->Acquire();
-            std::string sql = "SELECT \"Entry\", \"MessageCode\", \"ButtonId\", \"Title\", \"ActionType\", \"ActionPayload\", \"SortOrder\", \"CreatedBy\" FROM \"CustomButtons\" WHERE \"MessageCode\" = ? ORDER BY \"SortOrder\" ASC";
+            std::string sql = "SELECT \"Entry\", \"MessageCode\", \"ButtonId\", \"Title\", \"ActionType\", \"ActionPayload\", \"SortOrder\" FROM \"CustomButtons\" WHERE \"MessageCode\" = ? ORDER BY \"SortOrder\" ASC";
             std::vector<omnisphere::types::SQLParam> params = { omnisphere::types::MakeSQLParam(messageCode) };
             auto dt = conn->FetchPrepared(sql, params);
 
@@ -350,7 +348,7 @@ namespace omnisphere::repositories
             {
                 omnisphere::models::CustomButton btn;
                 btn.entry = dt[i]["Entry"];
-                btn.messageCode = (std::string)dt[i]["MessageCode"];
+                btn.messageCode = messageCode;
                 btn.buttonId = (std::string)dt[i]["ButtonId"];
                 btn.title = (std::string)dt[i]["Title"];
                 btn.actionType = (std::string)dt[i]["ActionType"];
@@ -451,8 +449,15 @@ namespace omnisphere::repositories
                     
                     msg.messageType = "INTERACTIVE_BUTTON";
                     msg.buttons = GetButtonsForMessageCode(msg.code);
+                    if (msg.buttons.empty())
+                    {
+                        msg.buttons = GetButtonsForMessage(msg.entry);
+                    }
                 }
-                catch (...) {}
+                catch (const std::exception& ex)
+                {
+                    std::cerr << "[Self-healing Exception] " << ex.what() << std::endl;
+                }
             }
 
             return msg;
