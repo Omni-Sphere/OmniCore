@@ -306,7 +306,7 @@ namespace omnisphere::repositories
         try
         {
             auto conn = m_dbPool->Acquire();
-            std::string sql = "SELECT b.\"Entry\", b.\"MessageCode\", b.\"ButtonId\", b.\"Title\", b.\"ActionType\", b.\"ActionPayload\", b.\"SortOrder\" FROM \"CustomButtons\" b JOIN \"CustomMessages\" m ON m.\"Code\" = b.\"MessageCode\" WHERE m.\"Entry\" = ? ORDER BY b.\"SortOrder\" ASC";
+            std::string sql = "SELECT \"Entry\", \"MessageEntry\", \"ButtonId\", \"Title\", \"ActionType\", \"ActionPayload\", \"SortOrder\" FROM \"CustomButtons\" WHERE \"MessageEntry\" = ? ORDER BY \"SortOrder\" ASC";
             std::vector<omnisphere::types::SQLParam> params = { omnisphere::types::MakeSQLParam(messageEntry) };
             auto dt = conn->FetchPrepared(sql, params);
 
@@ -316,7 +316,6 @@ namespace omnisphere::repositories
                 omnisphere::models::CustomButton btn;
                 btn.entry = dt[i]["Entry"];
                 btn.messageEntry = messageEntry;
-                btn.messageCode = (std::string)dt[i]["MessageCode"];
                 btn.buttonId = (std::string)dt[i]["ButtonId"];
                 btn.title = (std::string)dt[i]["Title"];
                 btn.actionType = (std::string)dt[i]["ActionType"];
@@ -339,7 +338,7 @@ namespace omnisphere::repositories
         try
         {
             auto conn = m_dbPool->Acquire();
-            std::string sql = "SELECT \"Entry\", \"MessageCode\", \"ButtonId\", \"Title\", \"ActionType\", \"ActionPayload\", \"SortOrder\" FROM \"CustomButtons\" WHERE \"MessageCode\" = ? ORDER BY \"SortOrder\" ASC";
+            std::string sql = "SELECT b.\"Entry\", b.\"MessageEntry\", b.\"ButtonId\", b.\"Title\", b.\"ActionType\", b.\"ActionPayload\", b.\"SortOrder\" FROM \"CustomButtons\" b JOIN \"CustomMessages\" m ON m.\"Entry\" = b.\"MessageEntry\" WHERE m.\"Code\" = ? ORDER BY b.\"SortOrder\" ASC";
             std::vector<omnisphere::types::SQLParam> params = { omnisphere::types::MakeSQLParam(messageCode) };
             auto dt = conn->FetchPrepared(sql, params);
 
@@ -348,7 +347,7 @@ namespace omnisphere::repositories
             {
                 omnisphere::models::CustomButton btn;
                 btn.entry = dt[i]["Entry"];
-                btn.messageCode = messageCode;
+                btn.messageEntry = dt[i]["MessageEntry"];
                 btn.buttonId = (std::string)dt[i]["ButtonId"];
                 btn.title = (std::string)dt[i]["Title"];
                 btn.actionType = (std::string)dt[i]["ActionType"];

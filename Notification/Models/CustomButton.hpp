@@ -9,10 +9,9 @@ namespace omnisphere::models
     {
         int entry = 0;
         int messageEntry = 0;
-        std::string messageCode;
         std::string buttonId;
         std::string title;
-        std::string actionType = "EXECUTE_COMMAND"; // "EXECUTE_COMMAND", "TRIGGER_MESSAGE", "URL_REDIRECT", "TRANSFER_TO_AGENT"
+        std::string actionType = "TRIGGER_MESSAGE"; // "EXECUTE_COMMAND", "TRIGGER_MESSAGE", "URL_REDIRECT", "TRANSFER_TO_AGENT"
         std::optional<std::string> actionPayload;
         int sortOrder = 1;
         int createdBy = 1;
@@ -22,7 +21,6 @@ namespace omnisphere::models
     BOOST_DESCRIBE_STRUCT(CustomButton, (), (
         entry,
         messageEntry,
-        messageCode,
         buttonId,
         title,
         actionType,
