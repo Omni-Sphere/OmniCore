@@ -34,6 +34,7 @@ namespace omnisphere::repositories
         std::optional<omnisphere::models::CustomMessage> GetCustomMessageByCode(const std::string& code) const;
         std::vector<omnisphere::models::CustomMessage> GetAllCustomMessages() const;
         std::vector<omnisphere::models::CustomButton> GetButtonsForMessage(int messageEntry) const;
+        std::vector<omnisphere::models::CustomButton> GetButtonsForMessageCode(const std::string& messageCode) const;
         std::vector<omnisphere::models::CustomMessageParameter> GetParametersForMessage(const std::string& messageCode) const;
         bool SaveCustomMessage(const omnisphere::models::CustomMessage& msg) const;
 

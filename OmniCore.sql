@@ -505,8 +505,8 @@ Por favor envía un nuevo comprobante legible o comunícate por este chat para a
 ON CONFLICT ("Code") DO NOTHING;
 
 -- Seed Buttons for TPL_WELCOME_WITH_RESERVATION
-INSERT INTO "CustomButtons" ("MessageCode", "ButtonId", "Title", "OrderIndex", "IsActive", "CreatedBy") VALUES
-('TPL_WELCOME_WITH_RESERVATION', 'BTN_DETAILS_{folio}', 'Ver Detalles', 1, true, 1);
+INSERT INTO "CustomButtons" ("MessageCode", "ButtonId", "Title", "SortOrder", "CreatedBy") VALUES
+('TPL_WELCOME_WITH_RESERVATION', 'BTN_DETAILS_{folio}', 'Ver Detalles', 1, 1);
 
 -- Seed Parameters for TPL_WELCOME_WITH_RESERVATION
 INSERT INTO "CustomMessageParameters" ("MessageCode", "ParamKey", "ParamName", "DataType", "DefaultValue", "IsRequired", "SortOrder") VALUES

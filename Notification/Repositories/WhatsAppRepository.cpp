@@ -317,6 +317,38 @@ namespace omnisphere::repositories
         }
     }
 
+    std::vector<omnisphere::models::CustomButton> WhatsAppRepository::GetButtonsForMessageCode(const std::string& messageCode) const
+    {
+        if (!m_dbPool || messageCode.empty()) return {};
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            std::string sql = "SELECT \"Entry\", \"MessageCode\", \"ButtonId\", \"Title\", \"ActionType\", \"ActionPayload\", \"SortOrder\", \"CreatedBy\" FROM \"CustomButtons\" WHERE \"MessageCode\" = ? ORDER BY \"SortOrder\" ASC";
+            std::vector<omnisphere::types::SQLParam> params = { omnisphere::types::MakeSQLParam(messageCode) };
+            auto dt = conn->FetchPrepared(sql, params);
+
+            std::vector<omnisphere::models::CustomButton> result;
+            for (std::size_t i = 0; i < dt.RowsCount(); ++i)
+            {
+                omnisphere::models::CustomButton btn;
+                btn.entry = dt[i]["Entry"];
+                btn.messageCode = (std::string)dt[i]["MessageCode"];
+                btn.buttonId = (std::string)dt[i]["ButtonId"];
+                btn.title = (std::string)dt[i]["Title"];
+                btn.actionType = (std::string)dt[i]["ActionType"];
+                try { if (dt[i].HasColumn("ActionPayload") && !dt[i]["ActionPayload"].IsNull()) btn.actionPayload = (std::string)dt[i]["ActionPayload"]; } catch(...) {}
+                btn.sortOrder = dt[i]["SortOrder"];
+                result.push_back(btn);
+            }
+            return result;
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[WhatsAppRepository::GetButtonsForMessageCode Exception] " << ex.what() << std::endl;
+            return {};
+        }
+    }
+
     std::vector<omnisphere::models::CustomMessageParameter> WhatsAppRepository::GetParametersForMessage(const std::string& messageCode) const
     {
         if (!m_dbPool || messageCode.empty()) return {};
@@ -381,8 +413,29 @@ namespace omnisphere::repositories
             msg.bodyTemplate = (std::string)dt[0]["BodyTemplate"];
             try { msg.footerText = (std::string)dt[0]["FooterText"]; } catch(...) {}
             msg.isActive = dt[0]["IsActive"];
-            msg.buttons = GetButtonsForMessage(msg.entry);
+            
+            // Try fetching buttons by MessageCode first, then fallback to MessageEntry
+            msg.buttons = GetButtonsForMessageCode(msg.code);
+            if (msg.buttons.empty())
+            {
+                msg.buttons = GetButtonsForMessage(msg.entry);
+            }
             msg.parameters = GetParametersForMessage(msg.code);
+
+            // Self-healing: Ensure TPL_WELCOME_WITH_RESERVATION is configured as INTERACTIVE_BUTTON with BTN_DETAILS_{folio}
+            if (msg.code == "TPL_WELCOME_WITH_RESERVATION" && (msg.messageType != "INTERACTIVE_BUTTON" || msg.buttons.empty()))
+            {
+                try
+                {
+                    conn->RunPrepared("UPDATE \"CustomMessages\" SET \"MessageType\" = 'INTERACTIVE_BUTTON' WHERE \"Code\" = 'TPL_WELCOME_WITH_RESERVATION'", {});
+                    conn->RunPrepared("DELETE FROM \"CustomButtons\" WHERE \"MessageCode\" = 'TPL_WELCOME_WITH_RESERVATION'", {});
+                    conn->RunPrepared("INSERT INTO \"CustomButtons\" (\"MessageCode\", \"ButtonId\", \"Title\", \"SortOrder\", \"CreatedBy\") VALUES ('TPL_WELCOME_WITH_RESERVATION', 'BTN_DETAILS_{folio}', 'Ver Detalles', 1, 1)", {});
+                    
+                    msg.messageType = "INTERACTIVE_BUTTON";
+                    msg.buttons = GetButtonsForMessageCode(msg.code);
+                }
+                catch (...) {}
+            }
 
             return msg;
         }
