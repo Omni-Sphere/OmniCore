@@ -186,4 +186,65 @@ namespace omnisphere::repositories
         }
     }
 
+    // -------------------------------------------------------------------------
+    // GetMasterSecret — Lee la clave secreta de HMAC desde GlobalConfiguration
+    // -------------------------------------------------------------------------
+    std::string LicenseRepository::GetMasterSecret() const
+    {
+        static const std::string kDefaultSecret = "OmniSphere_Master_Secret_Signer_Key_2026_Secure_v1!";
+        if (!m_dbPool) return kDefaultSecret;
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            std::string sql = "SELECT \"Value\" FROM \"GlobalConfiguration\" WHERE \"Code\" = 'LICENSE_MASTER_SECRET' AND \"IsActive\" = true LIMIT 1";
+            std::vector<omnisphere::types::SQLParam> emptyParams;
+            auto dt = conn->FetchPrepared(sql, emptyParams);
+            if (dt.RowsCount() > 0 && dt[0].HasColumn("Value"))
+            {
+                auto val = dt[0]["Value"];
+                if (val.has_value())
+                {
+                    if (auto p = std::get_if<std::string>(&(*val)))
+                    {
+                        if (!p->empty()) return *p;
+                    }
+                }
+            }
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[LicenseRepository::GetMasterSecret] " << ex.what() << std::endl;
+        }
+        return kDefaultSecret;
+    }
+
+    // -------------------------------------------------------------------------
+    // SetMasterSecret — Guarda la clave secreta HMAC en GlobalConfiguration
+    // -------------------------------------------------------------------------
+    bool LicenseRepository::SetMasterSecret(const std::string& secret) const
+    {
+        if (!m_dbPool || secret.empty()) return false;
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            std::string sql =
+                "INSERT INTO \"GlobalConfiguration\" "
+                "(\"Code\", \"Name\", \"Value\", \"IsEncrypted\", \"IsActive\", \"CreatedBy\", \"CreateDate\") "
+                "VALUES ('LICENSE_MASTER_SECRET', 'Master Secret de Licenciamiento OmniSphere HMAC-SHA256', ?, true, true, 1, NOW()) "
+                "ON CONFLICT (\"Code\") DO UPDATE SET "
+                "\"Value\" = EXCLUDED.\"Value\", "
+                "\"UpdateDate\" = NOW()";
+
+            std::vector<omnisphere::types::SQLParam> params = {
+                omnisphere::types::MakeSQLParam(secret)
+            };
+            return conn->RunPrepared(sql, params);
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[LicenseRepository::SetMasterSecret] " << ex.what() << std::endl;
+            return false;
+        }
+    }
+
 } // namespace omnisphere::repositories

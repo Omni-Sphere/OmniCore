@@ -143,6 +143,11 @@ namespace omnisphere::services
         return "OMNI-" + encodedPayload + "." + signature;
     }
 
+    std::string LicenseService::GenerateKey(const LicenseParams& params) const
+    {
+        return GenerateKey(params, GetMasterSecret());
+    }
+
     // =========================================================================
     // Parsear payload JSON
     // =========================================================================
@@ -211,12 +216,10 @@ namespace omnisphere::services
         return diff > 0 ? static_cast<int>(diff / 86400) : 0;
     }
 
-    std::string LicenseService::GetMasterSecret()
+    std::string LicenseService::GetMasterSecret() const
     {
-        const char* secret = std::getenv("OMNI_LICENSE_SECRET");
-        if (!secret || std::strlen(secret) == 0)
-            throw LicenseException("Variable de entorno OMNI_LICENSE_SECRET no configurada.");
-        return std::string(secret);
+        if (m_repository) return m_repository->GetMasterSecret();
+        return "OmniSphere_Master_Secret_Signer_Key_2026_Secure_v1!";
     }
 
     // =========================================================================

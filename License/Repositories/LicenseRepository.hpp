@@ -35,6 +35,13 @@ namespace omnisphere::repositories
         /// Lista todas las licencias históricas registradas.
         std::vector<omnisphere::models::SystemLicense> GetAll() const;
 
+        /// Obtiene el secreto maestro HMAC-SHA256 guardado en GlobalConfiguration (BD).
+        /// Si no existe en BD, devuelve la clave por defecto del sistema.
+        std::string GetMasterSecret() const;
+
+        /// Guarda o actualiza el secreto maestro en GlobalConfiguration.
+        bool SetMasterSecret(const std::string& secret) const;
+
     private:
         std::shared_ptr<omnisphere::data::DatabasePool> m_dbPool;
     };

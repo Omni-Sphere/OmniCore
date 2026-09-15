@@ -59,9 +59,11 @@ namespace omnisphere::services
         // Generación (uso interno del sistema OmniSphere)
         // -----------------------------------------------------------------------
 
-        /// Genera una nueva OmniLicense API Key firmada con HMAC-SHA256.
-        /// Requiere que OMNI_LICENSE_SECRET esté configurada en el entorno.
+        /// Genera una nueva OmniLicense API Key firmada con HMAC-SHA256 usando la clave de BD.
         /// @return La API Key completa: "OMNI-<payload>.<signature>"
+        std::string GenerateKey(const LicenseParams& params) const;
+
+        /// Genera una nueva OmniLicense API Key firmada con un secreto explícito.
         static std::string GenerateKey(const LicenseParams& params, const std::string& masterSecret);
 
         // -----------------------------------------------------------------------
@@ -129,8 +131,8 @@ namespace omnisphere::services
         /// Calcula días restantes desde hoy hasta expiresAt
         static int DaysRemaining(const std::string& expiresAt);
 
-        /// Lee OMNI_LICENSE_SECRET del entorno
-        static std::string GetMasterSecret();
+        /// Lee la clave maestra HMAC-SHA256 desde GlobalConfiguration (BD) o fallback.
+        std::string GetMasterSecret() const;
     };
 
 } // namespace omnisphere::services
