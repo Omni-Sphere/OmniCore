@@ -1,7 +1,11 @@
 -- =============================================================================
--- OmniCore.sql - Core Schema DDL (PostgreSQL Native Strict Preservation)
+-- OmniCore.sql - Master Platform Schema DDL & Data Migration Script
+-- Strict PostgreSQL Case Preservation with Double Quotes
 -- Modules: Identity, Users, Sessions, GlobalConfiguration, SystemConfig,
---          Multi-Gateway Payments (Stripe, OpenPay, MercadoPago), WhatsApp Cloud API
+--          Venues, Events, DeparturePoints, Routes, RouteStops, Schedules,
+--          Tickets, NotificationContacts, NotificationSettings, Reservations,
+--          Multi-Gateway Payments (Stripe, OpenPay, MercadoPago),
+--          WhatsApp Cloud API & Custom Notification Templates
 -- =============================================================================
 
 -- 1. Custom ENUM Types Check
@@ -29,6 +33,50 @@ BEGIN
             'REFUNDED',
             'CANCELLED'
         );
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'DeparturePointType') THEN
+        CREATE TYPE "DeparturePointType" AS ENUM (
+            'PICKUP',
+            'INTERMEDIATE',
+            'DROPOFF'
+        );
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ScheduleType') THEN
+        CREATE TYPE "ScheduleType" AS ENUM (
+            'DEPARTURE',
+            'RETURN',
+            'ROUND_TRIP'
+        );
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'EventCategory') THEN
+        CREATE TYPE "EventCategory" AS ENUM (
+            'MUSIC',
+            'SPORTS',
+            'THEATER',
+            'FESTIVAL',
+            'CULTURE',
+            'OTHER'
+        );
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ReservationStatusType') THEN
+        CREATE TYPE "ReservationStatusType" AS ENUM (
+            'PENDING',
+            'UNCONFIRMED',
+            'CONFIRMED',
+            'CANCELLED',
+            'COMPLETED'
+        );
+    END IF;
+
+    -- Migration: add PENDING to ReservationStatusType if missing
+    IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ReservationStatusType') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'PENDING' AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'ReservationStatusType')) THEN
+            ALTER TYPE "ReservationStatusType" ADD VALUE IF NOT EXISTS 'PENDING' BEFORE 'UNCONFIRMED';
+        END IF;
     END IF;
 END $$;
 
@@ -109,7 +157,289 @@ CREATE TABLE IF NOT EXISTS "SystemConfigs" (
     "UpdateDate" TIMESTAMP
 );
 
--- 6. PaymentMethods
+-- 6. Identities (Centralized Unpadded Prefix & Sequence Management)
+CREATE TABLE IF NOT EXISTS "Identities" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Domain" VARCHAR(50) NOT NULL UNIQUE,
+    "Prefix1" VARCHAR(3) NOT NULL,
+    "Prefix2" VARCHAR(3),
+    "Prefix3" VARCHAR(3),
+    "CurrentSequence" INT NOT NULL DEFAULT 0,
+    "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "CreatedBy" INT NOT NULL DEFAULT 0,
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" INT,
+    "UpdateDate" TIMESTAMP,
+    CONSTRAINT "CHK_Identities_IsActive" CHECK ("IsActive" IN (true, false)),
+    CONSTRAINT "CHK_Identities_CurrentSequence" CHECK ("CurrentSequence" >= 0),
+    CONSTRAINT "CHK_Identities_Prefix1_Len" CHECK (LENGTH(TRIM("Prefix1")) = 3)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "UQ_Identities_Domain_Active" ON "Identities" ("Domain") WHERE "IsActive" = true;
+
+INSERT INTO "Identities" ("Domain", "Prefix1", "CurrentSequence") VALUES
+('Venue', 'VNU', 0),
+('Event', 'EVT', 0),
+('DeparturePoint', 'DEP', 0),
+('Route', 'RTE', 0),
+('RouteStop', 'STP', 0),
+('Schedule', 'SCH', 0),
+('Ticket', 'TCK', 0),
+('NotificationContact', 'NTC', 0),
+('NotificationSetting', 'NTS', 0),
+('Reservation', 'RSV', 0),
+('PaymentMethod', 'PMT', 4),
+('WhatsAppSettings', 'WAS', 0),
+('WhatsAppConversation', 'WAC', 0),
+('WhatsAppMessage', 'WAM', 0),
+('CustomMessage', 'MSG', 0),
+('CustomButton', 'BTN', 0),
+('CustomAttachment', 'ATT', 0)
+ON CONFLICT ("Domain") DO NOTHING;
+
+-- 7. Venues
+CREATE TABLE IF NOT EXISTS "Venues" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(50) NOT NULL UNIQUE,
+    "Name" VARCHAR(255) NOT NULL,
+    "City" VARCHAR(3) NOT NULL,
+    "Address" TEXT NOT NULL,
+    "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" INT,
+    "UpdateDate" TIMESTAMP,
+    CONSTRAINT "CHK_Venues_IsActive" CHECK ("IsActive" IN (true, false))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "UQ_Venues_Name_Active" ON "Venues" (LOWER(TRIM("Name"))) WHERE "IsActive" = true;
+CREATE INDEX IF NOT EXISTS "IDX_Venues_Code_Active" ON "Venues" ("Code") WHERE "IsActive" = true;
+
+-- 8. Events
+CREATE TABLE IF NOT EXISTS "Events" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(50) NOT NULL UNIQUE,
+    "Name" VARCHAR(255) NOT NULL,
+    "Date" TIMESTAMP NOT NULL,
+    "VenueCode" VARCHAR(50) NOT NULL,
+    "Image" TEXT,
+    "Category" "EventCategory",
+    "IsPromoted" BOOLEAN NOT NULL DEFAULT false,
+    "IsUpcoming" BOOLEAN NOT NULL DEFAULT true,
+    "CommingSoon" BOOLEAN NOT NULL DEFAULT false,
+    "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" INT,
+    "UpdateDate" TIMESTAMP,
+    CONSTRAINT "CHK_Events_IsPromoted" CHECK ("IsPromoted" IN (true, false)),
+    CONSTRAINT "CHK_Events_IsUpcoming" CHECK ("IsUpcoming" IN (true, false)),
+    CONSTRAINT "CHK_Events_CommingSoon" CHECK ("CommingSoon" IN (true, false)),
+    CONSTRAINT "CHK_Events_IsActive" CHECK ("IsActive" IN (true, false))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "UQ_Events_Name_Active" ON "Events" (LOWER(TRIM("Name"))) WHERE "IsActive" = true;
+CREATE INDEX IF NOT EXISTS "IDX_Events_VenueCode_Active" ON "Events" ("VenueCode") WHERE "IsActive" = true;
+CREATE INDEX IF NOT EXISTS "IDX_Events_Date_Active" ON "Events" ("Date") WHERE "IsActive" = true;
+CREATE INDEX IF NOT EXISTS "IDX_Events_Category_Active" ON "Events" ("Category") WHERE "IsActive" = true;
+
+-- 9. DeparturePoints
+CREATE TABLE IF NOT EXISTS "DeparturePoints" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(50) NOT NULL UNIQUE,
+    "Name" VARCHAR(255) NOT NULL,
+    "City" VARCHAR(3) NOT NULL,
+    "Address" TEXT NOT NULL,
+    "PointType" "DeparturePointType" NOT NULL,
+    "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" INT,
+    "UpdateDate" TIMESTAMP,
+    CONSTRAINT "CHK_DeparturePoints_IsActive" CHECK ("IsActive" IN (true, false))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "UQ_DeparturePoints_Name_Active" ON "DeparturePoints" (LOWER(TRIM("Name"))) WHERE "IsActive" = true;
+CREATE INDEX IF NOT EXISTS "IDX_DeparturePoints_City_PointType_Active" ON "DeparturePoints" ("City", "PointType") WHERE "IsActive" = true;
+
+-- 10. Routes
+CREATE TABLE IF NOT EXISTS "Routes" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(50) NOT NULL UNIQUE,
+    "Name" VARCHAR(255) NOT NULL,
+    "OriginPointCode" VARCHAR(50) NOT NULL,
+    "DestinationVenueCode" VARCHAR(50) NOT NULL,
+    "BasePrice" NUMERIC(10, 2) NOT NULL,
+    "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" INT,
+    "UpdateDate" TIMESTAMP,
+    CONSTRAINT "CHK_Routes_BasePrice" CHECK ("BasePrice" >= 0),
+    CONSTRAINT "CHK_Routes_IsActive" CHECK ("IsActive" IN (true, false))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "UQ_Routes_Name_Active" ON "Routes" (LOWER(TRIM("Name"))) WHERE "IsActive" = true;
+CREATE INDEX IF NOT EXISTS "IDX_Routes_Origin_Dest_Active" ON "Routes" ("OriginPointCode", "DestinationVenueCode") WHERE "IsActive" = true;
+
+-- 11. RouteStops
+CREATE TABLE IF NOT EXISTS "RouteStops" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(50) NOT NULL,
+    "Name" VARCHAR(255) NOT NULL,
+    "RouteCode" VARCHAR(50) NOT NULL,
+    "Type" "DeparturePointType" NOT NULL,
+    "BasePrice" NUMERIC(10, 2) NOT NULL,
+    "ArrivalTime" VARCHAR(50),
+    "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" INT,
+    "UpdateDate" TIMESTAMP,
+    CONSTRAINT "CHK_RouteStops_BasePrice" CHECK ("BasePrice" >= 0),
+    CONSTRAINT "CHK_RouteStops_IsActive" CHECK ("IsActive" IN (true, false))
+);
+
+CREATE INDEX IF NOT EXISTS "IDX_RouteStops_RouteCode_Active" ON "RouteStops" ("RouteCode") WHERE "IsActive" = true;
+CREATE UNIQUE INDEX IF NOT EXISTS "UQ_RouteStops_RouteCode_Pickup_Active" ON "RouteStops" ("RouteCode") WHERE "Type" = 'PICKUP' AND "IsActive" = true;
+CREATE UNIQUE INDEX IF NOT EXISTS "UQ_RouteStops_RouteCode_Dropoff_Active" ON "RouteStops" ("RouteCode") WHERE "Type" = 'DROPOFF' AND "IsActive" = true;
+
+-- 12. Schedules
+CREATE TABLE IF NOT EXISTS "Schedules" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(50) NOT NULL UNIQUE,
+    "Name" VARCHAR(255) NOT NULL,
+    "EventCode" VARCHAR(50) NOT NULL,
+    "RouteCode" VARCHAR(50),
+    "Type" "ScheduleType" NOT NULL,
+    "DepartureTime" TIMESTAMP NOT NULL,
+    "DepartureLabel" VARCHAR(100) NOT NULL,
+    "ArrivalTime" TIMESTAMP,
+    "ReturnDepartureTime" TIMESTAMP,
+    "ReturnArrivalTime" TIMESTAMP,
+    "Duration" INT,
+    "Capacity" INT NOT NULL,
+    "AvailableSeats" INT NOT NULL,
+    "Price" NUMERIC(10, 2) NOT NULL,
+    "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" INT,
+    "UpdateDate" TIMESTAMP,
+    CONSTRAINT "CHK_Schedules_Capacity" CHECK ("Capacity" >= 0),
+    CONSTRAINT "CHK_Schedules_AvailableSeats" CHECK ("AvailableSeats" >= 0),
+    CONSTRAINT "CHK_Schedules_Price" CHECK ("Price" >= 0),
+    CONSTRAINT "CHK_Schedules_AvailableSeats_Capacity" CHECK ("AvailableSeats" <= "Capacity"),
+    CONSTRAINT "CHK_Schedules_IsActive" CHECK ("IsActive" IN (true, false))
+);
+
+CREATE INDEX IF NOT EXISTS "IDX_Schedules_EventCode_Type_Active" ON "Schedules" ("EventCode", "Type") WHERE "IsActive" = true;
+CREATE INDEX IF NOT EXISTS "IDX_Schedules_RouteCode_Active" ON "Schedules" ("RouteCode") WHERE "IsActive" = true;
+
+-- 13. Tickets
+CREATE TABLE IF NOT EXISTS "Tickets" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(50) NOT NULL UNIQUE,
+    "Name" VARCHAR(255) NOT NULL,
+    "ScheduleCode" VARCHAR(50) NOT NULL,
+    "Phone" VARCHAR(50) NOT NULL,
+    "Quantity" INT NOT NULL DEFAULT 1,
+    "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" INT,
+    "UpdateDate" TIMESTAMP,
+    CONSTRAINT "CHK_Tickets_Phone" CHECK (LENGTH(TRIM("Phone")) >= 7),
+    CONSTRAINT "CHK_Tickets_Quantity" CHECK ("Quantity" > 0),
+    CONSTRAINT "CHK_Tickets_IsActive" CHECK ("IsActive" IN (true, false))
+);
+
+CREATE INDEX IF NOT EXISTS "IDX_Tickets_ScheduleCode_Active" ON "Tickets" ("ScheduleCode") WHERE "IsActive" = true;
+
+-- 14. NotificationContacts
+CREATE TABLE IF NOT EXISTS "NotificationContacts" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(50) NOT NULL UNIQUE,
+    "Name" VARCHAR(255) NOT NULL,
+    "Phone" VARCHAR(50) NOT NULL,
+    "Role" VARCHAR(100) NOT NULL,
+    "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" INT,
+    "UpdateDate" TIMESTAMP,
+    CONSTRAINT "CHK_NotificationContacts_Phone" CHECK (LENGTH(TRIM("Phone")) >= 7),
+    CONSTRAINT "CHK_NotificationContacts_IsActive" CHECK ("IsActive" IN (true, false))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "UQ_NotificationContacts_Phone_Active" ON "NotificationContacts" ("Phone") WHERE "IsActive" = true;
+
+-- 15. NotificationSettings
+CREATE TABLE IF NOT EXISTS "NotificationSettings" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(50) NOT NULL DEFAULT 'DEFAULT' UNIQUE,
+    "Name" VARCHAR(255) NOT NULL DEFAULT 'Notification Settings',
+    "OwnerWhatsapp" VARCHAR(50) NOT NULL,
+    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" INT,
+    "UpdateDate" TIMESTAMP,
+    CONSTRAINT "CHK_NotificationSettings_Code" CHECK (LENGTH(TRIM("Code")) > 0),
+    CONSTRAINT "CHK_NotificationSettings_OwnerWhatsapp" CHECK (LENGTH(TRIM("OwnerWhatsapp")) >= 7)
+);
+
+-- 16. Reservations
+CREATE TABLE IF NOT EXISTS "Reservations" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(50) NOT NULL UNIQUE,
+    "FirstName1" VARCHAR(100) NOT NULL,
+    "FirstName2" VARCHAR(100),
+    "LastName1" VARCHAR(100) NOT NULL,
+    "LastName2" VARCHAR(100),
+    "Email" VARCHAR(100),
+    "Phone" VARCHAR(50) NOT NULL,
+    "Seats" INT NOT NULL DEFAULT 1,
+    "EventCode" VARCHAR(50) NOT NULL,
+    "RouteCode" VARCHAR(50) NOT NULL,
+    "PickupPointCode" VARCHAR(50) NOT NULL,
+    "DropoffPointCode" VARCHAR(50) NOT NULL,
+    "ScheduleCode" VARCHAR(50),
+    "TripType" "ScheduleType" NOT NULL DEFAULT 'ROUND_TRIP',
+    "UnitPrice" NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
+    "TotalPrice" NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
+    "PaymentMethod" "PaymentMethodType" NOT NULL DEFAULT 'NOT_APPLICABLE',
+    "PaymentStatus" "PaymentStatusType" NOT NULL DEFAULT 'UNPAID',
+    "PaymentReference" VARCHAR(100),
+    "PaymentDate" TIMESTAMP,
+    "CancellationReason" TEXT,
+    "CancelledDate" TIMESTAMP,
+    "Status" "ReservationStatusType" NOT NULL DEFAULT 'UNCONFIRMED',
+    "ExpiresAt" TIMESTAMPTZ,
+    "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "CreatedBy" INT NOT NULL DEFAULT 0,
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" INT,
+    "UpdateDate" TIMESTAMP,
+    CONSTRAINT "CHK_Reservations_FirstName1" CHECK (LENGTH(TRIM("FirstName1")) > 0),
+    CONSTRAINT "CHK_Reservations_LastName1" CHECK (LENGTH(TRIM("LastName1")) > 0),
+    CONSTRAINT "CHK_Reservations_Phone" CHECK (LENGTH(TRIM("Phone")) >= 7),
+    CONSTRAINT "CHK_Reservations_Seats" CHECK ("Seats" > 0),
+    CONSTRAINT "CHK_Reservations_UnitPrice" CHECK ("UnitPrice" >= 0),
+    CONSTRAINT "CHK_Reservations_TotalPrice" CHECK ("TotalPrice" >= 0),
+    CONSTRAINT "CHK_Reservations_IsActive" CHECK ("IsActive" IN (true, false))
+);
+
+ALTER TABLE "Reservations" ADD COLUMN IF NOT EXISTS "ExpiresAt" TIMESTAMPTZ;
+
+CREATE INDEX IF NOT EXISTS "IDX_Reservations_EventCode_Active" ON "Reservations" ("EventCode") WHERE "IsActive" = true;
+CREATE INDEX IF NOT EXISTS "IDX_Reservations_RouteCode_Active" ON "Reservations" ("RouteCode") WHERE "IsActive" = true;
+CREATE INDEX IF NOT EXISTS "IDX_Reservations_Phone_Active" ON "Reservations" ("Phone") WHERE "IsActive" = true;
+CREATE INDEX IF NOT EXISTS "IDX_Reservations_Status_Active" ON "Reservations" ("Status") WHERE "IsActive" = true;
+CREATE INDEX IF NOT EXISTS "IDX_Reservations_PaymentStatus_Active" ON "Reservations" ("PaymentStatus") WHERE "IsActive" = true;
+CREATE INDEX IF NOT EXISTS "IDX_Reservations_PaymentMethod_Active" ON "Reservations" ("PaymentMethod") WHERE "IsActive" = true;
+CREATE INDEX IF NOT EXISTS "IDX_Reservations_ExpiresAt_Pending" ON "Reservations" ("ExpiresAt") WHERE "Status" = 'PENDING' AND "IsActive" = true;
+
+-- 17. PaymentMethods
 CREATE TABLE IF NOT EXISTS "PaymentMethods" (
     "Entry" SERIAL PRIMARY KEY,
     "Code" VARCHAR(50) NOT NULL UNIQUE,
@@ -130,7 +460,16 @@ CREATE TABLE IF NOT EXISTS "PaymentMethods" (
 ALTER TABLE "PaymentMethods" ADD COLUMN IF NOT EXISTS "UsesIntegration" BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE "PaymentMethods" ADD COLUMN IF NOT EXISTS "IntegrationProvider" VARCHAR(50);
 
--- 7. PaymentGateways (Configuración Dinámica Centralizada Multi-Pasarela)
+CREATE UNIQUE INDEX IF NOT EXISTS "UQ_PaymentMethods_Name_Active" ON "PaymentMethods" (LOWER(TRIM("Name"))) WHERE "IsActive" = true;
+
+INSERT INTO "PaymentMethods" ("Code", "Name", "Type", "UsesCommission", "CommissionRate", "CreatedBy") VALUES
+('PMT1', 'Efectivo', 'CASH', false, 0.00, 1),
+('PMT2', 'Transferencia', 'TRANSFER', false, 0.00, 1),
+('PMT3', 'Tarjeta / Otro', 'CARD', true, 3.50, 1),
+('PMT4', 'No Aplica / Pend.', 'NOT_APPLICABLE', false, 0.00, 1)
+ON CONFLICT ("Code") DO NOTHING;
+
+-- 18. PaymentGateways (Configuración Dinámica Centralizada Multi-Pasarela)
 CREATE TABLE IF NOT EXISTS "PaymentGateways" (
     "Entry" SERIAL PRIMARY KEY,
     "Code" VARCHAR(50) NOT NULL UNIQUE,
@@ -159,7 +498,7 @@ INSERT INTO "PaymentGateways" ("Code", "Name", "Provider", "IsTestMode", "IsActi
 ('GW_MERCADOPAGO', 'Mercado Pago Checkout Pro', 'MERCADOPAGO', true, false, 1)
 ON CONFLICT ("Code") DO NOTHING;
 
--- 8. PaymentTransactions (Auditoría Universal de Transacciones de Cobro)
+-- 19. PaymentTransactions (Auditoría Universal de Transacciones de Cobro)
 CREATE TABLE IF NOT EXISTS "PaymentTransactions" (
     "Entry" SERIAL PRIMARY KEY,
     "Code" VARCHAR(50) NOT NULL UNIQUE,
@@ -191,7 +530,7 @@ CREATE INDEX IF NOT EXISTS "IDX_PaymentTransactions_ExpiresAt_Pending" ON "Payme
 CREATE INDEX IF NOT EXISTS "IDX_PaymentTransactions_PaymentIntentId" ON "PaymentTransactions" ("PaymentIntentId");
 CREATE INDEX IF NOT EXISTS "IDX_PaymentTransactions_Clabe" ON "PaymentTransactions" ("Clabe");
 
--- 9. OpenPaySettings
+-- 20. OpenPaySettings
 CREATE TABLE IF NOT EXISTS "OpenPaySettings" (
     "Entry" SERIAL PRIMARY KEY,
     "Code" VARCHAR(50) NOT NULL DEFAULT 'DEFAULT' UNIQUE,
@@ -213,7 +552,7 @@ INSERT INTO "OpenPaySettings" ("Code", "Name", "IsTestMode", "IsActive", "Create
 ('DEFAULT', 'OpenPay Settings', true, true, 1)
 ON CONFLICT ("Code") DO NOTHING;
 
--- 10. MercadoPagoSettings
+-- 21. MercadoPagoSettings
 CREATE TABLE IF NOT EXISTS "MercadoPagoSettings" (
     "Entry" SERIAL PRIMARY KEY,
     "Code" VARCHAR(50) NOT NULL DEFAULT 'DEFAULT' UNIQUE,
@@ -234,7 +573,7 @@ INSERT INTO "MercadoPagoSettings" ("Code", "Name", "IsTestMode", "IsActive", "Cr
 ('DEFAULT', 'Mercado Pago Settings', true, true, 1)
 ON CONFLICT ("Code") DO NOTHING;
 
--- 11. StripeSettings
+-- 22. StripeSettings
 CREATE TABLE IF NOT EXISTS "StripeSettings" (
     "Entry" SERIAL PRIMARY KEY,
     "Code" VARCHAR(50) NOT NULL DEFAULT 'DEFAULT' UNIQUE,
@@ -254,7 +593,65 @@ CREATE TABLE IF NOT EXISTS "StripeSettings" (
     "UpdateDate" TIMESTAMP
 );
 
--- 12. WhatsAppSettings (Meta Cloud API)
+-- 23. StripeSessions (Checkout Session Tracking)
+CREATE TABLE IF NOT EXISTS "StripeSessions" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(50) NOT NULL UNIQUE,
+    "ReservationCode" VARCHAR(50) NOT NULL,
+    "StripeSessionId" VARCHAR(255) NOT NULL,
+    "PaymentIntentId" VARCHAR(255),
+    "CheckoutUrl" TEXT NOT NULL,
+    "Amount" NUMERIC(10, 2) NOT NULL,
+    "Currency" VARCHAR(10) NOT NULL DEFAULT 'mxn',
+    "Status" VARCHAR(50) NOT NULL DEFAULT 'open',
+    "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" INT,
+    "UpdateDate" TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS "IDX_StripeSessions_ReservationCode" ON "StripeSessions" ("ReservationCode");
+CREATE INDEX IF NOT EXISTS "IDX_StripeSessions_StripeSessionId" ON "StripeSessions" ("StripeSessionId");
+
+-- 24. StripeTransactions (Detailed Stripe Auditing)
+CREATE TABLE IF NOT EXISTS "StripeTransactions" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(50) NOT NULL UNIQUE,
+    "ReservationCode" VARCHAR(50) NOT NULL,
+    "PaymentIntentId" VARCHAR(255) NOT NULL,
+    "ChargeId" VARCHAR(255),
+    "Amount" NUMERIC(10, 2) NOT NULL,
+    "Currency" VARCHAR(10) NOT NULL DEFAULT 'mxn',
+    "Status" VARCHAR(50) NOT NULL DEFAULT 'succeeded',
+    "PaymentMethodType" VARCHAR(50) DEFAULT 'card',
+    "Clabe" VARCHAR(50),
+    "BankName" VARCHAR(100),
+    "CardBrand" VARCHAR(50),
+    "CardLast4" VARCHAR(10),
+    "CardType" VARCHAR(50),
+    "AuthorizationCode" VARCHAR(100),
+    "CardFingerprint" VARCHAR(255),
+    "ReceiptUrl" TEXT,
+    "HostedInstructionsUrl" TEXT,
+    "ClientIp" VARCHAR(50),
+    "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" INT,
+    "UpdateDate" TIMESTAMP
+);
+
+ALTER TABLE "StripeTransactions" ADD COLUMN IF NOT EXISTS "PaymentMethodType" VARCHAR(50) DEFAULT 'card';
+ALTER TABLE "StripeTransactions" ADD COLUMN IF NOT EXISTS "Clabe" VARCHAR(50);
+ALTER TABLE "StripeTransactions" ADD COLUMN IF NOT EXISTS "BankName" VARCHAR(100);
+ALTER TABLE "StripeTransactions" ADD COLUMN IF NOT EXISTS "HostedInstructionsUrl" TEXT;
+
+CREATE INDEX IF NOT EXISTS "IDX_StripeTransactions_ReservationCode" ON "StripeTransactions" ("ReservationCode");
+CREATE INDEX IF NOT EXISTS "IDX_StripeTransactions_PaymentIntentId" ON "StripeTransactions" ("PaymentIntentId");
+CREATE INDEX IF NOT EXISTS "IDX_StripeTransactions_Clabe" ON "StripeTransactions" ("Clabe");
+
+-- 25. WhatsAppSettings (Meta Cloud API)
 CREATE TABLE IF NOT EXISTS "WhatsAppSettings" (
     "Entry" SERIAL PRIMARY KEY,
     "Code" VARCHAR(50) NOT NULL UNIQUE DEFAULT 'DEFAULT',
@@ -275,7 +672,7 @@ INSERT INTO "WhatsAppSettings" ("Code", "Name", "PhoneId", "ApiToken", "Business
 ('DEFAULT', 'MetaConfig', '', '', '', '', 'v24.0', true, 1)
 ON CONFLICT ("Code") DO NOTHING;
 
--- 13. WhatsAppConversations
+-- 26. WhatsAppConversations
 CREATE TABLE IF NOT EXISTS "WhatsAppConversations" (
     "Entry" SERIAL PRIMARY KEY,
     "Code" VARCHAR(50) NOT NULL UNIQUE,
@@ -294,7 +691,7 @@ CREATE TABLE IF NOT EXISTS "WhatsAppConversations" (
 
 CREATE INDEX IF NOT EXISTS "IDX_WhatsAppConversations_CustomerPhone" ON "WhatsAppConversations" ("CustomerPhone");
 
--- 14. WhatsAppMessages
+-- 27. WhatsAppMessages
 CREATE TABLE IF NOT EXISTS "WhatsAppMessages" (
     "Entry" SERIAL PRIMARY KEY,
     "Code" VARCHAR(255),
@@ -314,13 +711,13 @@ CREATE TABLE IF NOT EXISTS "WhatsAppMessages" (
 CREATE INDEX IF NOT EXISTS "IDX_WhatsAppMessages_ConversationEntry" ON "WhatsAppMessages" ("ConversationEntry");
 CREATE INDEX IF NOT EXISTS "IDX_WhatsAppMessages_Code" ON "WhatsAppMessages" ("Code");
 
--- 15. WhatsAppTemplates (Plantillas Oficiales de Meta Cloud API)
+-- 28. WhatsAppTemplates (Plantillas Oficiales Meta Cloud API)
 CREATE TABLE IF NOT EXISTS "WhatsAppTemplates" (
     "Entry" SERIAL PRIMARY KEY,
     "Code" VARCHAR(50) NOT NULL UNIQUE,
     "TemplateName" VARCHAR(100) NOT NULL,
     "Language" VARCHAR(10) NOT NULL DEFAULT 'es_MX',
-    "Category" VARCHAR(50) NOT NULL DEFAULT 'UTILITY', -- 'MARKETING', 'UTILITY', 'AUTHENTICATION'
+    "Category" VARCHAR(50) NOT NULL DEFAULT 'UTILITY',
     "HeaderType" VARCHAR(20) NOT NULL DEFAULT 'NONE',
     "BodyTemplate" TEXT NOT NULL,
     "FooterText" VARCHAR(255),
@@ -335,7 +732,7 @@ CREATE TABLE IF NOT EXISTS "WhatsAppTemplates" (
 
 CREATE INDEX IF NOT EXISTS "IDX_WhatsAppTemplates_TemplateName" ON "WhatsAppTemplates" ("TemplateName");
 
--- 16. CustomMessages (Plantillas Internas Dinámicas de OmniSphere / OmniRoute)
+-- 29. CustomMessages (Motor Dinámico de Plantillas de Mensajes)
 CREATE TABLE IF NOT EXISTS "CustomMessages" (
     "Entry" SERIAL PRIMARY KEY,
     "Code" VARCHAR(50) NOT NULL UNIQUE,
@@ -363,7 +760,7 @@ ALTER TABLE "CustomMessages" ADD COLUMN IF NOT EXISTS "MetaRejectReason" TEXT;
 
 CREATE INDEX IF NOT EXISTS "IDX_CustomMessages_Code" ON "CustomMessages" ("Code");
 
--- 17. CustomMessageParameters (Parámetros y Tipos de Datos de Plantillas Internas)
+-- 30. CustomMessageParameters
 CREATE TABLE IF NOT EXISTS "CustomMessageParameters" (
     "Entry" SERIAL PRIMARY KEY,
     "MessageCode" VARCHAR(50) NOT NULL,
@@ -382,7 +779,7 @@ CREATE TABLE IF NOT EXISTS "CustomMessageParameters" (
 
 CREATE INDEX IF NOT EXISTS "IDX_CustomMessageParameters_MessageCode" ON "CustomMessageParameters" ("MessageCode");
 
--- 18. CustomButtons (Botones Interactivos de Plantillas Internas)
+-- 31. CustomButtons & CustomAttachments
 CREATE TABLE IF NOT EXISTS "CustomButtons" (
     "Entry" SERIAL PRIMARY KEY,
     "MessageEntry" INT NOT NULL REFERENCES "CustomMessages"("Entry") ON DELETE CASCADE,
@@ -397,10 +794,21 @@ CREATE TABLE IF NOT EXISTS "CustomButtons" (
 
 CREATE INDEX IF NOT EXISTS "IDX_CustomButtons_MessageEntry" ON "CustomButtons" ("MessageEntry");
 
+CREATE TABLE IF NOT EXISTS "CustomAttachments" (
+    "Entry" SERIAL PRIMARY KEY,
+    "MessageEntry" INT NOT NULL REFERENCES "CustomMessages"("Entry") ON DELETE CASCADE,
+    "MediaType" VARCHAR(50) NOT NULL,
+    "MediaUrl" TEXT NOT NULL,
+    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS "IDX_CustomAttachments_MessageEntry" ON "CustomAttachments" ("MessageEntry");
+
 -- Seed Default Internal Custom Templates
-DELETE FROM "CustomButtons" WHERE "MessageEntry" IN (SELECT "Entry" FROM "CustomMessages" WHERE "Code" IN ('TPL_WELCOME_WITH_RESERVATION', 'TPL_WELCOME_PROMPT', 'TPL_RESERVATION_DETAILS', 'TPL_NOT_FOUND_ERROR', 'TPL_CARD_PAYMENT_SUCCESS', 'TPL_CARD_PAYMENT_FAILED', 'TPL_BANK_TRANSFER_INFO', 'TPL_SPEI_PAYMENT_RECEIVED', 'TPL_PAYMENT_REJECTED', 'TPL_TRANSFER_REJECTED'));
-DELETE FROM "CustomMessageParameters" WHERE "MessageCode" IN ('TPL_WELCOME_WITH_RESERVATION', 'TPL_WELCOME_PROMPT', 'TPL_RESERVATION_DETAILS', 'TPL_NOT_FOUND_ERROR', 'TPL_CARD_PAYMENT_SUCCESS', 'TPL_CARD_PAYMENT_FAILED', 'TPL_BANK_TRANSFER_INFO', 'TPL_SPEI_PAYMENT_RECEIVED', 'TPL_PAYMENT_REJECTED', 'TPL_TRANSFER_REJECTED');
-DELETE FROM "CustomMessages" WHERE "Code" IN ('TPL_WELCOME_WITH_RESERVATION', 'TPL_WELCOME_PROMPT', 'TPL_RESERVATION_DETAILS', 'TPL_NOT_FOUND_ERROR', 'TPL_CARD_PAYMENT_SUCCESS', 'TPL_CARD_PAYMENT_FAILED', 'TPL_BANK_TRANSFER_INFO', 'TPL_SPEI_PAYMENT_RECEIVED', 'TPL_PAYMENT_REJECTED', 'TPL_TRANSFER_REJECTED');
+DELETE FROM "CustomButtons" WHERE "MessageEntry" IN (SELECT "Entry" FROM "CustomMessages" WHERE "Code" IN ('TPL_WELCOME_WITH_RESERVATION', 'TPL_WELCOME_PROMPT', 'TPL_RESERVATION_DETAILS', 'TPL_NOT_FOUND_ERROR', 'TPL_CARD_PAYMENT_SUCCESS', 'TPL_CARD_PAYMENT_FAILED', 'TPL_TRANSFER_INSTRUCTIONS', 'TPL_TRANSFER_APPROVED', 'TPL_TRANSFER_REJECTED'));
+DELETE FROM "CustomMessageParameters" WHERE "MessageCode" IN ('TPL_WELCOME_WITH_RESERVATION', 'TPL_WELCOME_PROMPT', 'TPL_RESERVATION_DETAILS', 'TPL_NOT_FOUND_ERROR', 'TPL_CARD_PAYMENT_SUCCESS', 'TPL_CARD_PAYMENT_FAILED', 'TPL_TRANSFER_INSTRUCTIONS', 'TPL_TRANSFER_APPROVED', 'TPL_TRANSFER_REJECTED');
+DELETE FROM "CustomMessages" WHERE "Code" IN ('TPL_WELCOME_WITH_RESERVATION', 'TPL_WELCOME_PROMPT', 'TPL_RESERVATION_DETAILS', 'TPL_NOT_FOUND_ERROR', 'TPL_CARD_PAYMENT_SUCCESS', 'TPL_CARD_PAYMENT_FAILED', 'TPL_TRANSFER_INSTRUCTIONS', 'TPL_TRANSFER_APPROVED', 'TPL_TRANSFER_REJECTED');
 
 INSERT INTO "CustomMessages" ("Code", "Title", "MessageType", "BodyTemplate", "CreatedBy") VALUES
 ('TPL_WELCOME_WITH_RESERVATION', 'Bienvenida a Cliente Reconocido', 'INTERACTIVE_BUTTON', 
@@ -522,7 +930,7 @@ ON CONFLICT DO NOTHING;
 INSERT INTO "CustomMessageParameters" ("MessageCode", "ParamKey", "ParamName", "DataType", "DefaultValue", "IsRequired", "SortOrder") VALUES
 ('TPL_WELCOME_WITH_RESERVATION', 'nombre_registrado', 'Nombre del Pasajero', 'STRING', 'estimado(a) cliente', true, 1),
 ('TPL_WELCOME_WITH_RESERVATION', 'evento', 'Nombre del Evento', 'STRING', 'Evento General', true, 2),
-('TPL_WELCOME_WITH_RESERVATION', 'folio', 'Folio de Reservación', 'STRING', 'RSV000000', true, 3),
+('TPL_WELCOME_WITH_RESERVATION', 'folio', 'Folio de Reservación', 'STRING', 'RSV1', true, 3),
 ('TPL_WELCOME_WITH_RESERVATION', 'parada_inicial', 'Parada de Salida', 'STRING', 'Punto de Abordaje', true, 4),
 ('TPL_WELCOME_WITH_RESERVATION', 'hora_salida', 'Hora de Salida', 'TIME', 'Por confirmar', true, 5),
 ('TPL_WELCOME_WITH_RESERVATION', 'estatus', 'Estatus de la Reserva', 'STRING', 'CONFIRMADO', true, 6)
@@ -532,12 +940,12 @@ ON CONFLICT ("MessageCode", "ParamKey") DO NOTHING;
 INSERT INTO "CustomMessageParameters" ("MessageCode", "ParamKey", "ParamName", "DataType", "DefaultValue", "IsRequired", "SortOrder") VALUES
 ('TPL_WELCOME_PROMPT', 'nombre_cliente', 'Nombre del Perfil', 'STRING', 'estimado(a) cliente', false, 1),
 ('TPL_WELCOME_PROMPT', 'empresa', 'Nombre de Empresa', 'STRING', 'OmniRoute', true, 2),
-('TPL_WELCOME_PROMPT', 'ejemplo_folio', 'Ejemplo de Folio', 'STRING', 'RSV000001', true, 3)
+('TPL_WELCOME_PROMPT', 'ejemplo_folio', 'Ejemplo de Folio', 'STRING', 'RSV1', true, 3)
 ON CONFLICT ("MessageCode", "ParamKey") DO NOTHING;
 
 -- Seed Parameters for TPL_RESERVATION_DETAILS
 INSERT INTO "CustomMessageParameters" ("MessageCode", "ParamKey", "ParamName", "DataType", "DefaultValue", "IsRequired", "SortOrder") VALUES
-('TPL_RESERVATION_DETAILS', 'folio', 'Folio de Reserva', 'STRING', 'RSV000000', true, 1),
+('TPL_RESERVATION_DETAILS', 'folio', 'Folio de Reserva', 'STRING', 'RSV1', true, 1),
 ('TPL_RESERVATION_DETAILS', 'numero_registrado', 'Teléfono Registrado', 'STRING', '', true, 2),
 ('TPL_RESERVATION_DETAILS', 'nombre_registrado', 'Nombre del Pasajero', 'STRING', 'Pasajero', true, 3),
 ('TPL_RESERVATION_DETAILS', 'numero_asientos', 'Número de Asientos', 'INTEGER', '1', true, 4),
@@ -555,7 +963,7 @@ ON CONFLICT ("MessageCode", "ParamKey") DO NOTHING;
 INSERT INTO "CustomMessageParameters" ("MessageCode", "ParamKey", "ParamName", "DataType", "DefaultValue", "IsRequired", "SortOrder") VALUES
 ('TPL_NOT_FOUND_ERROR', 'nombre_cliente', 'Nombre del Perfil', 'STRING', 'estimado(a) cliente', false, 1),
 ('TPL_NOT_FOUND_ERROR', 'dato_ingresado', 'Dato Ingresado', 'STRING', '', true, 2),
-('TPL_NOT_FOUND_ERROR', 'ejemplo_folio', 'Ejemplo de Folio', 'STRING', 'RSV000001', true, 3)
+('TPL_NOT_FOUND_ERROR', 'ejemplo_folio', 'Ejemplo de Folio', 'STRING', 'RSV1', true, 3)
 ON CONFLICT ("MessageCode", "ParamKey") DO NOTHING;
 
 -- Seed Parameters for TPL_CARD_PAYMENT_SUCCESS
@@ -607,3 +1015,163 @@ INSERT INTO "CustomMessageParameters" ("MessageCode", "ParamKey", "ParamName", "
 ('TPL_TRANSFER_REJECTED', 'motivo_rechazo', 'Motivo del Rechazo', 'STRING', 'Comprobante ilegible o monto incompleto', true, 3)
 ON CONFLICT ("MessageCode", "ParamKey") DO NOTHING;
 
+-- =============================================================================
+-- 32. DATA MIGRATION & CODE NORMALIZATION SCRIPT
+-- Strips leading zeroes from code formats (e.g., EVT001 -> EVT1, VNU002 -> VNU2)
+-- across all tables and foreign key relationships.
+-- =============================================================================
+DO $$
+BEGIN
+    -- A. Update Foreign Key references first to avoid constraints mismatch
+
+    -- Events -> Venues
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Events') THEN
+        UPDATE "Events" 
+        SET "VenueCode" = REGEXP_REPLACE("VenueCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
+        WHERE "VenueCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+    END IF;
+
+    -- Routes -> DeparturePoints & Venues
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Routes') THEN
+        UPDATE "Routes" 
+        SET "OriginPointCode" = REGEXP_REPLACE("OriginPointCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
+        WHERE "OriginPointCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+
+        UPDATE "Routes" 
+        SET "DestinationVenueCode" = REGEXP_REPLACE("DestinationVenueCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
+        WHERE "DestinationVenueCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+    END IF;
+
+    -- RouteStops -> Routes
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'RouteStops') THEN
+        UPDATE "RouteStops" 
+        SET "RouteCode" = REGEXP_REPLACE("RouteCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
+        WHERE "RouteCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+    END IF;
+
+    -- Schedules -> Events & Routes
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Schedules') THEN
+        UPDATE "Schedules" 
+        SET "EventCode" = REGEXP_REPLACE("EventCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
+        WHERE "EventCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+
+        UPDATE "Schedules" 
+        SET "RouteCode" = REGEXP_REPLACE("RouteCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
+        WHERE "RouteCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+    END IF;
+
+    -- Tickets -> Schedules
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Tickets') THEN
+        UPDATE "Tickets" 
+        SET "ScheduleCode" = REGEXP_REPLACE("ScheduleCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
+        WHERE "ScheduleCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+    END IF;
+
+    -- Reservations -> Events, Routes, DeparturePoints, Schedules
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Reservations') THEN
+        UPDATE "Reservations" 
+        SET "EventCode" = REGEXP_REPLACE("EventCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
+        WHERE "EventCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+
+        UPDATE "Reservations" 
+        SET "RouteCode" = REGEXP_REPLACE("RouteCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
+        WHERE "RouteCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+
+        UPDATE "Reservations" 
+        SET "PickupPointCode" = REGEXP_REPLACE("PickupPointCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
+        WHERE "PickupPointCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+
+        UPDATE "Reservations" 
+        SET "DropoffPointCode" = REGEXP_REPLACE("DropoffPointCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
+        WHERE "DropoffPointCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+
+        UPDATE "Reservations" 
+        SET "ScheduleCode" = REGEXP_REPLACE("ScheduleCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
+        WHERE "ScheduleCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+    END IF;
+
+    -- StripeSessions -> Reservations
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'StripeSessions') THEN
+        UPDATE "StripeSessions"
+        SET "ReservationCode" = REGEXP_REPLACE("ReservationCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
+        WHERE "ReservationCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+    END IF;
+
+    -- StripeTransactions -> Reservations
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'StripeTransactions') THEN
+        UPDATE "StripeTransactions"
+        SET "ReservationCode" = REGEXP_REPLACE("ReservationCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
+        WHERE "ReservationCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+    END IF;
+
+    -- PaymentTransactions -> EntityCode
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'PaymentTransactions') THEN
+        UPDATE "PaymentTransactions"
+        SET "EntityCode" = REGEXP_REPLACE("EntityCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
+        WHERE "EntityCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+    END IF;
+
+    -- Sessions -> Users
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Sessions') THEN
+        UPDATE "Sessions"
+        SET "UserCode" = REGEXP_REPLACE("UserCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
+        WHERE "UserCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+    END IF;
+
+    -- B. Update Primary Key Codes across all entities
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Venues') THEN
+        UPDATE "Venues" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Events') THEN
+        UPDATE "Events" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'DeparturePoints') THEN
+        UPDATE "DeparturePoints" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Routes') THEN
+        UPDATE "Routes" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'RouteStops') THEN
+        UPDATE "RouteStops" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Schedules') THEN
+        UPDATE "Schedules" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Tickets') THEN
+        UPDATE "Tickets" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'NotificationContacts') THEN
+        UPDATE "NotificationContacts" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Reservations') THEN
+        UPDATE "Reservations" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'PaymentMethods') THEN
+        UPDATE "PaymentMethods" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Users') THEN
+        UPDATE "Users" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'StripeSessions') THEN
+        UPDATE "StripeSessions" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'StripeTransactions') THEN
+        UPDATE "StripeTransactions" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'PaymentTransactions') THEN
+        UPDATE "PaymentTransactions" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+    END IF;
+END $$;
