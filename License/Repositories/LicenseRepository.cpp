@@ -121,7 +121,8 @@ namespace omnisphere::repositories
                 "\"Modules\", \"IsActive\" "
                 "FROM \"SystemLicenses\" WHERE \"IsActive\" = true LIMIT 1";
 
-            auto dt = conn->FetchPrepared(sql, {});
+            std::vector<omnisphere::types::SQLParam> emptyParams;
+            auto dt = conn->FetchPrepared(sql, emptyParams);
             if (dt.RowsCount() > 0)
                 return MapRow(dt[0]);
 
@@ -171,7 +172,8 @@ namespace omnisphere::repositories
                 "\"Modules\", \"IsActive\" "
                 "FROM \"SystemLicenses\" ORDER BY \"CreateDate\" DESC";
 
-            auto dt = conn->FetchPrepared(sql, {});
+            std::vector<omnisphere::types::SQLParam> emptyParams;
+            auto dt = conn->FetchPrepared(sql, emptyParams);
             for (size_t i = 0; i < dt.RowsCount(); ++i)
                 result.push_back(MapRow(dt[i]));
 

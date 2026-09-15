@@ -124,10 +124,10 @@ namespace omnisphere::services
             issuedAt = buf;
         }
 
-        // Construir JSON del payload
+        // Construir JSON de módulos
         boost::json::array modulesArr;
         for (const auto& mod : params.modules)
-            modulesArr.push_back(mod);
+            modulesArr.push_back(boost::json::value(boost::json::string_view(mod)));
 
         boost::json::object payload;
         payload["client"]  = params.clientName;
@@ -165,7 +165,7 @@ namespace omnisphere::services
                 for (const auto& m : obj.at("modules").as_array())
                 {
                     if (m.is_string())
-                        lic.modules.insert(m.as_string().c_str());
+                        lic.modules.insert(std::string(m.as_string().c_str()));
                 }
             }
         }
