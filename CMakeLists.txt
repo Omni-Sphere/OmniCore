@@ -155,6 +155,7 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/File/FileRouter.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Authorization/Authorization.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Notification/WhatsAppService.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Notification/DTOs/CreateMetaTemplateInput.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Notification/WhatsAppWebhookRouter.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Payment/StripeService.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Payment/StripeWebhookRouter.hpp

@@ -39,6 +39,11 @@ namespace omnisphere::services
         {
             std::string rawPhoneId = (std::string)dt[0]["PhoneId"];
             std::string rawToken = (std::string)dt[0]["ApiToken"];
+            std::string rawWabaId = "";
+            try {
+                if (dt[0].HasColumn("BusinessAccountId") && !dt[0]["BusinessAccountId"].IsNull())
+                    rawWabaId = (std::string)dt[0]["BusinessAccountId"];
+            } catch (...) {}
             std::string rawWebhookToken = (std::string)dt[0]["WebhookVerifyToken"];
 
             auto isPlain = [](const std::string& val) -> bool {
@@ -65,6 +70,7 @@ namespace omnisphere::services
             // Decrypt ONLY in backend RAM memory for outgoing HTTP requests to Meta
             m_config.phoneId = decryptVal(rawPhoneId);
             m_config.token = decryptVal(rawToken);
+            m_config.businessAccountId = decryptVal(rawWabaId);
             m_config.webhookVerifyToken = decryptVal(rawWebhookToken);
             m_config.apiVersion = (std::string)dt[0]["ApiVersion"];
             if (m_config.apiVersion.empty()) m_config.apiVersion = "v24.0";
@@ -902,5 +908,226 @@ namespace omnisphere::services
     {
         if (!m_repository) return false;
         return m_repository->HasRecentWelcomeCard(phoneNumber, minutesWindow);
+    }
+
+    omnisphere::dtos::CreateMetaTemplateResult WhatsAppService::CreateMetaTemplate(
+        const omnisphere::dtos::CreateMetaTemplateInput& input
+    )
+    {
+        omnisphere::dtos::CreateMetaTemplateResult result;
+        result.messageCode = input.name;
+
+        if (input.name.empty() || input.bodyText.empty())
+        {
+            result.errorMessage = "El nombre de la plantilla y el texto del cuerpo (bodyText) son obligatorios.";
+            return result;
+        }
+
+        std::string cleanWabaId = CleanString(m_config.businessAccountId);
+        std::string cleanToken = CleanString(m_config.token);
+        std::string cleanApiVersion = CleanString(m_config.apiVersion.empty() ? "v24.0" : m_config.apiVersion);
+
+        if (cleanWabaId.empty() || cleanToken.empty())
+        {
+            auto settings = GetSettings({"BusinessAccountId", "ApiToken", "ApiVersion"});
+            if (cleanWabaId.empty()) cleanWabaId = CleanString(settings.businessAccountId);
+            if (cleanToken.empty()) cleanToken = CleanString(settings.apiToken);
+            if (m_config.apiVersion.empty()) cleanApiVersion = CleanString(settings.apiVersion.empty() ? "v24.0" : settings.apiVersion);
+        }
+
+        if (cleanWabaId.empty() || cleanToken.empty())
+        {
+            result.errorMessage = "Configuración incompleta: BusinessAccountId (WABA ID) o ApiToken no están configurados en el sistema.";
+            omnisphere::utils::Logger::LogError("WhatsAppService", result.errorMessage);
+            return result;
+        }
+
+        std::string metaName = input.name;
+        std::transform(metaName.begin(), metaName.end(), metaName.begin(), [](unsigned char c) {
+            if (c == ' ' || c == '-') return '_';
+            return static_cast<char>(std::tolower(c));
+        });
+
+        json::object payloadObj;
+        payloadObj["name"] = metaName;
+        payloadObj["language"] = input.language.empty() ? "es_MX" : input.language;
+        payloadObj["category"] = input.category.empty() ? "UTILITY" : input.category;
+
+        json::array componentsArr;
+
+        if (input.headerType == "TEXT" && input.headerText.has_value() && !input.headerText->empty())
+        {
+            json::object headerObj;
+            headerObj["type"] = "HEADER";
+            headerObj["format"] = "TEXT";
+            headerObj["text"] = *input.headerText;
+            componentsArr.push_back(headerObj);
+        }
+
+        json::object bodyObj;
+        bodyObj["type"] = "BODY";
+        bodyObj["text"] = input.bodyText;
+        componentsArr.push_back(bodyObj);
+
+        if (input.footerText.has_value() && !input.footerText->empty())
+        {
+            json::object footerObj;
+            footerObj["type"] = "FOOTER";
+            footerObj["text"] = *input.footerText;
+            componentsArr.push_back(footerObj);
+        }
+
+        if (!input.buttons.empty())
+        {
+            json::object buttonsComponentObj;
+            buttonsComponentObj["type"] = "BUTTONS";
+
+            json::array metaButtonsArr;
+            for (const auto& btn : input.buttons)
+            {
+                json::object btnObj;
+                if (btn.type == "QUICK_REPLY")
+                {
+                    btnObj["type"] = "QUICK_REPLY";
+                    btnObj["text"] = btn.text;
+                }
+                else if (btn.type == "URL")
+                {
+                    btnObj["type"] = "URL";
+                    btnObj["text"] = btn.text;
+                    btnObj["url"] = btn.url.value_or("");
+                }
+                else if (btn.type == "PHONE_NUMBER")
+                {
+                    btnObj["type"] = "PHONE_NUMBER";
+                    btnObj["text"] = btn.text;
+                    btnObj["phone_number"] = btn.phoneNumber.value_or("");
+                }
+                metaButtonsArr.push_back(btnObj);
+            }
+            buttonsComponentObj["buttons"] = metaButtonsArr;
+            componentsArr.push_back(buttonsComponentObj);
+        }
+
+        payloadObj["components"] = componentsArr;
+        std::string jsonString = json::serialize(payloadObj);
+
+        std::string responseBodyStr = "";
+        bool requestSuccess = false;
+
+        try
+        {
+            std::string host = "graph.facebook.com";
+            std::string port = "443";
+            std::string target = "/" + cleanApiVersion + "/" + cleanWabaId + "/message_templates";
+
+            omnisphere::utils::Logger::LogInfo("WhatsAppService", "Creating Meta Template POST https://" + host + target + "\nOutgoing Payload:\n" + jsonString);
+
+            boost::asio::io_context ioc;
+            ssl::context ctx(ssl::context::tlsv12_client);
+            ctx.set_default_verify_paths();
+            ctx.set_verify_mode(ssl::verify_peer);
+
+            tcp::resolver resolver(ioc);
+            beast::ssl_stream<beast::tcp_stream> stream(ioc, ctx);
+
+            if (!SSL_set_tlsext_host_name(stream.native_handle(), host.c_str()))
+            {
+                beast::error_code ec{static_cast<int>(::ERR_get_error()), boost::asio::error::get_ssl_category()};
+                throw beast::system_error{ec};
+            }
+
+            beast::get_lowest_layer(stream).expires_after(std::chrono::seconds(15));
+            auto const results = resolver.resolve(tcp::v4(), host, port);
+            beast::get_lowest_layer(stream).connect(results);
+            beast::get_lowest_layer(stream).expires_after(std::chrono::seconds(15));
+            stream.handshake(ssl::stream_base::client);
+
+            http::request<http::string_body> req{http::verb::post, target, 11};
+            req.set(http::field::host, host);
+            req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+            req.set(http::field::content_type, "application/json");
+            req.set(http::field::authorization, "Bearer " + cleanToken);
+            req.body() = jsonString;
+            req.prepare_payload();
+
+            http::write(stream, req);
+
+            beast::flat_buffer buffer;
+            http::response<http::dynamic_body> res;
+            http::read(stream, buffer, res);
+
+            responseBodyStr = beast::buffers_to_string(res.body().data());
+            requestSuccess = (res.result() == http::status::ok || res.result() == http::status::created);
+
+            beast::error_code ec;
+            stream.shutdown(ec);
+
+            if (requestSuccess)
+            {
+                omnisphere::utils::Logger::LogInfo("WhatsAppService", "Meta Template Creation SUCCESS: " + responseBodyStr);
+                try
+                {
+                    auto parsed = json::parse(responseBodyStr);
+                    if (parsed.is_object())
+                    {
+                        auto pObj = parsed.as_object();
+                        if (pObj.contains("id")) result.metaTemplateId = std::string(pObj.at("id").as_string());
+                        if (pObj.contains("status")) result.metaStatus = std::string(pObj.at("status").as_string());
+                        if (pObj.contains("category")) result.metaCategory = std::string(pObj.at("category").as_string());
+                    }
+                }
+                catch (...) {}
+
+                if (result.metaStatus.empty()) result.metaStatus = "PENDING";
+                if (result.metaCategory.empty()) result.metaCategory = input.category;
+                result.success = true;
+
+                if (m_repository)
+                {
+                    omnisphere::models::CustomMessage msg;
+                    msg.code = input.name;
+                    msg.title = input.title.empty() ? input.name : input.title;
+                    msg.messageType = "TEMPLATE";
+                    msg.headerType = input.headerType;
+                    msg.headerContent = input.headerText;
+                    msg.bodyTemplate = input.bodyText;
+                    msg.footerText = input.footerText;
+                    msg.metaTemplateId = result.metaTemplateId;
+                    msg.metaStatus = result.metaStatus;
+                    msg.metaCategory = result.metaCategory;
+                    msg.isActive = true;
+
+                    int sortIdx = 1;
+                    for (const auto& btn : input.buttons)
+                    {
+                        omnisphere::models::CustomButton cBtn;
+                        cBtn.buttonId = "btn_" + std::to_string(sortIdx);
+                        cBtn.title = btn.text;
+                        cBtn.actionType = btn.type;
+                        if (btn.type == "URL") cBtn.actionPayload = btn.url;
+                        else if (btn.type == "PHONE_NUMBER") cBtn.actionPayload = btn.phoneNumber;
+                        cBtn.sortOrder = sortIdx++;
+                        msg.buttons.push_back(cBtn);
+                    }
+
+                    m_repository->SaveCustomMessage(msg);
+                }
+            }
+            else
+            {
+                result.success = false;
+                result.errorMessage = ParseMetaErrorMessage(responseBodyStr);
+                omnisphere::utils::Logger::LogError("WhatsAppService", "Meta Template Creation FAILED (HTTP " + std::to_string(res.result_int()) + "): " + responseBodyStr);
+            }
+        }
+        catch (const std::exception& ex)
+        {
+            result.success = false;
+            result.errorMessage = "Error de conexión HTTP al crear plantilla en Meta: " + std::string(ex.what());
+            omnisphere::utils::Logger::LogError("WhatsAppService", result.errorMessage);
+        }
+
+        return result;
     }
 } // namespace omnisphere::services

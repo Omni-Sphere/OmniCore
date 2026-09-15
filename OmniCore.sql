@@ -345,12 +345,21 @@ CREATE TABLE IF NOT EXISTS "CustomMessages" (
     "HeaderContent" TEXT,
     "BodyTemplate" TEXT NOT NULL,
     "FooterText" VARCHAR(255),
+    "MetaTemplateId" VARCHAR(100),
+    "MetaStatus" VARCHAR(50) DEFAULT 'NONE',
+    "MetaCategory" VARCHAR(50) DEFAULT 'UTILITY',
+    "MetaRejectReason" TEXT,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
     "CreatedBy" INT NOT NULL DEFAULT 1,
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "LastUpdatedBy" INT,
     "UpdateDate" TIMESTAMP
 );
+
+ALTER TABLE "CustomMessages" ADD COLUMN IF NOT EXISTS "MetaTemplateId" VARCHAR(100);
+ALTER TABLE "CustomMessages" ADD COLUMN IF NOT EXISTS "MetaStatus" VARCHAR(50) DEFAULT 'NONE';
+ALTER TABLE "CustomMessages" ADD COLUMN IF NOT EXISTS "MetaCategory" VARCHAR(50) DEFAULT 'UTILITY';
+ALTER TABLE "CustomMessages" ADD COLUMN IF NOT EXISTS "MetaRejectReason" TEXT;
 
 CREATE INDEX IF NOT EXISTS "IDX_CustomMessages_Code" ON "CustomMessages" ("Code");
 

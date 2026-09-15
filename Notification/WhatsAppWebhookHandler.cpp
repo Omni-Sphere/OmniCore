@@ -294,6 +294,9 @@ namespace omnisphere::services
                                 }
                                 ProcessMessages(valueObj.at("messages").as_array(), customerName, req);
                             }
+
+                            // Procesar actualizaciones de estado de plantillas (message_template_status_update)
+                            ProcessTemplateStatusUpdate(changeObj, valueObj, req.TraceContext());
                         }
                     }
                 }
@@ -307,5 +310,49 @@ namespace omnisphere::services
         }
 
         return omnisphere::net::Response::Text("EVENT_RECEIVED", 200);
+    }
+
+    void WhatsAppWebhookHandler::ProcessTemplateStatusUpdate(
+        const boost::json::object& changeObj,
+        const boost::json::object& valueObj,
+        const std::string& traceCtx
+    ) const
+    {
+        if (!m_repo) return;
+
+        std::string field = changeObj.contains("field") && changeObj.at("field").is_string()
+            ? std::string(changeObj.at("field").as_string()) : "";
+
+        bool isTemplateUpdate = (field == "message_template_status_update") ||
+            valueObj.contains("message_template_id") ||
+            valueObj.contains("message_template_name") ||
+            (valueObj.contains("event") && !valueObj.contains("statuses") && !valueObj.contains("messages"));
+
+        if (!isTemplateUpdate) return;
+
+        std::string templateId = valueObj.contains("message_template_id") && valueObj.at("message_template_id").is_string()
+            ? std::string(valueObj.at("message_template_id").as_string()) : "";
+
+        std::string templateName = valueObj.contains("message_template_name") && valueObj.at("message_template_name").is_string()
+            ? std::string(valueObj.at("message_template_name").as_string()) : "";
+
+        std::string eventStatus = "";
+        if (valueObj.contains("event") && valueObj.at("event").is_string())
+            eventStatus = std::string(valueObj.at("event").as_string());
+        else if (valueObj.contains("status") && valueObj.at("status").is_string())
+            eventStatus = std::string(valueObj.at("status").as_string());
+
+        std::string reason = "";
+        if (valueObj.contains("reason") && valueObj.at("reason").is_string())
+            reason = std::string(valueObj.at("reason").as_string());
+        else if (valueObj.contains("disable_reason") && valueObj.at("disable_reason").is_string())
+            reason = std::string(valueObj.at("disable_reason").as_string());
+
+        if (!templateId.empty() || !templateName.empty())
+        {
+            omnisphere::utils::Logger::LogInfo("WhatsAppWebhookHandler",
+                traceCtx + " Template Status Update received from Meta -> Name: [" + templateName + "], ID: [" + templateId + "], Event: [" + eventStatus + "], Reason: [" + reason + "]");
+            m_repo->UpdateMetaTemplateStatus(templateId, templateName, eventStatus, reason);
+        }
     }
 } // namespace omnisphere::services

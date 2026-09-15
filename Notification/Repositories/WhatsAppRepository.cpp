@@ -430,6 +430,10 @@ namespace omnisphere::repositories
             try { msg.headerContent = (std::string)dt[0]["HeaderContent"]; } catch(...) {}
             msg.bodyTemplate = (std::string)dt[0]["BodyTemplate"];
             try { msg.footerText = (std::string)dt[0]["FooterText"]; } catch(...) {}
+            try { msg.metaTemplateId = (std::string)dt[0]["MetaTemplateId"]; } catch(...) {}
+            try { msg.metaStatus = (std::string)dt[0]["MetaStatus"]; } catch(...) {}
+            try { msg.metaCategory = (std::string)dt[0]["MetaCategory"]; } catch(...) {}
+            try { msg.metaRejectReason = (std::string)dt[0]["MetaRejectReason"]; } catch(...) {}
             msg.isActive = dt[0]["IsActive"];
             
             // Try fetching buttons by MessageCode first, then fallback to MessageEntry
@@ -495,6 +499,10 @@ namespace omnisphere::repositories
                 try { msg.headerContent = (std::string)dt[i]["HeaderContent"]; } catch(...) {}
                 msg.bodyTemplate = (std::string)dt[i]["BodyTemplate"];
                 try { msg.footerText = (std::string)dt[i]["FooterText"]; } catch(...) {}
+                try { msg.metaTemplateId = (std::string)dt[i]["MetaTemplateId"]; } catch(...) {}
+                try { msg.metaStatus = (std::string)dt[i]["MetaStatus"]; } catch(...) {}
+                try { msg.metaCategory = (std::string)dt[i]["MetaCategory"]; } catch(...) {}
+                try { msg.metaRejectReason = (std::string)dt[i]["MetaRejectReason"]; } catch(...) {}
                 msg.isActive = dt[i]["IsActive"];
                 msg.buttons = GetButtonsForMessage(msg.entry);
                 msg.parameters = GetParametersForMessage(msg.code);
@@ -516,11 +524,15 @@ namespace omnisphere::repositories
         {
             auto conn = m_dbPool->Acquire();
             auto existing = GetCustomMessageByCode(msg.code);
+            bool ok = false;
+            int insertedEntry = 0;
+
             if (!existing.has_value())
             {
                 std::vector<std::string> cols = {
                     "\"Code\"", "\"Title\"", "\"MessageType\"", "\"HeaderType\"",
                     "\"HeaderContent\"", "\"BodyTemplate\"", "\"FooterText\"",
+                    "\"MetaTemplateId\"", "\"MetaStatus\"", "\"MetaCategory\"", "\"MetaRejectReason\"",
                     "\"IsActive\"", "\"CreatedBy\""
                 };
                 std::string sql = omnisphere::types::BuildInsertQuery("\"CustomMessages\"", cols);
@@ -532,10 +544,19 @@ namespace omnisphere::repositories
                     omnisphere::types::MakeSQLParam(msg.headerContent.value_or("")),
                     omnisphere::types::MakeSQLParam(msg.bodyTemplate),
                     omnisphere::types::MakeSQLParam(msg.footerText.value_or("")),
+                    omnisphere::types::MakeSQLParam(msg.metaTemplateId.value_or("")),
+                    omnisphere::types::MakeSQLParam(msg.metaStatus.value_or("NONE")),
+                    omnisphere::types::MakeSQLParam(msg.metaCategory.value_or("UTILITY")),
+                    omnisphere::types::MakeSQLParam(msg.metaRejectReason.value_or("")),
                     omnisphere::types::MakeSQLParam(msg.isActive),
                     omnisphere::types::MakeSQLParam(msg.createdBy)
                 };
-                return conn->RunPrepared(sql, params);
+                ok = conn->RunPrepared(sql, params);
+                if (ok)
+                {
+                    auto saved = GetCustomMessageByCode(msg.code);
+                    if (saved.has_value()) insertedEntry = saved->entry;
+                }
             }
             else
             {
@@ -546,15 +567,113 @@ namespace omnisphere::repositories
                     {"\"HeaderContent\"", omnisphere::types::MakeSQLParam(msg.headerContent.value_or(""))},
                     {"\"BodyTemplate\"", omnisphere::types::MakeSQLParam(msg.bodyTemplate)},
                     {"\"FooterText\"", omnisphere::types::MakeSQLParam(msg.footerText.value_or(""))},
+                    {"\"MetaTemplateId\"", omnisphere::types::MakeSQLParam(msg.metaTemplateId.value_or(""))},
+                    {"\"MetaStatus\"", omnisphere::types::MakeSQLParam(msg.metaStatus.value_or("NONE"))},
+                    {"\"MetaCategory\"", omnisphere::types::MakeSQLParam(msg.metaCategory.value_or("UTILITY"))},
+                    {"\"MetaRejectReason\"", omnisphere::types::MakeSQLParam(msg.metaRejectReason.value_or(""))},
                     {"\"IsActive\"", omnisphere::types::MakeSQLParam(msg.isActive)}
                 };
                 auto updateQuery = omnisphere::types::BuildUpdateQuery("\"CustomMessages\"", updateCols, "\"Code\"", omnisphere::types::MakeSQLParam(msg.code));
-                return conn->RunPrepared(updateQuery.Query, updateQuery.Parameters);
+                ok = conn->RunPrepared(updateQuery.Query, updateQuery.Parameters);
+                insertedEntry = existing->entry;
             }
+
+            if (ok && !msg.buttons.empty())
+            {
+                SaveButtonsForMessage(insertedEntry, msg.code, msg.buttons);
+            }
+            return ok;
         }
         catch (const std::exception& ex)
         {
             std::cerr << "[WhatsAppRepository::SaveCustomMessage Exception] " << ex.what() << std::endl;
+            return false;
+        }
+    }
+
+    bool WhatsAppRepository::UpdateMetaTemplateStatus(
+        const std::string& metaTemplateId,
+        const std::string& templateName,
+        const std::string& metaStatus,
+        const std::string& rejectReason
+    ) const
+    {
+        if (!m_dbPool) return false;
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            std::string sql =
+                "UPDATE \"CustomMessages\" SET "
+                "  \"MetaStatus\" = ?, "
+                "  \"MetaRejectReason\" = ?, "
+                "  \"MetaTemplateId\" = COALESCE(NULLIF(?, ''), \"MetaTemplateId\"), "
+                "  \"UpdateDate\" = CURRENT_TIMESTAMP "
+                "WHERE (\"MetaTemplateId\" IS NOT NULL AND \"MetaTemplateId\" = ?) "
+                "   OR \"Code\" = ? "
+                "   OR LOWER(\"Code\") = LOWER(?)";
+
+            std::vector<omnisphere::types::SQLParam> params = {
+                omnisphere::types::MakeSQLParam(metaStatus),
+                omnisphere::types::MakeSQLParam(rejectReason),
+                omnisphere::types::MakeSQLParam(metaTemplateId),
+                omnisphere::types::MakeSQLParam(metaTemplateId),
+                omnisphere::types::MakeSQLParam(templateName),
+                omnisphere::types::MakeSQLParam(templateName)
+            };
+            return conn->RunPrepared(sql, params);
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[WhatsAppRepository::UpdateMetaTemplateStatus Exception] " << ex.what() << std::endl;
+            return false;
+        }
+    }
+
+    bool WhatsAppRepository::SaveButtonsForMessage(
+        int messageEntry,
+        const std::string& messageCode,
+        const std::vector<omnisphere::models::CustomButton>& buttons
+    ) const
+    {
+        if (!m_dbPool || (messageEntry <= 0 && messageCode.empty())) return false;
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            if (messageEntry > 0)
+            {
+                conn->RunPrepared("DELETE FROM \"CustomButtons\" WHERE \"MessageEntry\" = ?",
+                    { omnisphere::types::MakeSQLParam(messageEntry) });
+            }
+            if (!messageCode.empty())
+            {
+                conn->RunPrepared("DELETE FROM \"CustomButtons\" WHERE \"MessageCode\" = ?",
+                    { omnisphere::types::MakeSQLParam(messageCode) });
+            }
+
+            int sortOrder = 1;
+            for (const auto& btn : buttons)
+            {
+                std::vector<std::string> cols = {
+                    "\"MessageEntry\"", "\"ButtonId\"", "\"Title\"",
+                    "\"ActionType\"", "\"ActionPayload\"", "\"SortOrder\"", "\"CreatedBy\""
+                };
+                std::string sql = omnisphere::types::BuildInsertQuery("\"CustomButtons\"", cols);
+                std::vector<omnisphere::types::SQLParam> params = {
+                    omnisphere::types::MakeSQLParam(messageEntry),
+                    omnisphere::types::MakeSQLParam(btn.buttonId),
+                    omnisphere::types::MakeSQLParam(btn.title),
+                    omnisphere::types::MakeSQLParam(btn.actionType),
+                    omnisphere::types::MakeSQLParam(btn.actionPayload.value_or("")),
+                    omnisphere::types::MakeSQLParam(btn.sortOrder > 0 ? btn.sortOrder : sortOrder++),
+                    omnisphere::types::MakeSQLParam(btn.createdBy > 0 ? btn.createdBy : 1)
+                };
+                conn->RunPrepared(sql, params);
+            }
+            return true;
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[WhatsAppRepository::SaveButtonsForMessage Exception] " << ex.what() << std::endl;
             return false;
         }
     }

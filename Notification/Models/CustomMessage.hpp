@@ -18,6 +18,10 @@ namespace omnisphere::models
         std::optional<std::string> headerContent;
         std::string bodyTemplate;
         std::optional<std::string> footerText;
+        std::optional<std::string> metaTemplateId;
+        std::optional<std::string> metaStatus;
+        std::optional<std::string> metaCategory;
+        std::optional<std::string> metaRejectReason;
         bool isActive = true;
         int createdBy = 1;
         std::optional<std::string> createDate;
@@ -38,6 +42,10 @@ namespace omnisphere::models
         headerContent,
         bodyTemplate,
         footerText,
+        metaTemplateId,
+        metaStatus,
+        metaCategory,
+        metaRejectReason,
         isActive,
         createdBy,
         createDate,

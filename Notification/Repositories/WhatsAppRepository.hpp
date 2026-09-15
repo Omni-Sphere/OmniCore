@@ -38,6 +38,8 @@ namespace omnisphere::repositories
         std::vector<omnisphere::models::CustomButton> GetButtonsForMessageCode(const std::string& messageCode) const;
         std::vector<omnisphere::models::CustomMessageParameter> GetParametersForMessage(const std::string& messageCode) const;
         bool SaveCustomMessage(const omnisphere::models::CustomMessage& msg) const;
+        bool UpdateMetaTemplateStatus(const std::string& metaTemplateId, const std::string& templateName, const std::string& metaStatus, const std::string& rejectReason = "") const;
+        bool SaveButtonsForMessage(int messageEntry, const std::string& messageCode, const std::vector<omnisphere::models::CustomButton>& buttons) const;
 
     private:
         std::shared_ptr<omnisphere::data::DatabasePool> m_dbPool;

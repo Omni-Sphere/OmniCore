@@ -42,5 +42,6 @@ namespace omnisphere::services
         bool IsTokenValid(const std::string& token) const;
         void ProcessStatuses(const boost::json::array& statuses, const std::string& traceCtx, const std::string& rawBody) const;
         void ProcessMessages(const boost::json::array& messages, const std::string& customerName, const omnisphere::net::Request& req) const;
+        void ProcessTemplateStatusUpdate(const boost::json::object& changeObj, const boost::json::object& valueObj, const std::string& traceCtx) const;
     };
 } // namespace omnisphere::services

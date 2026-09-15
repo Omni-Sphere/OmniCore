@@ -8,6 +8,7 @@ namespace omnisphere::dtos
     {
         std::string token;
         std::string phoneId;
+        std::string businessAccountId;
         std::optional<std::string> appSecret;
         std::optional<std::string> webhookVerifyToken;
         std::string apiVersion = "v24.0";

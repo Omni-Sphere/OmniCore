@@ -1,7 +1,9 @@
 #pragma once
 #include "Notification/DTOs/WhatsAppConfig.hpp"
+#include "Notification/DTOs/CreateMetaTemplateInput.hpp"
 #include "Notification/Repositories/WhatsAppRepository.hpp"
 #include "Notification/Models/WhatsAppSettings.hpp"
+#include "Notification/Models/CustomMessage.hpp"
 #include <OmniData/DatabasePool.hpp>
 #include <map>
 #include <memory>
@@ -62,8 +64,6 @@ namespace omnisphere::services
             const std::string& toleranceTime
         );
 
-#include "Notification/Models/CustomMessage.hpp"
-
         bool SendCustomMessage(
             const std::string& phoneNumber,
             const std::string& messageCode,
@@ -73,6 +73,10 @@ namespace omnisphere::services
         std::optional<omnisphere::models::CustomMessage> GetCustomMessage(
             const std::string& messageCode
         ) const;
+
+        omnisphere::dtos::CreateMetaTemplateResult CreateMetaTemplate(
+            const omnisphere::dtos::CreateMetaTemplateInput& input
+        );
 
         bool HasRecentWelcomeCard(const std::string& phoneNumber, int minutesWindow = 30) const;
 
