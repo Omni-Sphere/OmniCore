@@ -76,7 +76,7 @@ namespace omnisphere::repositories
                     [](unsigned char c) { return !std::isalnum(c); }), selectedPrefix.end());
 
                 char buf[64];
-                snprintf(buf, sizeof(buf), "%s%03d", selectedPrefix.c_str(), seq);
+                snprintf(buf, sizeof(buf), "%s%d", selectedPrefix.c_str(), seq);
                 return std::string(buf);
             }
 
@@ -100,7 +100,7 @@ namespace omnisphere::repositories
                     [](unsigned char c) { return !std::isalnum(c); }), p1.end());
                 int seq = GetVal<int>(insertDt[0], "CurrentSequence");
                 char buf[64];
-                snprintf(buf, sizeof(buf), "%s%03d", p1.c_str(), seq);
+                snprintf(buf, sizeof(buf), "%s%d", p1.c_str(), seq);
                 return std::string(buf);
             }
         }
