@@ -2,6 +2,7 @@
 #include <OmniData/DatabasePool.hpp>
 #include <OmniUtils/Http/Request.hpp>
 #include <OmniUtils/Http/Response.hpp>
+#include <OmniUtils/DomainTaskDispatcher.hpp>
 #include "Notification/Repositories/WhatsAppRepository.hpp"
 #include <boost/json.hpp>
 #include <functional>
@@ -38,10 +39,12 @@ namespace omnisphere::services
         std::shared_ptr<omnisphere::repositories::WhatsAppRepository> m_repo;
         std::string m_verifyToken;
         InboundMessageHandler m_messageHandler;
+        mutable omnisphere::utils::DomainTaskDispatcher m_metaWorker{"MetaWorkerThread"};
 
         bool IsTokenValid(const std::string& token) const;
         void ProcessStatuses(const boost::json::array& statuses, const std::string& traceCtx, const std::string& rawBody) const;
         void ProcessMessages(const boost::json::array& messages, const std::string& customerName, const omnisphere::net::Request& req) const;
         void ProcessTemplateStatusUpdate(const boost::json::object& changeObj, const boost::json::object& valueObj, const std::string& traceCtx) const;
+        void ProcessEventAsync(omnisphere::net::Request req) const;
     };
 } // namespace omnisphere::services

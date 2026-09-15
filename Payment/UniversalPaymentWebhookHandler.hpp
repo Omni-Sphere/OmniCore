@@ -2,6 +2,7 @@
 #include <OmniData/DatabasePool.hpp>
 #include <OmniUtils/Http/Request.hpp>
 #include <OmniUtils/Http/Response.hpp>
+#include <OmniUtils/DomainTaskDispatcher.hpp>
 #include <memory>
 #include <string>
 
@@ -21,5 +22,8 @@ namespace omnisphere::payment
 
     private:
         std::shared_ptr<omnisphere::data::DatabasePool> m_dbPool;
+        mutable omnisphere::utils::DomainTaskDispatcher m_universalWorker{"UniversalPaymentWorkerThread"};
+
+        void ProcessWebhookAsync(std::string providerCode, omnisphere::net::Request req) const;
     };
 } // namespace omnisphere::payment

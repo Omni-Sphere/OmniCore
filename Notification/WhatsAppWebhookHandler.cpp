@@ -238,21 +238,36 @@ namespace omnisphere::services
     omnisphere::net::Response WhatsAppWebhookHandler::HandleInboundEvent(const omnisphere::net::Request& req) const
     {
         omnisphere::utils::Logger::LogHttpRequest(req);
+
+        // Firma criptográfica opcional X-Hub-Signature-256
+        std::string hubSignature = req.Header("X-Hub-Signature-256");
+        if (hubSignature.empty()) hubSignature = req.Header("x-hub-signature-256");
+
+        if (!hubSignature.empty() && hubSignature.find("sha256=") == 0)
+        {
+            std::string receivedHex = hubSignature.substr(7);
+            omnisphere::utils::Logger::LogInfo("WhatsAppWebhookHandler",
+                req.TraceContext() + " HMAC-SHA256 Signature Received: [" + receivedHex + "]");
+        }
+
+        omnisphere::utils::Logger::LogInfo("WhatsAppWebhookHandler",
+            req.TraceContext() + " Enqueueing Meta POST Webhook Event to [MetaWorkerThread]...");
+
+        // Despacho asíncrono al hilo dedicado de Meta
+        m_metaWorker.Enqueue([this, req]() {
+            ProcessEventAsync(req);
+        });
+
+        // Respuesta HTTP ultra-rápida (< 5ms) para Meta Cloud API
+        return omnisphere::net::Response::Text("EVENT_RECEIVED", 200);
+    }
+
+    void WhatsAppWebhookHandler::ProcessEventAsync(omnisphere::net::Request req) const
+    {
         try
         {
-            // Firma criptográfica opcional X-Hub-Signature-256
-            std::string hubSignature = req.Header("X-Hub-Signature-256");
-            if (hubSignature.empty()) hubSignature = req.Header("x-hub-signature-256");
-
-            if (!hubSignature.empty() && hubSignature.find("sha256=") == 0)
-            {
-                std::string receivedHex = hubSignature.substr(7);
-                omnisphere::utils::Logger::LogInfo("WhatsAppWebhookHandler",
-                    req.TraceContext() + " HMAC-SHA256 Signature Received: [" + receivedHex + "]");
-            }
-
             omnisphere::utils::Logger::LogInfo("WhatsAppWebhookHandler",
-                req.TraceContext() + " POST Webhook Event: " + req.Body());
+                req.TraceContext() + " [MetaWorkerThread] Processing POST Webhook Event: " + req.Body());
 
             auto parsed = req.Json();
             if (parsed.is_object())
@@ -305,11 +320,9 @@ namespace omnisphere::services
         catch (const std::exception& ex)
         {
             omnisphere::utils::Logger::LogError("WhatsAppWebhookHandler",
-                req.TraceContext() + " Exception processing POST event: " + ex.what());
-            std::cerr << "[WhatsAppWebhookHandler Error] " << ex.what() << std::endl;
+                req.TraceContext() + " [MetaWorkerThread] Exception processing POST event: " + ex.what());
+            std::cerr << "[WhatsAppWebhookHandler Error - MetaWorkerThread] " << ex.what() << std::endl;
         }
-
-        return omnisphere::net::Response::Text("EVENT_RECEIVED", 200);
     }
 
     void WhatsAppWebhookHandler::ProcessTemplateStatusUpdate(

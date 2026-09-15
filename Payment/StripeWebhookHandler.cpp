@@ -94,17 +94,30 @@ namespace omnisphere::services
     omnisphere::net::Response StripeWebhookHandler::HandleWebhook(const omnisphere::net::Request& req) const
     {
         omnisphere::utils::Logger::LogHttpRequest(req);
+
+        std::string webhookSecret = RetrieveWebhookSecret();
+        if (!webhookSecret.empty() && webhookSecret.rfind("whsec_", 0) == 0)
+        {
+            if (!VerifySignature(req, webhookSecret))
+            {
+                return omnisphere::net::Response(401, "application/json", R"({"error":"Invalid signature"})");
+            }
+        }
+
+        omnisphere::utils::Logger::LogInfo("StripeWebhookHandler",
+            req.TraceContext() + " Enqueueing Stripe Webhook Event to [StripeWorkerThread]...");
+
+        m_stripeWorker.Enqueue([this, req]() {
+            ProcessWebhookAsync(req);
+        });
+
+        return omnisphere::net::Response::Json(boost::json::object{{"received", true}});
+    }
+
+    void StripeWebhookHandler::ProcessWebhookAsync(omnisphere::net::Request req) const
+    {
         try
         {
-            std::string webhookSecret = RetrieveWebhookSecret();
-            if (!webhookSecret.empty() && webhookSecret.rfind("whsec_", 0) == 0)
-            {
-                if (!VerifySignature(req, webhookSecret))
-                {
-                    return omnisphere::net::Response(401, "application/json", R"({"error":"Invalid signature"})");
-                }
-            }
-
             auto parsed = req.Json();
             if (parsed.is_object())
             {
@@ -113,7 +126,7 @@ namespace omnisphere::services
                 std::string eventId = obj.contains("id") && obj.at("id").is_string() ? std::string(obj.at("id").as_string()) : "";
 
                 omnisphere::utils::Logger::LogInfo("StripeWebhookHandler",
-                    req.TraceContext() + " Webhook Event Received: [" + eventType + "] (ID: " + eventId + ")");
+                    req.TraceContext() + " [StripeWorkerThread] Processing Event: [" + eventType + "] (ID: " + eventId + ")");
 
                 bool isSuccessEvent = (eventType == "checkout.session.completed" ||
                                        eventType == "checkout.session.async_payment_succeeded" ||
@@ -210,22 +223,22 @@ namespace omnisphere::services
                     {
                         if (!sessionId.empty())
                         {
-                            omnisphere::utils::Logger::LogWarning("StripeWebhookHandler", req.TraceContext() + " ReservationCode empty in event payload. Searching database for SessionId [" + sessionId + "]...");
+                            omnisphere::utils::Logger::LogWarning("StripeWebhookHandler", req.TraceContext() + " [StripeWorkerThread] ReservationCode empty in event payload. Searching database for SessionId [" + sessionId + "]...");
                             auto sessOpt = m_repo->GetSessionByStripeId(sessionId);
                             if (sessOpt.has_value() && !sessOpt->reservationCode.empty())
                             {
                                 reservationCode = sessOpt->reservationCode;
-                                omnisphere::utils::Logger::LogInfo("StripeWebhookHandler", req.TraceContext() + " Successfully resolved ReservationCode [" + reservationCode + "] from database session.");
+                                omnisphere::utils::Logger::LogInfo("StripeWebhookHandler", req.TraceContext() + " [StripeWorkerThread] Successfully resolved ReservationCode [" + reservationCode + "] from database session.");
                             }
                         }
                         if (reservationCode.empty() && !paymentIntentId.empty())
                         {
-                            omnisphere::utils::Logger::LogWarning("StripeWebhookHandler", req.TraceContext() + " ReservationCode empty in event payload. Searching database for PaymentIntentId [" + paymentIntentId + "]...");
+                            omnisphere::utils::Logger::LogWarning("StripeWebhookHandler", req.TraceContext() + " [StripeWorkerThread] ReservationCode empty in event payload. Searching database for PaymentIntentId [" + paymentIntentId + "]...");
                             auto txOpt = m_repo->GetTransactionByPaymentIntent(paymentIntentId);
                             if (txOpt.has_value() && !txOpt->reservationCode.empty())
                             {
                                 reservationCode = txOpt->reservationCode;
-                                omnisphere::utils::Logger::LogInfo("StripeWebhookHandler", req.TraceContext() + " Successfully resolved ReservationCode [" + reservationCode + "] from database transaction.");
+                                omnisphere::utils::Logger::LogInfo("StripeWebhookHandler", req.TraceContext() + " [StripeWorkerThread] Successfully resolved ReservationCode [" + reservationCode + "] from database transaction.");
                             }
                         }
                     }
@@ -243,7 +256,7 @@ namespace omnisphere::services
                     if (isSuccessEvent)
                     {
                         omnisphere::utils::Logger::LogInfo("StripeWebhookHandler",
-                            req.TraceContext() + " Payment SUCCEEDED for EntityCode: [" + reservationCode +
+                            req.TraceContext() + " [StripeWorkerThread] Payment SUCCEEDED for EntityCode: [" + reservationCode +
                             "], SessionID: [" + sessionId + "], PaymentIntentID: [" + paymentIntentId +
                             "], Amount: $" + std::to_string(amount) + " MXN");
 
@@ -264,7 +277,7 @@ namespace omnisphere::services
                     else if (isFailedEvent)
                     {
                         omnisphere::utils::Logger::LogWarning("StripeWebhookHandler",
-                            req.TraceContext() + " Payment FAILED/DECLINED/FRAUDULENT [" + eventType + "] for EntityCode: [" + reservationCode +
+                            req.TraceContext() + " [StripeWorkerThread] Payment FAILED/DECLINED/FRAUDULENT [" + eventType + "] for EntityCode: [" + reservationCode +
                             "], SessionID: [" + sessionId + "], PaymentIntentID: [" + paymentIntentId + "]");
 
                         if (m_repo)
@@ -279,7 +292,7 @@ namespace omnisphere::services
                     else if (isExpiredEvent)
                     {
                         omnisphere::utils::Logger::LogWarning("StripeWebhookHandler",
-                            req.TraceContext() + " Checkout Session EXPIRED for EntityCode: [" + reservationCode +
+                            req.TraceContext() + " [StripeWorkerThread] Checkout Session EXPIRED for EntityCode: [" + reservationCode +
                             "], SessionID: [" + sessionId + "]");
 
                         if (m_repo)
@@ -296,10 +309,8 @@ namespace omnisphere::services
         catch (const std::exception& ex)
         {
             omnisphere::utils::Logger::LogError("StripeWebhookHandler",
-                req.TraceContext() + " Exception processing Stripe webhook: " + ex.what());
-            std::cerr << "[StripeWebhookHandler Error] " << ex.what() << std::endl;
+                req.TraceContext() + " [StripeWorkerThread] Exception processing Stripe webhook: " + ex.what());
+            std::cerr << "[StripeWebhookHandler Error - StripeWorkerThread] " << ex.what() << std::endl;
         }
-
-        return omnisphere::net::Response::Json(boost::json::object{{"received", true}});
     }
 } // namespace omnisphere::services

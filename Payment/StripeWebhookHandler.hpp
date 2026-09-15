@@ -2,6 +2,7 @@
 #include <OmniData/DatabasePool.hpp>
 #include <OmniUtils/Http/Request.hpp>
 #include <OmniUtils/Http/Response.hpp>
+#include <OmniUtils/DomainTaskDispatcher.hpp>
 #include "Payment/Repositories/StripeRepository.hpp"
 #include <functional>
 #include <memory>
@@ -33,8 +34,10 @@ namespace omnisphere::services
         std::shared_ptr<omnisphere::data::DatabasePool> m_dbPool;
         std::shared_ptr<omnisphere::repositories::StripeRepository> m_repo;
         StripePaymentHandler m_paymentCompletedHandler;
+        mutable omnisphere::utils::DomainTaskDispatcher m_stripeWorker{"StripeWorkerThread"};
 
         bool VerifySignature(const omnisphere::net::Request& req, const std::string& webhookSecret) const;
         std::string RetrieveWebhookSecret() const;
+        void ProcessWebhookAsync(omnisphere::net::Request req) const;
     };
 } // namespace omnisphere::services

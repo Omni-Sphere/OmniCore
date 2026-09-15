@@ -27,7 +27,7 @@ namespace omnisphere::payment
             return omnisphere::net::Response(404, "application/json", R"({"error":"Payment provider not found"})");
         }
 
-        // 1. Validar firma del webhook
+        // 1. Validar firma del webhook síncronamente
         if (!provider->VerifyWebhookSignature(req))
         {
             omnisphere::utils::Logger::LogError("UniversalPaymentWebhookHandler",
@@ -35,41 +35,56 @@ namespace omnisphere::payment
             return omnisphere::net::Response(400, "application/json", R"({"error":"Invalid webhook signature"})");
         }
 
-        // 2. Parsear evento
-        auto eventOpt = provider->ParseWebhookEvent(req);
-        if (!eventOpt.has_value())
-        {
-            // Evento no procesable o informativo (ej. payment_intent.created)
-            return omnisphere::net::Response::Json(boost::json::object{{"received", true}, {"processed", false}});
-        }
-
-        const auto& event = eventOpt.value();
         omnisphere::utils::Logger::LogInfo("UniversalPaymentWebhookHandler",
-            req.TraceContext() + " Payment event [" + event.eventType + "] received for EntityType: [" + event.entityType +
-            "], EntityCode: [" + event.entityCode + "], Provider: [" + providerCode + "], Amount: $" + std::to_string(event.amount));
+            req.TraceContext() + " Enqueueing Universal Webhook Event to [UniversalPaymentWorkerThread]...");
 
-        // 3. Despachar a los Hooks registrados en Core
-        if (event.eventType == "PAYMENT_COMPLETED")
-        {
-            PaymentHookRegistry::Instance().DispatchCompleted(event);
-        }
-        else if (event.eventType == "PAYMENT_FAILED")
-        {
-            PaymentHookRegistry::Instance().DispatchFailed(event);
-        }
-        else if (event.eventType == "PAYMENT_EXPIRED")
-        {
-            PaymentHookRegistry::Instance().DispatchExpired(event);
-        }
+        // 2. Despachar asíncronamente al hilo dedicado de Pagos Universales
+        m_universalWorker.Enqueue([this, providerCode, req]() {
+            ProcessWebhookAsync(providerCode, req);
+        });
 
         boost::json::object resObj;
         resObj["received"] = true;
-        resObj["eventType"] = event.eventType;
-        resObj["entityType"] = event.entityType;
-        resObj["entityCode"] = event.entityCode;
+        resObj["provider"] = providerCode;
         resObj["status"] = "DISPATCHED";
 
         return omnisphere::net::Response::Json(resObj);
+    }
+
+    void UniversalPaymentWebhookHandler::ProcessWebhookAsync(std::string providerCode, omnisphere::net::Request req) const
+    {
+        try
+        {
+            auto provider = PaymentProviderRegistry::Instance().GetProvider(providerCode);
+            if (!provider) return;
+
+            auto eventOpt = provider->ParseWebhookEvent(req);
+            if (!eventOpt.has_value()) return;
+
+            const auto& event = eventOpt.value();
+            omnisphere::utils::Logger::LogInfo("UniversalPaymentWebhookHandler",
+                req.TraceContext() + " [UniversalPaymentWorkerThread] Payment event [" + event.eventType + "] received for EntityType: [" + event.entityType +
+                "], EntityCode: [" + event.entityCode + "], Provider: [" + providerCode + "], Amount: $" + std::to_string(event.amount));
+
+            if (event.eventType == "PAYMENT_COMPLETED")
+            {
+                PaymentHookRegistry::Instance().DispatchCompleted(event);
+            }
+            else if (event.eventType == "PAYMENT_FAILED")
+            {
+                PaymentHookRegistry::Instance().DispatchFailed(event);
+            }
+            else if (event.eventType == "PAYMENT_EXPIRED")
+            {
+                PaymentHookRegistry::Instance().DispatchExpired(event);
+            }
+        }
+        catch (const std::exception& ex)
+        {
+            omnisphere::utils::Logger::LogError("UniversalPaymentWebhookHandler",
+                req.TraceContext() + " [UniversalPaymentWorkerThread] Exception processing webhook: " + ex.what());
+            std::cerr << "[UniversalPaymentWebhookHandler Error - UniversalPaymentWorkerThread] " << ex.what() << std::endl;
+        }
     }
 
     omnisphere::net::Response UniversalPaymentWebhookHandler::HandleUniversalWebhook(const omnisphere::net::Request& req) const
