@@ -1,4 +1,5 @@
 #include "Notification/WhatsAppService.hpp"
+#include <OmniData/Database.hpp>
 #include <OmniUtils/Base64.hpp>
 #include <OmniUtils/Logger.hpp>
 #include <boost/asio/connect.hpp>
@@ -808,6 +809,117 @@ namespace omnisphere::services
         return SendRequest(cleanPhone, "TEMPLATE", "ticket_confirmation", contentStr, jsonStr);
     }
 
+    // -------------------------------------------------------------------------
+    // SendTicketConfirmationByReservation
+    // Resuelve todos los datos necesarios con un JOIN único y envía la plantilla.
+    // Diseñado para llamarse desde un std::thread detached.
+    // -------------------------------------------------------------------------
+    bool WhatsAppService::SendTicketConfirmationByReservation(
+        const std::string& reservationCode,
+        std::shared_ptr<omnisphere::data::DatabasePool> dbPool
+    )
+    {
+        if (reservationCode.empty() || !dbPool) return false;
+
+        // Inicializar config de WhatsApp desde la DB si aún no está lista
+        if (m_config.phoneId.empty())
+            InitializeFromDatabase(dbPool);
+
+        try
+        {
+            auto conn = dbPool->Acquire();
+
+            // Un único JOIN para obtener todos los datos necesarios de la plantilla
+            std::string sql =
+                "SELECT "
+                "  r.\"Phone\",  r.\"FirstName1\",  r.\"Code\" AS \"ResCode\","
+                "  r.\"Seats\","
+                "  e.\"Name\"   AS \"EventName\","
+                "  dp.\"Name\"  AS \"DeparturePointName\","
+                "  TO_CHAR(s.\"DepartureTime\", 'HH24:MI') AS \"DepartureHour\","
+                "  dp.\"References\" AS \"References\","
+                "  e.\"ToleranceTime\"  AS \"ToleranceTime\" "
+                "FROM \"Reservations\" r "
+                "LEFT JOIN \"Events\"          e  ON e.\"Code\"  = r.\"EventCode\" "
+                "LEFT JOIN \"DeparturePoints\" dp ON dp.\"Code\" = r.\"PickupPointCode\" "
+                "LEFT JOIN \"Schedules\"       s  ON s.\"Code\"  = r.\"ScheduleCode\" "
+                "WHERE r.\"Code\" = ? "
+                "LIMIT 1";
+
+            auto dt = conn->FetchPrepared(sql, { omnisphere::types::MakeSQLParam(reservationCode) });
+
+            if (dt.RowsCount() == 0)
+            {
+                omnisphere::utils::Logger::LogError("WhatsAppService",
+                    "[SendTicketConfirmationByReservation] Reservation not found: " + reservationCode);
+                return false;
+            }
+
+            const auto& row = dt[0];
+
+            // Helpers que trabajan con const Value& (std::optional<variant>)
+            auto getStr = [&](const std::string& col, const std::string& fallback = "") -> std::string {
+                if (!row.HasColumn(col)) return fallback;
+                const auto& val = row[col];
+                if (!val.has_value()) return fallback;
+                if (const auto* p = std::get_if<std::string>(&val.value())) return *p;
+                return fallback;
+            };
+
+            auto getInt = [&](const std::string& col, int fallback = 0) -> int {
+                if (!row.HasColumn(col)) return fallback;
+                const auto& val = row[col];
+                if (!val.has_value()) return fallback;
+                if (const auto* p = std::get_if<int>(&val.value())) return *p;
+                if (const auto* p = std::get_if<double>(&val.value())) return static_cast<int>(*p);
+                return fallback;
+            };
+
+            std::string phone         = getStr("Phone");
+            std::string name          = getStr("FirstName1", "Pasajero");
+            std::string resCode       = getStr("ResCode", reservationCode);
+            int         seats         = getInt("Seats", 1);
+            std::string eventName     = getStr("EventName",          "Evento");
+            std::string pickupName    = getStr("DeparturePointName", "Punto de Abordaje");
+            std::string depHour       = getStr("DepartureHour");
+            std::string references    = getStr("References",         "Sin referencias");
+            std::string toleranceTime = getStr("ToleranceTime",      "15 minutos");
+
+            if (phone.empty())
+            {
+                omnisphere::utils::Logger::LogError("WhatsAppService",
+                    "[SendTicketConfirmationByReservation] No phone for reservation: " + reservationCode);
+                return false;
+            }
+
+            std::string seatsStr  = std::to_string(seats) + (seats == 1 ? " lugar" : " lugares");
+            std::string depTimeStr = !depHour.empty() ? depHour + " hrs" : "Por confirmar";
+
+            omnisphere::utils::Logger::LogInfo("WhatsAppService",
+                "[SendTicketConfirmationByReservation] Sending ticket_confirmation to " + phone +
+                " | Res: " + resCode + " | Event: " + eventName + " | Pickup: " + pickupName +
+                " | Hora: " + depTimeStr);
+
+            return SendTicketConfirmation(
+                phone,
+                name,
+                resCode,
+                seatsStr,
+                eventName,
+                "Por confirmar",
+                depTimeStr,
+                pickupName,
+                references,
+                toleranceTime
+            );
+        }
+        catch (const std::exception& ex)
+        {
+            omnisphere::utils::Logger::LogError("WhatsAppService",
+                std::string("[SendTicketConfirmationByReservation] Exception: ") + ex.what());
+            return false;
+        }
+    }
     std::optional<omnisphere::models::CustomMessage> WhatsAppService::GetCustomMessage(const std::string& messageCode) const
     {
         if (!m_repository) return std::nullopt;
