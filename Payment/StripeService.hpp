@@ -1,6 +1,7 @@
 #pragma once
 #include "Payment/Repositories/StripeRepository.hpp"
 #include "Authorization/Models/SecurityContext.hpp"
+#include "License/Services/LicenseService.hpp"
 #include <OmniData/DatabasePool.hpp>
 #include <memory>
 #include <string>
@@ -102,8 +103,11 @@ namespace omnisphere::services
             const std::string& sessionId
         ) const;
 
+        void SetLicenseService(std::shared_ptr<omnisphere::services::LicenseService> licenseService);
+
     private:
         std::shared_ptr<omnisphere::repositories::StripeRepository> m_repository;
         std::shared_ptr<omnisphere::data::DatabasePool> m_dbPool;
+        std::shared_ptr<omnisphere::services::LicenseService> m_licenseService;
     };
 }

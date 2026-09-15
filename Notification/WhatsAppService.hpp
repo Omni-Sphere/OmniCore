@@ -4,6 +4,7 @@
 #include "Notification/Repositories/WhatsAppRepository.hpp"
 #include "Notification/Models/WhatsAppSettings.hpp"
 #include "Notification/Models/CustomMessage.hpp"
+#include "License/Services/LicenseService.hpp"
 #include <OmniData/DatabasePool.hpp>
 #include <map>
 #include <memory>
@@ -80,11 +81,13 @@ namespace omnisphere::services
 
         bool HasRecentWelcomeCard(const std::string& phoneNumber, int minutesWindow = 30) const;
 
+        void SetLicenseService(std::shared_ptr<omnisphere::services::LicenseService> licenseService);
         std::string GetLastErrorMessage() const { return m_lastError; }
 
     private:
         omnisphere::dtos::WhatsAppConfig m_config;
         std::shared_ptr<omnisphere::repositories::WhatsAppRepository> m_repository;
+        std::shared_ptr<omnisphere::services::LicenseService> m_licenseService;
         mutable std::string m_lastError;
 
         static std::string ParseMetaErrorMessage(const std::string& rawPayload);

@@ -1192,3 +1192,32 @@ BEGIN
         UPDATE "WhatsAppMessages" SET "Code" = 'WAM' || "Entry" WHERE "Code" LIKE 'wamid.%' OR "Code" LIKE 'ERR-%' OR "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
     END IF;
 END $$;
+
+-- =============================================================================
+-- 34. SystemLicenses
+--     Almacena la OmniLicense API Key activa para persistencia entre reinicios.
+--     La VALIDACIÓN criptográfica se realiza en RAM (LicenseService / C++).
+--     Solo una licencia puede estar activa (IsActive = true) a la vez.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS "SystemLicenses" (
+    "Entry"       SERIAL PRIMARY KEY,
+    "Code"        VARCHAR(50) NOT NULL UNIQUE,
+    "ApiKey"      TEXT NOT NULL,
+    "ClientName"  VARCHAR(255) NOT NULL DEFAULT 'OmniSphere Licensee',
+    "Issuer"      VARCHAR(255) NOT NULL DEFAULT 'OmniSphere Authority',
+    "IssuedAt"    DATE,
+    "ExpiresAt"   DATE NOT NULL,
+    "Modules"     TEXT NOT NULL DEFAULT '[]',
+    "IsActive"    BOOLEAN NOT NULL DEFAULT true,
+    "CreatedBy"   INT NOT NULL DEFAULT 1,
+    "CreateDate"  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "UpdateDate"  TIMESTAMP
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "UQ_SystemLicenses_Active"
+    ON "SystemLicenses" ("IsActive") WHERE "IsActive" = true;
+
+-- Semilla de identidad para la generación de códigos LIC1, LIC2...
+INSERT INTO "Identities" ("Domain", "Prefix1", "CurrentSequence")
+VALUES ('SystemLicense', 'LIC', 0)
+ON CONFLICT ("Domain") DO NOTHING;

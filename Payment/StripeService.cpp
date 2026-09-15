@@ -34,6 +34,11 @@ namespace omnisphere::services
     StripeService::StripeService(std::shared_ptr<omnisphere::repositories::StripeRepository> repository)
         : m_repository(std::move(repository)) {}
 
+    void StripeService::SetLicenseService(std::shared_ptr<omnisphere::services::LicenseService> licenseService)
+    {
+        m_licenseService = std::move(licenseService);
+    }
+
     std::optional<omnisphere::models::StripeSettings> StripeService::GetSettings(bool decryptKeys) const
     {
         if (!m_repository) return std::nullopt;
@@ -89,6 +94,7 @@ namespace omnisphere::services
         const std::string& cancelUrl
     ) const
     {
+        if (m_licenseService) m_licenseService->RequireModule(omnisphere::license::MODULE_STRIPE);
         StripeCheckoutResult res;
         if (reservationCode.empty() || amount <= 0.0)
         {
@@ -262,6 +268,7 @@ namespace omnisphere::services
         const std::string& currency
     ) const
     {
+        if (m_licenseService) m_licenseService->RequireModule(omnisphere::license::MODULE_STRIPE);
         StripePaymentIntentResult res;
         auto settingsOpt = GetSettings(true);
 
@@ -384,6 +391,7 @@ namespace omnisphere::services
         const std::string& customerEmail
     ) const
     {
+        if (m_licenseService) m_licenseService->RequireModule(omnisphere::license::MODULE_STRIPE);
         StripeBankTransferResult res;
         res.amount = amount;
         res.currency = "mxn";

@@ -30,6 +30,11 @@ namespace omnisphere::services
         InitializeFromDatabase(std::move(dbPool));
     }
 
+    void WhatsAppService::SetLicenseService(std::shared_ptr<omnisphere::services::LicenseService> licenseService)
+    {
+        m_licenseService = std::move(licenseService);
+    }
+
     bool WhatsAppService::InitializeFromDatabase(std::shared_ptr<omnisphere::data::DatabasePool> dbPool)
     {
         if (!dbPool) return false;
@@ -449,6 +454,7 @@ namespace omnisphere::services
         const std::vector<std::string>& params
     )
     {
+        if (m_licenseService) m_licenseService->RequireModule(omnisphere::license::MODULE_WHATSAPP);
         std::string cleanPhone = SanitizePhoneNumber(phoneNumber);
         json::object body;
         body["messaging_product"] = "whatsapp";
@@ -492,6 +498,7 @@ namespace omnisphere::services
         const std::map<std::string, std::string>& params
     )
     {
+        if (m_licenseService) m_licenseService->RequireModule(omnisphere::license::MODULE_WHATSAPP);
         std::string cleanPhone = SanitizePhoneNumber(phoneNumber);
         json::object body;
         body["messaging_product"] = "whatsapp";
@@ -644,6 +651,7 @@ namespace omnisphere::services
         const std::string& message
     )
     {
+        if (m_licenseService) m_licenseService->RequireModule(omnisphere::license::MODULE_WHATSAPP);
         std::string cleanPhone = SanitizePhoneNumber(phoneNumber);
         std::string decodedMessage = DecodeUnicodeEscapes(message);
         json::object body;
@@ -685,6 +693,7 @@ namespace omnisphere::services
         const std::vector<std::pair<std::string, std::string>>& buttons
     )
     {
+        if (m_licenseService) m_licenseService->RequireModule(omnisphere::license::MODULE_WHATSAPP);
         std::string cleanPhone = SanitizePhoneNumber(phoneNumber);
         std::string decodedBody = DecodeUnicodeEscapes(bodyText);
         json::object body;
@@ -736,6 +745,7 @@ namespace omnisphere::services
         const std::string& toleranceTime
     )
     {
+        if (m_licenseService) m_licenseService->RequireModule(omnisphere::license::MODULE_WHATSAPP);
         std::string cleanPhone = SanitizePhoneNumber(phoneNumber);
         json::object body;
         body["messaging_product"] = "whatsapp";
@@ -810,6 +820,7 @@ namespace omnisphere::services
         const std::map<std::string, std::string>& placeholders
     )
     {
+        if (m_licenseService) m_licenseService->RequireModule(omnisphere::license::MODULE_WHATSAPP);
         auto msgOpt = GetCustomMessage(messageCode);
         if (!msgOpt.has_value())
         {

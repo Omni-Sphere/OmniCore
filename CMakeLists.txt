@@ -78,6 +78,8 @@ add_library(OmniCore SHARED
     Identity/Repositories/IdentityRepository.cpp
     SystemConfig/SystemConfig.cpp
     SystemConfig/Repositories/SystemConfig.cpp
+    License/Services/LicenseService.cpp
+    License/Repositories/LicenseRepository.cpp
 )
 
 # --- Resolución de dependencias Omni ---
@@ -207,6 +209,10 @@ set(
     SystemConfig/DTOs
     SystemConfig/Models
     SystemConfig/Repositories
+    License
+    License/Models
+    License/Services
+    License/Repositories
 )
 
 foreach(DIR ${HEADER_DIRS})
