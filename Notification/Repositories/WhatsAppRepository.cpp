@@ -1,4 +1,5 @@
 #include "Notification/Repositories/WhatsAppRepository.hpp"
+#include "Identity/Repositories/IdentityRepository.hpp"
 #include <OmniData/Database.hpp>
 #include <OmniData/QueryBuilder.hpp>
 #include <OmniUtils/Base64.hpp>
@@ -146,7 +147,10 @@ namespace omnisphere::repositories
                 return dt[0]["Entry"];
             }
 
-            std::string code = "CONV-" + customerPhone;
+            omnisphere::repositories::IdentityRepository identityRepo(m_dbPool);
+            std::string code = identityRepo.GetNextCode("WhatsAppConversation", "WAC");
+            if (code.empty()) code = "WAC1";
+
             std::vector<std::string> insertCols = {"\"Code\"", "\"CustomerPhone\"", "\"CustomerName\"", "\"Status\"", "\"IsActive\"", "\"CreatedBy\""};
             std::string insertSql = omnisphere::types::BuildInsertQuery("\"WhatsAppConversations\"", insertCols) + " RETURNING \"Entry\"";
             std::vector<omnisphere::types::SQLParam> insertParams = {
@@ -223,15 +227,29 @@ namespace omnisphere::repositories
         try
         {
             auto conn = m_dbPool->Acquire();
+
+            omnisphere::repositories::IdentityRepository identityRepo(m_dbPool);
+            std::string msgCode = (msg.code.has_value() && !msg.code.value().empty() && msg.code.value().rfind("WAM", 0) == 0)
+                ? msg.code.value()
+                : identityRepo.GetNextCode("WhatsAppMessage", "WAM");
+            if (msgCode.empty()) msgCode = "WAM1";
+
+            std::string waId = msg.whatsAppId.value_or("");
+            if (waId.empty() && msg.code.has_value() && msg.code.value().rfind("WAM", 0) != 0)
+            {
+                waId = msg.code.value();
+            }
+
             std::vector<std::string> cols = {
-                "\"Code\"", "\"ConversationEntry\"", "\"SenderType\"", "\"MessageType\"",
+                "\"Code\"", "\"WhatsAppId\"", "\"ConversationEntry\"", "\"SenderType\"", "\"MessageType\"",
                 "\"TemplateName\"", "\"Content\"", "\"MediaUrl\"", "\"Status\"",
                 "\"ResponsePayload\"", "\"ErrorMessage\"", "\"SentBy\""
             };
             std::string sql = omnisphere::types::BuildInsertQuery("\"WhatsAppMessages\"", cols);
 
             std::vector<omnisphere::types::SQLParam> params = {
-                omnisphere::types::MakeSQLParam(msg.code),
+                omnisphere::types::MakeSQLParam(msgCode),
+                omnisphere::types::MakeSQLParam(waId),
                 omnisphere::types::MakeSQLParam(msg.conversationEntry),
                 omnisphere::types::MakeSQLParam(msg.senderType),
                 omnisphere::types::MakeSQLParam(msg.messageType),
@@ -268,12 +286,14 @@ namespace omnisphere::repositories
         try
         {
             auto conn = m_dbPool->Acquire();
-            std::vector<omnisphere::types::ColumnValue> updateCols = {
-                {"\"Status\"", omnisphere::types::MakeSQLParam(newStatus)},
-                {"\"ResponsePayload\"", omnisphere::types::MakeSQLParam(responsePayload)}
+            std::string sql = "UPDATE \"WhatsAppMessages\" SET \"Status\" = ?, \"ResponsePayload\" = ? WHERE \"WhatsAppId\" = ? OR \"Code\" = ?";
+            std::vector<omnisphere::types::SQLParam> params = {
+                omnisphere::types::MakeSQLParam(newStatus),
+                omnisphere::types::MakeSQLParam(responsePayload),
+                omnisphere::types::MakeSQLParam(wamidCode),
+                omnisphere::types::MakeSQLParam(wamidCode)
             };
-            auto updateQuery = omnisphere::types::BuildUpdateQuery("\"WhatsAppMessages\"", updateCols, "\"Code\"", omnisphere::types::MakeSQLParam(wamidCode));
-            return conn->RunPrepared(updateQuery.Query, updateQuery.Parameters);
+            return conn->RunPrepared(sql, params);
         }
         catch (const std::exception& ex)
         {
@@ -288,8 +308,11 @@ namespace omnisphere::repositories
         try
         {
             auto conn = m_dbPool->Acquire();
-            std::string sql = "SELECT \"Entry\" FROM \"WhatsAppMessages\" WHERE \"Code\" = ? LIMIT 1";
-            std::vector<omnisphere::types::SQLParam> params = { omnisphere::types::MakeSQLParam(wamidCode) };
+            std::string sql = "SELECT \"Entry\" FROM \"WhatsAppMessages\" WHERE \"WhatsAppId\" = ? OR \"Code\" = ? LIMIT 1";
+            std::vector<omnisphere::types::SQLParam> params = {
+                omnisphere::types::MakeSQLParam(wamidCode),
+                omnisphere::types::MakeSQLParam(wamidCode)
+            };
             auto dt = conn->FetchPrepared(sql, params);
             return dt.RowsCount() > 0;
         }

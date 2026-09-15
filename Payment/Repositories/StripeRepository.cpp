@@ -1,4 +1,5 @@
 #include "Payment/Repositories/StripeRepository.hpp"
+#include "Identity/Repositories/IdentityRepository.hpp"
 #include <OmniData/Database.hpp>
 #include <OmniData/QueryBuilder.hpp>
 #include <OmniUtils/Base64.hpp>
@@ -146,7 +147,9 @@ namespace omnisphere::repositories
         try
         {
             auto conn = m_dbPool->Acquire();
-            std::string codeVal = session.code.empty() ? "STR-SESS-" + session.stripeSessionId.substr(0, 12) : session.code;
+            omnisphere::repositories::IdentityRepository identityRepo(m_dbPool);
+            std::string codeVal = session.code.empty() ? identityRepo.GetNextCode("StripeSession", "STS") : session.code;
+            if (codeVal.empty()) codeVal = "STS1";
             std::vector<std::string> cols = {
                 "\"Code\"", "\"ReservationCode\"", "\"StripeSessionId\"", "\"PaymentIntentId\"",
                 "\"CheckoutUrl\"", "\"Amount\"", "\"Currency\"", "\"Status\"", "\"IsActive\"", "\"CreatedBy\""
@@ -258,7 +261,9 @@ namespace omnisphere::repositories
         try
         {
             auto conn = m_dbPool->Acquire();
-            std::string codeVal = tx.code.empty() ? ("TX-" + tx.paymentIntentId) : tx.code;
+            omnisphere::repositories::IdentityRepository identityRepo(m_dbPool);
+            std::string codeVal = tx.code.empty() ? identityRepo.GetNextCode("StripeTransaction", "STX") : tx.code;
+            if (codeVal.empty()) codeVal = "STX1";
 
             std::vector<std::string> cols = {
                 "\"Code\"", "\"ReservationCode\"", "\"PaymentIntentId\"", "\"ChargeId\"",

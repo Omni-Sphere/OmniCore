@@ -191,15 +191,16 @@ namespace omnisphere::services
             int convEntry = m_repo->GetOrCreateConversation(fromPhone, customerName);
             if (convEntry > 0)
             {
+                std::string rawBody = req.Body();
                 omnisphere::models::WhatsAppMessage msg;
-                msg.code = wamid;
+                msg.whatsAppId = wamid;
                 msg.conversationEntry = convEntry;
                 msg.senderType = "INBOUND";
                 msg.messageType = msgType;
                 msg.content = bodyText;
                 msg.status = "RECEIVED";
-                msg.responsePayload = req.Body();
-                msg.sentBy = 1;
+                msg.responsePayload = rawBody;
+                msg.sentBy = 0;
                 m_repo->LogMessage(msg);
                 omnisphere::utils::Logger::LogInfo("WhatsAppWebhookHandler",
                     req.TraceContext() + " Inbound Message Logged to DB (WAMID: " + wamid + ", From: " + fromPhone + ", Body: '" + bodyText + "')");

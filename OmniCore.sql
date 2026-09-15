@@ -194,7 +194,11 @@ INSERT INTO "Identities" ("Domain", "Prefix1", "CurrentSequence") VALUES
 ('WhatsAppMessage', 'WAM', 0),
 ('CustomMessage', 'MSG', 0),
 ('CustomButton', 'BTN', 0),
-('CustomAttachment', 'ATT', 0)
+('CustomAttachment', 'ATT', 0),
+('PaymentTransaction', 'TXN', 0),
+('StripeSession', 'STS', 0),
+('StripeTransaction', 'STX', 0),
+('User', 'USR', 0)
 ON CONFLICT ("Domain") DO NOTHING;
 
 -- 7. Venues
@@ -694,7 +698,8 @@ CREATE INDEX IF NOT EXISTS "IDX_WhatsAppConversations_CustomerPhone" ON "WhatsAp
 -- 27. WhatsAppMessages
 CREATE TABLE IF NOT EXISTS "WhatsAppMessages" (
     "Entry" SERIAL PRIMARY KEY,
-    "Code" VARCHAR(255),
+    "Code" VARCHAR(50) NOT NULL UNIQUE,
+    "WhatsAppId" VARCHAR(255),
     "ConversationEntry" INT NOT NULL,
     "SenderType" VARCHAR(50) NOT NULL DEFAULT 'OUTBOUND',
     "MessageType" VARCHAR(50) NOT NULL DEFAULT 'TEXT',
@@ -708,8 +713,11 @@ CREATE TABLE IF NOT EXISTS "WhatsAppMessages" (
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+ALTER TABLE "WhatsAppMessages" ADD COLUMN IF NOT EXISTS "WhatsAppId" VARCHAR(255);
+
 CREATE INDEX IF NOT EXISTS "IDX_WhatsAppMessages_ConversationEntry" ON "WhatsAppMessages" ("ConversationEntry");
 CREATE INDEX IF NOT EXISTS "IDX_WhatsAppMessages_Code" ON "WhatsAppMessages" ("Code");
+CREATE INDEX IF NOT EXISTS "IDX_WhatsAppMessages_WhatsAppId" ON "WhatsAppMessages" ("WhatsAppId");
 
 -- 28. WhatsAppTemplates (Plantillas Oficiales Meta Cloud API)
 CREATE TABLE IF NOT EXISTS "WhatsAppTemplates" (
@@ -1173,5 +1181,14 @@ BEGIN
 
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'PaymentTransactions') THEN
         UPDATE "PaymentTransactions" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'WhatsAppConversations') THEN
+        UPDATE "WhatsAppConversations" SET "Code" = 'WAC' || "Entry" WHERE "Code" LIKE 'CONV-%' OR "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'WhatsAppMessages') THEN
+        UPDATE "WhatsAppMessages" SET "WhatsAppId" = "Code" WHERE ("WhatsAppId" IS NULL OR "WhatsAppId" = '') AND "Code" LIKE 'wamid.%';
+        UPDATE "WhatsAppMessages" SET "Code" = 'WAM' || "Entry" WHERE "Code" LIKE 'wamid.%' OR "Code" LIKE 'ERR-%' OR "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
     END IF;
 END $$;

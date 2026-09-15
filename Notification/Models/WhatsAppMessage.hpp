@@ -9,6 +9,7 @@ namespace omnisphere::models
     {
         int entry = 0;
         std::optional<std::string> code;
+        std::optional<std::string> whatsAppId;
         int conversationEntry = 0;
         std::string senderType = "OUTBOUND"; // "OUTBOUND" | "INBOUND"
         std::string messageType = "TEXT";    // "TEMPLATE" | "TEXT" | "IMAGE" | etc.
@@ -25,6 +26,7 @@ namespace omnisphere::models
     BOOST_DESCRIBE_STRUCT(WhatsAppMessage, (), (
         entry,
         code,
+        whatsAppId,
         conversationEntry,
         senderType,
         messageType,

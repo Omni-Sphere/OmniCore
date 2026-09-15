@@ -405,7 +405,7 @@ namespace omnisphere::services
             if (convEntry > 0)
             {
                 omnisphere::models::WhatsAppMessage msg;
-                msg.code = wamidCode.empty() ? ("ERR-" + std::to_string(std::time(nullptr))) : wamidCode;
+                msg.whatsAppId = wamidCode.empty() ? ("ERR-" + std::to_string(std::time(nullptr))) : wamidCode;
                 msg.conversationEntry = convEntry;
                 msg.senderType = "OUTBOUND";
                 msg.messageType = messageType;
