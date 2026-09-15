@@ -16,7 +16,7 @@ namespace omnisphere::repositories
     static T GetVal(const TRow& row, const std::string& col, T defaultVal = T{})
     {
         if (row.HasColumn(col)) {
-            auto val = row[col];
+            const auto& val = row[col];
             if (val.has_value()) {
                 if (auto p = std::get_if<T>(&(*val))) return *p;
             }
@@ -199,16 +199,10 @@ namespace omnisphere::repositories
             std::string sql = "SELECT \"Value\" FROM \"GlobalConfiguration\" WHERE \"Code\" = 'LICENSE_MASTER_SECRET' AND \"IsActive\" = true LIMIT 1";
             std::vector<omnisphere::types::SQLParam> emptyParams;
             auto dt = conn->FetchPrepared(sql, emptyParams);
-            if (dt.RowsCount() > 0 && dt[0].HasColumn("Value"))
+            if (dt.RowsCount() > 0)
             {
-                auto val = dt[0]["Value"];
-                if (val.has_value())
-                {
-                    if (auto p = std::get_if<std::string>(&(*val)))
-                    {
-                        if (!p->empty()) return *p;
-                    }
-                }
+                std::string secret = GetVal<std::string>(dt[0], "Value");
+                if (!secret.empty()) return secret;
             }
         }
         catch (const std::exception& ex)
