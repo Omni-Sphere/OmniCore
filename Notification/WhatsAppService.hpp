@@ -65,12 +65,7 @@ namespace omnisphere::services
             const std::string& toleranceTime
         );
 
-        // Obtiene los datos necesarios desde la DB (JOIN único) y envía la plantilla ticket_confirmation.
-        // Debe llamarse desde un thread separado ya que hace I/O de red.
-        bool SendTicketConfirmationByReservation(
-            const std::string& reservationCode,
-            std::shared_ptr<omnisphere::data::DatabasePool> dbPool
-        );
+
 
         bool SendCustomMessage(
             const std::string& phoneNumber,
