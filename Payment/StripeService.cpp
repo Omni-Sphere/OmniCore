@@ -42,9 +42,11 @@ namespace omnisphere::services
     void StripeService::CheckLicense() const
     {
         auto lic = m_licenseService ? m_licenseService : LicenseService::GetSharedInstance();
-        if (lic)
+        if (!lic || !lic->IsModuleLicensed(omnisphere::license::MODULE_STRIPE))
         {
-            lic->RequireModule(omnisphere::license::MODULE_STRIPE);
+            throw omnisphere::services::LicenseException(
+                "Acceso denegado: El módulo 'MODULE_STRIPE' no está incluido en la licencia activa de OmniSphere o se encuentra desactivado."
+            );
         }
     }
 

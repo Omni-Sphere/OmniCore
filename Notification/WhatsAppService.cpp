@@ -39,9 +39,11 @@ namespace omnisphere::services
     void WhatsAppService::CheckLicense() const
     {
         auto lic = m_licenseService ? m_licenseService : LicenseService::GetSharedInstance();
-        if (lic)
+        if (!lic || !lic->IsModuleLicensed(omnisphere::license::MODULE_WHATSAPP))
         {
-            lic->RequireModule(omnisphere::license::MODULE_WHATSAPP);
+            throw omnisphere::services::LicenseException(
+                "Acceso denegado: El módulo 'MODULE_WHATSAPP' no está incluido en la licencia activa de OmniSphere o se encuentra desactivado."
+            );
         }
     }
 
