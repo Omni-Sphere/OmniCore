@@ -41,6 +41,13 @@ namespace omnisphere::license
     constexpr const char* MODULE_ANALYTICS      = "MODULE_ANALYTICS";
 
     // -------------------------------------------------------------------------
+    // Módulos de Validación y Acceso
+    // -------------------------------------------------------------------------
+
+    /// Generación de Boletos y Código QR Dinámico para abordaje
+    constexpr const char* MODULE_QR             = "MODULE_QR";
+
+    // -------------------------------------------------------------------------
     // Helper: lista de todos los módulos disponibles en la plataforma
     // -------------------------------------------------------------------------
     inline std::vector<std::string> AllModules()
@@ -51,7 +58,8 @@ namespace omnisphere::license
             MODULE_STRIPE,
             MODULE_OPENPAY,
             MODULE_MERCADOPAGO,
-            MODULE_ANALYTICS
+            MODULE_ANALYTICS,
+            MODULE_QR
         };
     }
 
