@@ -191,7 +191,10 @@ namespace omnisphere::repositories
     // -------------------------------------------------------------------------
     std::string LicenseRepository::GetMasterSecret() const
     {
-        static const std::string kDefaultSecret = "OmniSphere_Master_Secret_Signer_Key_2026_Secure_v1!";
+        const char* envSecret = std::getenv("OMNI_LICENSE_SECRET");
+        if (envSecret && *envSecret) return std::string(envSecret);
+
+        static const std::string kDefaultSecret = "_.:0mn15ph3r3L1c3n53:._";
         if (!m_dbPool) return kDefaultSecret;
         try
         {

@@ -56,6 +56,12 @@ namespace omnisphere::services
         ~LicenseService() = default;
 
         // -----------------------------------------------------------------------
+        // Instancia Compartida Global (para reactividad en todo el proceso)
+        // -----------------------------------------------------------------------
+        static std::shared_ptr<LicenseService> GetSharedInstance();
+        static void SetSharedInstance(std::shared_ptr<LicenseService> instance);
+
+        // -----------------------------------------------------------------------
         // Generación (uso interno del sistema OmniSphere)
         // -----------------------------------------------------------------------
 

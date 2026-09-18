@@ -106,6 +106,8 @@ namespace omnisphere::services
         void SetLicenseService(std::shared_ptr<omnisphere::services::LicenseService> licenseService);
 
     private:
+        void CheckLicense() const;
+
         std::shared_ptr<omnisphere::repositories::StripeRepository> m_repository;
         std::shared_ptr<omnisphere::data::DatabasePool> m_dbPool;
         std::shared_ptr<omnisphere::services::LicenseService> m_licenseService;

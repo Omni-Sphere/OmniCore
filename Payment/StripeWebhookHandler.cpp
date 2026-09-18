@@ -1,5 +1,6 @@
 #include "Payment/StripeWebhookHandler.hpp"
 #include "Payment/Hooks/PaymentHook.hpp"
+#include "License/Services/LicenseService.hpp"
 #include <OmniUtils/Base64.hpp>
 #include <OmniUtils/Hasher.hpp>
 #include <OmniUtils/Logger.hpp>
@@ -94,6 +95,14 @@ namespace omnisphere::services
     omnisphere::net::Response StripeWebhookHandler::HandleWebhook(const omnisphere::net::Request& req) const
     {
         omnisphere::utils::Logger::LogHttpRequest(req);
+
+        auto lic = omnisphere::services::LicenseService::GetSharedInstance();
+        if (lic && !lic->IsModuleLicensed(omnisphere::license::MODULE_STRIPE))
+        {
+            omnisphere::utils::Logger::LogWarning("StripeWebhookHandler",
+                req.TraceContext() + " Stripe Webhook ignored: Stripe integration is disabled by license.");
+            return omnisphere::net::Response(403, "application/json", R"({"error":"Stripe integration is disabled by license"})");
+        }
 
         std::string webhookSecret = RetrieveWebhookSecret();
         if (!webhookSecret.empty() && webhookSecret.rfind("whsec_", 0) == 0)

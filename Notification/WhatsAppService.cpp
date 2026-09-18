@@ -36,6 +36,15 @@ namespace omnisphere::services
         m_licenseService = std::move(licenseService);
     }
 
+    void WhatsAppService::CheckLicense() const
+    {
+        auto lic = m_licenseService ? m_licenseService : LicenseService::GetSharedInstance();
+        if (lic)
+        {
+            lic->RequireModule(omnisphere::license::MODULE_WHATSAPP);
+        }
+    }
+
     bool WhatsAppService::InitializeFromDatabase(std::shared_ptr<omnisphere::data::DatabasePool> dbPool)
     {
         if (!dbPool) return false;
@@ -303,6 +312,17 @@ namespace omnisphere::services
         const std::string& jsonString
     )
     {
+        try
+        {
+            CheckLicense();
+        }
+        catch (const std::exception& ex)
+        {
+            m_lastError = "Licencia: " + std::string(ex.what());
+            omnisphere::utils::Logger::LogWarning("WhatsAppService", "Envío de mensaje cancelado: " + m_lastError);
+            return false;
+        }
+
         std::string cleanPhoneId = CleanString(m_config.phoneId);
         std::string cleanToken = CleanString(m_config.token);
         std::string cleanApiVersion = CleanString(m_config.apiVersion.empty() ? "v24.0" : m_config.apiVersion);
@@ -455,7 +475,7 @@ namespace omnisphere::services
         const std::vector<std::string>& params
     )
     {
-        if (m_licenseService) m_licenseService->RequireModule(omnisphere::license::MODULE_WHATSAPP);
+        CheckLicense();
         std::string cleanPhone = SanitizePhoneNumber(phoneNumber);
         json::object body;
         body["messaging_product"] = "whatsapp";
@@ -499,7 +519,7 @@ namespace omnisphere::services
         const std::map<std::string, std::string>& params
     )
     {
-        if (m_licenseService) m_licenseService->RequireModule(omnisphere::license::MODULE_WHATSAPP);
+        CheckLicense();
         std::string cleanPhone = SanitizePhoneNumber(phoneNumber);
         json::object body;
         body["messaging_product"] = "whatsapp";
@@ -652,7 +672,7 @@ namespace omnisphere::services
         const std::string& message
     )
     {
-        if (m_licenseService) m_licenseService->RequireModule(omnisphere::license::MODULE_WHATSAPP);
+        CheckLicense();
         std::string cleanPhone = SanitizePhoneNumber(phoneNumber);
         std::string decodedMessage = DecodeUnicodeEscapes(message);
         json::object body;
@@ -694,7 +714,7 @@ namespace omnisphere::services
         const std::vector<std::pair<std::string, std::string>>& buttons
     )
     {
-        if (m_licenseService) m_licenseService->RequireModule(omnisphere::license::MODULE_WHATSAPP);
+        CheckLicense();
         std::string cleanPhone = SanitizePhoneNumber(phoneNumber);
         std::string decodedBody = DecodeUnicodeEscapes(bodyText);
         json::object body;
@@ -746,7 +766,7 @@ namespace omnisphere::services
         const std::string& toleranceTime
     )
     {
-        if (m_licenseService) m_licenseService->RequireModule(omnisphere::license::MODULE_WHATSAPP);
+        CheckLicense();
         std::string cleanPhone = SanitizePhoneNumber(phoneNumber);
         json::object body;
         body["messaging_product"] = "whatsapp";
@@ -822,7 +842,7 @@ namespace omnisphere::services
         const std::map<std::string, std::string>& placeholders
     )
     {
-        if (m_licenseService) m_licenseService->RequireModule(omnisphere::license::MODULE_WHATSAPP);
+        CheckLicense();
         auto msgOpt = GetCustomMessage(messageCode);
         if (!msgOpt.has_value())
         {
@@ -929,6 +949,18 @@ namespace omnisphere::services
     {
         omnisphere::dtos::CreateMetaTemplateResult result;
         result.messageCode = input.name;
+
+        try
+        {
+            CheckLicense();
+        }
+        catch (const std::exception& ex)
+        {
+            result.success = false;
+            result.errorMessage = "Módulo Meta WhatsApp no licenciado o desactivado: " + std::string(ex.what());
+            omnisphere::utils::Logger::LogWarning("WhatsAppService", result.errorMessage);
+            return result;
+        }
 
         if (input.name.empty() || input.bodyText.empty())
         {

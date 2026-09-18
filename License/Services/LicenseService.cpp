@@ -13,15 +13,44 @@
 
 namespace omnisphere::services
 {
+    static std::shared_ptr<LicenseService> s_sharedLicenseService;
+    static std::mutex s_sharedMutex;
+
+    std::shared_ptr<LicenseService> LicenseService::GetSharedInstance()
+    {
+        std::lock_guard<std::mutex> lock(s_sharedMutex);
+        return s_sharedLicenseService;
+    }
+
+    void LicenseService::SetSharedInstance(std::shared_ptr<LicenseService> instance)
+    {
+        std::lock_guard<std::mutex> lock(s_sharedMutex);
+        s_sharedLicenseService = std::move(instance);
+    }
+
     // =========================================================================
     // Constructor
     // =========================================================================
 
     LicenseService::LicenseService(std::shared_ptr<omnisphere::data::DatabasePool> dbPool)
-        : m_repository(std::make_shared<omnisphere::repositories::LicenseRepository>(std::move(dbPool))) {}
+        : m_repository(std::make_shared<omnisphere::repositories::LicenseRepository>(std::move(dbPool)))
+    {
+        std::lock_guard<std::mutex> lock(s_sharedMutex);
+        if (!s_sharedLicenseService)
+        {
+            s_sharedLicenseService = std::shared_ptr<LicenseService>(this, [](LicenseService*){});
+        }
+    }
 
     LicenseService::LicenseService(std::shared_ptr<omnisphere::repositories::LicenseRepository> repository)
-        : m_repository(std::move(repository)) {}
+        : m_repository(std::move(repository))
+    {
+        std::lock_guard<std::mutex> lock(s_sharedMutex);
+        if (!s_sharedLicenseService)
+        {
+            s_sharedLicenseService = std::shared_ptr<LicenseService>(this, [](LicenseService*){});
+        }
+    }
 
     // =========================================================================
     // Criptografía — Helpers internos
@@ -218,8 +247,11 @@ namespace omnisphere::services
 
     std::string LicenseService::GetMasterSecret() const
     {
+        const char* envSecret = std::getenv("OMNI_LICENSE_SECRET");
+        if (envSecret && *envSecret) return std::string(envSecret);
+
         if (m_repository) return m_repository->GetMasterSecret();
-        return "OmniSphere_Master_Secret_Signer_Key_2026_Secure_v1!";
+        return "_.:0mn15ph3r3L1c3n53:._";
     }
 
     // =========================================================================

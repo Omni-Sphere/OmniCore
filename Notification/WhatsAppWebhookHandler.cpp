@@ -240,6 +240,17 @@ namespace omnisphere::services
     {
         omnisphere::utils::Logger::LogHttpRequest(req);
 
+        auto lic = omnisphere::services::LicenseService::GetSharedInstance();
+        if (lic && !lic->IsModuleLicensed(omnisphere::license::MODULE_WHATSAPP))
+        {
+            omnisphere::utils::Logger::LogWarning("WhatsAppWebhookHandler",
+                req.TraceContext() + " Inbound event ignored: WhatsApp integration is disabled by license.");
+            return omnisphere::net::Response::Json(boost::json::object{
+                {"status", "ignored"},
+                {"reason", "WhatsApp integration is disabled by license"}
+            }, 403);
+        }
+
         // Firma criptográfica opcional X-Hub-Signature-256
         std::string hubSignature = req.Header("X-Hub-Signature-256");
         if (hubSignature.empty()) hubSignature = req.Header("x-hub-signature-256");

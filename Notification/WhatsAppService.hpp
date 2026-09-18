@@ -93,6 +93,7 @@ namespace omnisphere::services
         mutable std::string m_lastError;
 
         static std::string ParseMetaErrorMessage(const std::string& rawPayload);
+        void CheckLicense() const;
 
         bool SendRequest(
             const std::string& phoneNumber,

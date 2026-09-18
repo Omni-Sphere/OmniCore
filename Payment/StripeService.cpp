@@ -39,6 +39,15 @@ namespace omnisphere::services
         m_licenseService = std::move(licenseService);
     }
 
+    void StripeService::CheckLicense() const
+    {
+        auto lic = m_licenseService ? m_licenseService : LicenseService::GetSharedInstance();
+        if (lic)
+        {
+            lic->RequireModule(omnisphere::license::MODULE_STRIPE);
+        }
+    }
+
     std::optional<omnisphere::models::StripeSettings> StripeService::GetSettings(bool decryptKeys) const
     {
         if (!m_repository) return std::nullopt;
@@ -94,7 +103,7 @@ namespace omnisphere::services
         const std::string& cancelUrl
     ) const
     {
-        if (m_licenseService) m_licenseService->RequireModule(omnisphere::license::MODULE_STRIPE);
+        CheckLicense();
         StripeCheckoutResult res;
         if (reservationCode.empty() || amount <= 0.0)
         {
@@ -268,7 +277,7 @@ namespace omnisphere::services
         const std::string& currency
     ) const
     {
-        if (m_licenseService) m_licenseService->RequireModule(omnisphere::license::MODULE_STRIPE);
+        CheckLicense();
         StripePaymentIntentResult res;
         auto settingsOpt = GetSettings(true);
 
@@ -391,7 +400,7 @@ namespace omnisphere::services
         const std::string& customerEmail
     ) const
     {
-        if (m_licenseService) m_licenseService->RequireModule(omnisphere::license::MODULE_STRIPE);
+        CheckLicense();
         StripeBankTransferResult res;
         res.amount = amount;
         res.currency = "mxn";
@@ -595,6 +604,19 @@ namespace omnisphere::services
     ) const
     {
         StripeTestIntegrationResult res;
+
+        try
+        {
+            CheckLicense();
+        }
+        catch (const std::exception& ex)
+        {
+            res.isConfigured = false;
+            res.isFunctional = false;
+            res.message = "Módulo Stripe no licenciado o desactivado: " + std::string(ex.what());
+            return res;
+        }
+
         auto settingsOpt = GetSettings(true);
 
         if (!settingsOpt.has_value() || !settingsOpt->isActive)
