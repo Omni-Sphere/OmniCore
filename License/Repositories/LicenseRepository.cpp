@@ -57,6 +57,9 @@ namespace omnisphere::repositories
         {
             auto conn = m_dbPool->Acquire();
 
+            // Desactivar cualquier registro previo para no violar el índice UQ_SystemLicenses_Active
+            conn->RunPrepared("UPDATE \"SystemLicenses\" SET \"IsActive\" = false, \"UpdateDate\" = NOW()", {});
+
             // Mantener un único registro en la tabla (tabla singleton)
             conn->RunPrepared("DELETE FROM \"SystemLicenses\"", {});
 
@@ -70,6 +73,8 @@ namespace omnisphere::repositories
                 first = false;
             }
             modulesJson += "]";
+
+            std::string licenseCode = license.code.empty() ? "ACTIVE_LICENSE" : license.code;
 
             std::string sql =
                 "INSERT INTO \"SystemLicenses\" "
@@ -86,7 +91,7 @@ namespace omnisphere::repositories
                 "\"UpdateDate\" = NOW()";
 
             std::vector<omnisphere::types::SQLParam> params = {
-                omnisphere::types::MakeSQLParam(license.code),
+                omnisphere::types::MakeSQLParam(licenseCode),
                 omnisphere::types::MakeSQLParam(license.apiKey),
                 omnisphere::types::MakeSQLParam(license.clientName),
                 omnisphere::types::MakeSQLParam(license.issuer),
@@ -118,7 +123,8 @@ namespace omnisphere::repositories
                 "TO_CHAR(\"IssuedAt\", 'YYYY-MM-DD') AS \"IssuedAt\", "
                 "TO_CHAR(\"ExpiresAt\", 'YYYY-MM-DD') AS \"ExpiresAt\", "
                 "\"Modules\", \"IsActive\" "
-                "FROM \"SystemLicenses\" WHERE \"IsActive\" = true LIMIT 1";
+                "FROM \"SystemLicenses\" WHERE \"IsActive\" = true "
+                "ORDER BY \"UpdateDate\" DESC NULLS LAST, \"CreateDate\" DESC, \"Entry\" DESC LIMIT 1";
 
             std::vector<omnisphere::types::SQLParam> emptyParams;
             auto dt = conn->FetchPrepared(sql, emptyParams);

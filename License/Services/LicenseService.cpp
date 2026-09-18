@@ -288,13 +288,8 @@ namespace omnisphere::services
         if (!IsDateValid(lic.expiresAt))
             throw LicenseException("La API Key de licencia ha expirado el " + lic.expiresAt + ". Contacta a OmniSphere Authority para renovar.");
 
-        // Generar código único (LIC1, LIC2, etc.)
-        // Para simplificar, usamos timestamp si el repositorio no tiene identity
-        if (lic.code.empty())
-        {
-            auto now = std::time(nullptr);
-            lic.code = "LIC" + std::to_string(now % 100000);
-        }
+        // Código canónico para garantizar que siempre sobreescriba la licencia previa
+        lic.code = "ACTIVE_LICENSE";
 
         lic.isActive      = true;
         lic.daysRemaining = DaysRemaining(lic.expiresAt);
