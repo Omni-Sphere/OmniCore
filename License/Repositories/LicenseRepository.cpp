@@ -70,13 +70,31 @@ namespace omnisphere::repositories
 
             std::string licenseCode = license.code.empty() ? "ACTIVE_LICENSE" : license.code;
 
-            // 1. Verificar si ya existe un registro en la tabla
-            std::string checkSql = "SELECT 1 FROM \"SystemLicenses\" LIMIT 1";
+            // 1. Verificar si ya existe algún registro en la tabla
+            std::string checkSql = "SELECT \"Entry\" FROM \"SystemLicenses\" ORDER BY \"Entry\" ASC";
             std::vector<omnisphere::types::SQLParam> emptyParams;
             auto dt = conn->FetchPrepared(checkSql, emptyParams);
 
             if (dt.RowsCount() > 0)
             {
+                // Obtenemos el Entry del único registro a mantener
+                int64_t targetEntry = 1;
+                auto val = dt[0]["Entry"];
+                if (val.has_value()) {
+                    if (auto p = std::get_if<int>(&(*val))) targetEntry = *p;
+                    else if (auto p64 = std::get_if<int64_t>(&(*val))) targetEntry = *p64;
+                }
+
+                // Si por alguna razón histórica existía más de un registro, eliminamos los duplicados
+                // ANTES del UPDATE para evitar violaciones del índice único UQ_SystemLicenses_Active.
+                if (dt.RowsCount() > 1)
+                {
+                    std::vector<omnisphere::types::SQLParam> delParams = {
+                        omnisphere::types::MakeSQLParam(targetEntry)
+                    };
+                    conn->RunPrepared("DELETE FROM \"SystemLicenses\" WHERE \"Entry\" != ?", delParams);
+                }
+
                 // Si ya existe la licencia: hacer UPDATE sobre el único registro existente
                 std::string updateSql =
                     "UPDATE \"SystemLicenses\" SET "
@@ -89,7 +107,7 @@ namespace omnisphere::repositories
                     "\"Modules\" = ?, "
                     "\"IsActive\" = true, "
                     "\"UpdateDate\" = NOW() "
-                    "WHERE \"Entry\" = (SELECT \"Entry\" FROM \"SystemLicenses\" ORDER BY \"Entry\" ASC LIMIT 1)";
+                    "WHERE \"Entry\" = ?";
 
                 std::vector<omnisphere::types::SQLParam> updateParams = {
                     omnisphere::types::MakeSQLParam(licenseCode),
@@ -98,22 +116,15 @@ namespace omnisphere::repositories
                     omnisphere::types::MakeSQLParam(license.issuer),
                     omnisphere::types::MakeSQLParam(license.issuedAt),
                     omnisphere::types::MakeSQLParam(license.expiresAt),
-                    omnisphere::types::MakeSQLParam(modulesJson)
+                    omnisphere::types::MakeSQLParam(modulesJson),
+                    omnisphere::types::MakeSQLParam(targetEntry)
                 };
 
-                bool ok = conn->RunPrepared(updateSql, updateParams);
-
-                // Garantizar que la tabla contenga única y exclusivamente ese registro (eliminar duplicados si los hubiera)
-                conn->RunPrepared(
-                    "DELETE FROM \"SystemLicenses\" WHERE \"Entry\" != (SELECT \"Entry\" FROM \"SystemLicenses\" ORDER BY \"Entry\" ASC LIMIT 1)",
-                    {}
-                );
-
-                return ok;
+                return conn->RunPrepared(updateSql, updateParams);
             }
             else
             {
-                // Primera vez que se registra una licencia: INSERT del único registro
+                // Primera vez que se registra una licencia (tabla vacía): INSERT del único registro
                 std::string insertSql =
                     "INSERT INTO \"SystemLicenses\" "
                     "(\"Code\", \"ApiKey\", \"ClientName\", \"Issuer\", \"IssuedAt\", \"ExpiresAt\", \"Modules\", \"IsActive\", \"CreatedBy\", \"CreateDate\") "
