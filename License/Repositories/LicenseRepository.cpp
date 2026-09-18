@@ -78,12 +78,7 @@ namespace omnisphere::repositories
             if (dt.RowsCount() > 0)
             {
                 // Obtenemos el Entry del único registro a mantener
-                int64_t targetEntry = 1;
-                auto val = dt[0]["Entry"];
-                if (val.has_value()) {
-                    if (auto p = std::get_if<int>(&(*val))) targetEntry = *p;
-                    else if (auto p64 = std::get_if<int64_t>(&(*val))) targetEntry = *p64;
-                }
+                int targetEntry = GetVal<int>(dt[0], "Entry", 1);
 
                 // Si por alguna razón histórica existía más de un registro, eliminamos los duplicados
                 // ANTES del UPDATE para evitar violaciones del índice único UQ_SystemLicenses_Active.
