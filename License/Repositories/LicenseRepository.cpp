@@ -57,9 +57,8 @@ namespace omnisphere::repositories
         {
             auto conn = m_dbPool->Acquire();
 
-            // Desactivar licencias previas
-            std::string sqlDeactivate = "UPDATE \"SystemLicenses\" SET \"IsActive\" = false, \"UpdateDate\" = NOW() WHERE \"IsActive\" = true";
-            conn->RunPrepared(sqlDeactivate, {});
+            // Mantener un único registro en la tabla (tabla singleton)
+            conn->RunPrepared("DELETE FROM \"SystemLicenses\"", {});
 
             // Construir JSON de módulos
             std::string modulesJson = "[";
@@ -144,8 +143,11 @@ namespace omnisphere::repositories
         try
         {
             auto conn = m_dbPool->Acquire();
-            std::string sql = "UPDATE \"SystemLicenses\" SET \"IsActive\" = false, \"UpdateDate\" = NOW() WHERE \"Code\" = ?";
-            std::vector<omnisphere::types::SQLParam> params = { omnisphere::types::MakeSQLParam(code) };
+            std::string sql = code.empty()
+                ? "UPDATE \"SystemLicenses\" SET \"IsActive\" = false, \"UpdateDate\" = NOW()"
+                : "UPDATE \"SystemLicenses\" SET \"IsActive\" = false, \"UpdateDate\" = NOW() WHERE \"Code\" = ?";
+            std::vector<omnisphere::types::SQLParam> params;
+            if (!code.empty()) params.push_back(omnisphere::types::MakeSQLParam(code));
             return conn->RunPrepared(sql, params);
         }
         catch (const std::exception& ex)
