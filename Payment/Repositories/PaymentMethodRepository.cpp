@@ -145,8 +145,8 @@ namespace omnisphere::repositories
             auto conn = m_dbPool->Acquire();
             auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::PaymentMethod>(fields);
             auto qp = omnisphere::types::BuildQueryParts(selectFields, {});
-            std::string sql = "SELECT " + qp.SelectClause + " FROM \"PaymentMethods\" WHERE \"IsActive\" = ? ORDER BY \"Entry\" ASC";
-            std::vector<omnisphere::types::SQLParam> params = { omnisphere::types::MakeSQLParam(true) };
+            std::string sql = "SELECT " + qp.SelectClause + " FROM \"PaymentMethods\" ORDER BY \"Entry\" ASC";
+            std::vector<omnisphere::types::SQLParam> params = {};
             return conn->FetchPrepared(sql, params);
         }
         catch (const std::exception& ex)
@@ -164,14 +164,12 @@ namespace omnisphere::repositories
             auto conn = m_dbPool->Acquire();
             auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::PaymentMethod>(fields);
             std::vector<omnisphere::types::Condition> conditions = {
-                {"", "\"Entry\"", "=", "?"},
-                {"", "\"IsActive\"", "=", "?"}
+                {"", "\"Entry\"", "=", "?"}
             };
             auto qp = omnisphere::types::BuildQueryParts(selectFields, conditions);
             std::string sql = "SELECT " + qp.SelectClause + " FROM \"PaymentMethods\" WHERE " + qp.WhereClause;
             std::vector<omnisphere::types::SQLParam> params = {
-                omnisphere::types::MakeSQLParam(entry),
-                omnisphere::types::MakeSQLParam(true)
+                omnisphere::types::MakeSQLParam(entry)
             };
             return conn->FetchPrepared(sql, params);
         }
@@ -190,14 +188,12 @@ namespace omnisphere::repositories
             auto conn = m_dbPool->Acquire();
             auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::PaymentMethod>(fields);
             std::vector<omnisphere::types::Condition> conditions = {
-                {"", "\"Code\"", "=", "?"},
-                {"", "\"IsActive\"", "=", "?"}
+                {"", "\"Code\"", "=", "?"}
             };
             auto qp = omnisphere::types::BuildQueryParts(selectFields, conditions);
             std::string sql = "SELECT " + qp.SelectClause + " FROM \"PaymentMethods\" WHERE " + qp.WhereClause;
             std::vector<omnisphere::types::SQLParam> params = {
-                omnisphere::types::MakeSQLParam(code),
-                omnisphere::types::MakeSQLParam(true)
+                omnisphere::types::MakeSQLParam(code)
             };
             return conn->FetchPrepared(sql, params);
         }
@@ -210,7 +206,26 @@ namespace omnisphere::repositories
 
     omnisphere::types::DataTable PaymentMethodRepository::GetActiveMethods(const std::vector<std::string>& fields) const
     {
-        return ReadAll(fields);
+        if (!m_dbPool) return {};
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::PaymentMethod>(fields);
+            std::vector<omnisphere::types::Condition> conditions = {
+                {"", "\"IsActive\"", "=", "?"}
+            };
+            auto qp = omnisphere::types::BuildQueryParts(selectFields, conditions);
+            std::string sql = "SELECT " + qp.SelectClause + " FROM \"PaymentMethods\" WHERE " + qp.WhereClause + " ORDER BY \"Entry\" ASC";
+            std::vector<omnisphere::types::SQLParam> params = {
+                omnisphere::types::MakeSQLParam(true)
+            };
+            return conn->FetchPrepared(sql, params);
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[PaymentMethodRepository::GetActiveMethods Exception] " << ex.what() << std::endl;
+            return {};
+        }
     }
 
     std::optional<omnisphere::models::PaymentMethodDetail> PaymentMethodRepository::GetDetailByCode(const std::string& code) const
