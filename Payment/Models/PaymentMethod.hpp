@@ -2,6 +2,7 @@
 #include <string>
 #include <optional>
 #include <boost/describe.hpp>
+#include "Payment/Models/PaymentMethodDetail.hpp"
 
 namespace omnisphere::models
 {
@@ -20,6 +21,8 @@ namespace omnisphere::models
         std::string createDate;
         std::optional<int> lastUpdatedBy;
         std::optional<std::string> updateDate;
+
+        std::optional<PaymentMethodDetail> details;
     };
 
     BOOST_DESCRIBE_STRUCT(PaymentMethod, (), (

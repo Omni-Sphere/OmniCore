@@ -31,5 +31,6 @@ namespace omnisphere::services
         omnisphere::types::DataTable GetActiveMethods(const omnisphere::models::SecurityContext& ctx, const std::vector<std::string>& fields = {}) const;
 
         std::vector<omnisphere::models::PaymentMethod> GetModels(const omnisphere::models::SecurityContext& ctx, const std::vector<std::string>& fields = {}) const;
+        std::optional<omnisphere::models::PaymentMethodDetail> GetDetailByCode(const std::string& code) const;
     };
 } // namespace omnisphere::services

@@ -2,6 +2,7 @@
 #include <string>
 #include <optional>
 #include <boost/describe.hpp>
+#include "Payment/DTOs/PaymentMethodDetailInput.hpp"
 
 namespace omnisphere::dtos
 {
@@ -17,6 +18,8 @@ namespace omnisphere::dtos
         std::optional<std::string> IntegrationProvider;
         std::optional<bool> IsActive;
         int LastUpdatedBy = 0;
+
+        std::optional<PaymentMethodDetailInput> Details;
     };
 
     BOOST_DESCRIBE_STRUCT(UpdatePaymentMethodInput, (), (

@@ -64,6 +64,23 @@ namespace omnisphere::services
     std::vector<omnisphere::models::PaymentMethod> PaymentMethodService::GetModels(const omnisphere::models::SecurityContext& ctx, const std::vector<std::string>& fields) const
     {
         auto dt = ReadAll(ctx, fields);
-        return omnisphere::types::DataTableToModels<omnisphere::models::PaymentMethod>(dt);
+        auto models = omnisphere::types::DataTableToModels<omnisphere::models::PaymentMethod>(dt);
+        if (m_repository)
+        {
+            for (auto& m : models)
+            {
+                if (!m.usesIntegration && m.type == "TRANSFER")
+                {
+                    m.details = m_repository->GetDetailByCode(m.code);
+                }
+            }
+        }
+        return models;
+    }
+
+    std::optional<omnisphere::models::PaymentMethodDetail> PaymentMethodService::GetDetailByCode(const std::string& code) const
+    {
+        if (!m_repository) return std::nullopt;
+        return m_repository->GetDetailByCode(code);
     }
 } // namespace omnisphere::services

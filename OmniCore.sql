@@ -473,6 +473,28 @@ INSERT INTO "PaymentMethods" ("Code", "Name", "Type", "UsesCommission", "Commiss
 ('PMT4', 'No Aplica / Pend.', 'NOT_APPLICABLE', false, 0.00, 1)
 ON CONFLICT ("Code") DO NOTHING;
 
+-- 17.1 PaymentMethodDetails (Detalles bancarios para transferencias/sin integración)
+-- Relación lógica vía "Code" con "PaymentMethods"."Code" (Sin FOREIGN KEY)
+CREATE TABLE IF NOT EXISTS "PaymentMethodDetails" (
+    "Entry"            SERIAL PRIMARY KEY,
+    "Code"             VARCHAR(50) NOT NULL,
+    "BankName"         VARCHAR(255) NOT NULL,
+    "CLABE"            VARCHAR(255) NOT NULL,
+    "AccountHolder"    VARCHAR(255) NOT NULL,
+    "PaymentReference" VARCHAR(255),
+    "IsActive"         BOOLEAN NOT NULL DEFAULT true,
+    "CreatedBy"        INT NOT NULL DEFAULT 1,
+    "CreateDate"       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy"    INT,
+    "UpdateDate"       TIMESTAMP,
+    CONSTRAINT "CHK_PaymentMethodDetails_IsActive" CHECK ("IsActive" IN (true, false))
+);
+
+CREATE INDEX IF NOT EXISTS "IDX_PMDetails_Code" 
+    ON "PaymentMethodDetails" ("Code");
+CREATE INDEX IF NOT EXISTS "IDX_PMDetails_Active" 
+    ON "PaymentMethodDetails" ("Code", "IsActive") WHERE "IsActive" = true;
+
 -- 18. PaymentGateways (Configuración Dinámica Centralizada Multi-Pasarela)
 CREATE TABLE IF NOT EXISTS "PaymentGateways" (
     "Entry" SERIAL PRIMARY KEY,

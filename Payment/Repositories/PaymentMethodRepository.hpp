@@ -23,6 +23,10 @@ namespace omnisphere::repositories
         omnisphere::types::DataTable GetByCode(const std::string& code, const std::vector<std::string>& fields = {}) const;
         omnisphere::types::DataTable GetActiveMethods(const std::vector<std::string>& fields = {}) const;
 
+        std::optional<omnisphere::models::PaymentMethodDetail> GetDetailByCode(const std::string& code) const;
+        bool SaveDetail(const std::string& code, const omnisphere::dtos::PaymentMethodDetailInput& detailInput, int userId) const;
+        bool DeactivateDetail(const std::string& code, int userId) const;
+
     private:
         std::shared_ptr<omnisphere::data::DatabasePool> m_dbPool;
     };
