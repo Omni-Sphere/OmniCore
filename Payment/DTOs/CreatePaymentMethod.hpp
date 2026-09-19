@@ -17,12 +17,13 @@ namespace omnisphere::dtos
         std::optional<std::string> IntegrationProvider;
         bool IsActive = true;
         int CreatedBy = 0;
+        std::optional<std::string> CreateDate;
 
         std::optional<PaymentMethodDetailInput> Details;
     };
 
     BOOST_DESCRIBE_STRUCT(CreatePaymentMethodInput, (), (
         Code, Name, Type, UsesCommission, CommissionRate,
-        UsesIntegration, IntegrationProvider, IsActive, CreatedBy
+        UsesIntegration, IntegrationProvider, IsActive, CreatedBy, CreateDate
     ))
 } // namespace omnisphere::dtos
