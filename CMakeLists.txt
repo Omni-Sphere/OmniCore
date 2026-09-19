@@ -150,6 +150,7 @@ endif()
 
 set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/Base/BaseModel.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/Base/Pagination.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/User/User.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/Session/Session.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/GlobalConfiguration/GlobalConfiguration.hpp
