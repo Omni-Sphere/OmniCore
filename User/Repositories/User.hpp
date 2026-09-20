@@ -36,6 +36,8 @@ public:
 
   bool Update(const omnisphere::dtos::UpdateUser &user) const;
 
+  bool Delete(const std::string &code) const;
+
   omnisphere::types::DataTable
   Read(const omnisphere::dtos::SearchUsers &user) const;
 

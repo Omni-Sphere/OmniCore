@@ -47,6 +47,8 @@ endif()
 add_library(OmniCore SHARED
     User/User.cpp
     User/Repositories/User.cpp
+    Employee/Employee.cpp
+    Employee/Repositories/Employee.cpp
     Session/Session.cpp
     Session/Repositories/Session.cpp
     GlobalConfiguration/GlobalConfiguration.cpp
@@ -181,6 +183,10 @@ set(
     User/DTOs
     User/Models
     User/Enums
+    Employee
+    Employee/DTOs
+    Employee/Models
+    Employee/Repositories
     Session/DTOs
     Session/Enums
     Session/Models

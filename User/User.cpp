@@ -140,6 +140,9 @@ User::Search(const omnisphere::dtos::SearchUsers &user) const {
       if (!dataTable[i]["RoleEntry"].IsNull())
         UserData.RoleEntry = static_cast<int>(dataTable[i]["RoleEntry"]);
 
+      if (!dataTable[i]["RoleCode"].IsNull())
+        UserData.RoleCode = static_cast<std::string>(dataTable[i]["RoleCode"]);
+
       if (!dataTable[i]["MaxDisccountPerLine"].IsNull())
         UserData.MaxDisccountPerLine =
             static_cast<double>(dataTable[i]["MaxDisccountPerLine"]);
@@ -210,6 +213,9 @@ omnisphere::models::User User::Get(const omnisphere::enums::UserFilter &filter,
     if (!dataTable[0]["RoleEntry"].IsNull())
       UserData.RoleEntry = static_cast<int>(dataTable[0]["RoleEntry"]);
 
+    if (!dataTable[0]["RoleCode"].IsNull())
+      UserData.RoleCode = static_cast<std::string>(dataTable[0]["RoleCode"]);
+
     if (!dataTable[0]["MaxDisccountPerLine"].IsNull())
       UserData.MaxDisccountPerLine =
           static_cast<double>(dataTable[0]["MaxDisccountPerLine"]);
@@ -271,6 +277,10 @@ bool User::Exists(const omnisphere::enums::UserFilter &filter,
 omnisphere::repositories::UserCursorPage
 User::GetPage(std::optional<int> afterEntry, int limit) const {
   return pimpl->user->GetPage(afterEntry, limit);
+}
+
+bool User::Delete(const std::string &code) const {
+  return pimpl->user->Delete(code);
 }
 
 } // namespace omnisphere::services

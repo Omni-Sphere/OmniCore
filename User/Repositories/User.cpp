@@ -26,6 +26,7 @@ bool User::Create(const omnisphere::dtos::CreateUser &user) const {
         "\"Phone\", "
         "\"Employee\", "
         "\"RoleEntry\", "
+        "\"RoleCode\", "
         "\"MaxDisccountPerLine\", "
         "\"MaxDisccountPerDocument\", "
         "\"PermissionMode\", "
@@ -37,9 +38,10 @@ bool User::Create(const omnisphere::dtos::CreateUser &user) const {
         "\"PasswordNeverExpires\", "
         "\"ChangePasswordNextLogin\", "
         "\"CreatedBy\", "
-        "\"CreateDate\""
+        "\"CreateDate\", "
+        "\"EmployeeCode\""
         ") "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     const std::vector<omnisphere::types::SQLParam> params = {
         omnisphere::types::MakeSQLParam(user.Code),
@@ -48,6 +50,7 @@ bool User::Create(const omnisphere::dtos::CreateUser &user) const {
         omnisphere::types::MakeSQLParam(user.Phone),
         omnisphere::types::MakeSQLParam(user.Employee),
         omnisphere::types::MakeSQLParam(user.RoleEntry),
+        omnisphere::types::MakeSQLParam(user.RoleCode),
         omnisphere::types::MakeSQLParam(user.MaxDisccountPerLine),
         omnisphere::types::MakeSQLParam(user.MaxDisccountPerDocument),
         omnisphere::types::MakeSQLParam(
@@ -66,7 +69,8 @@ bool User::Create(const omnisphere::dtos::CreateUser &user) const {
         omnisphere::types::MakeSQLParam(user.PasswordNeverExpires),
         omnisphere::types::MakeSQLParam(user.ChangePasswordNextLogin),
         omnisphere::types::MakeSQLParam(user.CreatedBy),
-        omnisphere::types::MakeSQLParam(user.CreateDate)};
+        omnisphere::types::MakeSQLParam(user.CreateDate),
+        omnisphere::types::MakeSQLParam(user.EmployeeCode)};
 
     std::cout << "\n==================================================" << std::endl;
     std::cout << "[OmniCore::User::Create] Executing SQL Query:" << std::endl;
@@ -165,6 +169,12 @@ bool User::Update(const omnisphere::dtos::UpdateUser &user) const {
           omnisphere::types::MakeSQLParam(user.Data.RoleEntry.value()));
     }
 
+    if (user.Data.RoleCode.has_value()) {
+      sQuery += "\"RoleCode\" = ?, ";
+      updateParams.emplace_back(
+          omnisphere::types::MakeSQLParam(user.Data.RoleCode.value()));
+    }
+
     if (user.Data.MaxDisccountPerLine.has_value()) {
       sQuery += "MaxDisccountPerLine = ?, ";
       updateParams.emplace_back(omnisphere::types::MakeSQLParam(
@@ -190,6 +200,12 @@ bool User::Update(const omnisphere::dtos::UpdateUser &user) const {
       sQuery += "Department = ?, ";
       updateParams.emplace_back(
           omnisphere::types::MakeSQLParam(user.Data.Department.value()));
+    }
+
+    if (user.Data.EmployeeCode.has_value()) {
+      sQuery += "\"EmployeeCode\" = ?, ";
+      updateParams.emplace_back(
+          omnisphere::types::MakeSQLParam(user.Data.EmployeeCode.value()));
     }
 
     if (user.Where.Entry.has_value()) {
@@ -269,6 +285,7 @@ types::DataTable User::Read(const omnisphere::enums::UserFilter &filter,
                          "\"Phone\", "
                          "\"Employee\" AS EmpEntry, "
                          "\"RoleEntry\", "
+                         "\"RoleCode\", "
                          "\"MaxDisccountPerLine\", "
                          "\"MaxDisccountPerDocument\", "
                          "\"PermissionMode\", "
@@ -313,6 +330,8 @@ types::DataTable User::Read(const omnisphere::enums::UserFilter &filter,
       break;
     }
 
+    sQuery += " AND \"IsCanceled\" = false";
+
     omnisphere::types::DataTable dataTable =
         conn->FetchPrepared(sQuery, value);
 
@@ -327,26 +346,27 @@ types::DataTable User::Read(const omnisphere::dtos::SearchUsers &filter) const {
   auto conn = database->Acquire();
   try {
     std::string baseQuery = "SELECT "
-                            "Entry AS UserEntry, "
-                            "Code, "
-                            "Name, ";
-                            "Email, "
-                            "Phone, "
-                            "IsLocked, "
-                            "IsActive, "
-                            "Employee AS EmpEntry, "
-                            "RoleEntry, "
-                            "MaxDisccountPerLine, "
-                            "MaxDisccountPerDocument, "
-                            "PermissionMode, "
-                            "Department, "
-                            "SuperUser, "
-                            "PasswordNeverExpires, "
-                            "ChangePasswordNextLogin, "
-                            "CreatedBy, "
-                            "LastUpdatedBy, "
-                            "UpdateDate "
-                            "FROM Users";
+                            "\"Entry\" AS UserEntry, "
+                            "\"Code\", "
+                            "\"Name\", "
+                            "\"Email\", "
+                            "\"Phone\", "
+                            "\"IsLocked\", "
+                            "\"IsActive\", "
+                            "\"Employee\" AS EmpEntry, "
+                            "\"RoleEntry\", "
+                            "\"RoleCode\", "
+                            "\"MaxDisccountPerLine\", "
+                            "\"MaxDisccountPerDocument\", "
+                            "\"PermissionMode\", "
+                            "\"Department\", "
+                            "\"SuperUser\", "
+                            "\"PasswordNeverExpires\", "
+                            "\"ChangePasswordNextLogin\", "
+                            "\"CreatedBy\", "
+                            "\"LastUpdatedBy\", "
+                            "\"UpdateDate\" "
+                            "FROM \"Users\" WHERE \"IsCanceled\" = false";
 
     std::vector<std::string> conditions;
     std::vector<std::string> parameters;
@@ -363,8 +383,8 @@ types::DataTable User::Read(const omnisphere::dtos::SearchUsers &filter) const {
 omnisphere::types::DataTable User::GetByIds(const std::vector<int> &ids) const {
   if (ids.empty()) return omnisphere::types::DataTable{};
   auto conn = database->Acquire();
-  std::string sQuery = "SELECT Entry, Code, Name, Email, Phone, IsLocked, IsActive, "
-                       "RoleEntry, SuperUser, CreateDate FROM Users WHERE Entry IN (";
+  std::string sQuery = "SELECT \"Entry\", \"Code\", \"Name\", \"Email\", \"Phone\", \"RoleCode\", \"IsLocked\", \"IsActive\", "
+                       "\"RoleEntry\", \"SuperUser\", \"CreateDate\" FROM \"Users\" WHERE \"IsCanceled\" = false AND \"Entry\" IN (";
   std::vector<omnisphere::types::SQLParam> params;
   for (size_t i = 0; i < ids.size(); ++i) {
     if (i > 0) sQuery += ", ";
@@ -377,7 +397,7 @@ omnisphere::types::DataTable User::GetByIds(const std::vector<int> &ids) const {
 
 UserCursorPage User::GetPage(std::optional<int> afterEntry, int limit) const {
   auto conn = database->Acquire();
-  std::string countQuery = "SELECT COALESCE(COUNT(*), 0) AS Total FROM Users";
+  std::string countQuery = "SELECT COALESCE(COUNT(*), 0) AS Total FROM \"Users\" WHERE \"IsCanceled\" = false";
   auto totalTable = conn->FetchResults(countQuery);
   int totalCount = 0;
   if (totalTable.RowsCount() > 0) {
@@ -388,13 +408,13 @@ UserCursorPage User::GetPage(std::optional<int> afterEntry, int limit) const {
   std::vector<omnisphere::types::SQLParam> params;
 
   if (afterEntry.has_value()) {
-    sQuery = "SELECT Entry, Code, Name, Email, Phone, IsLocked, IsActive, CreatedBy, CreateDate "
-             "FROM Users WHERE Entry > ? ORDER BY Entry ASC LIMIT ?";
+    sQuery = "SELECT \"Entry\", \"Code\", \"Name\", \"Email\", \"Phone\", \"RoleCode\", \"EmployeeCode\", \"IsLocked\", \"IsActive\", \"CreatedBy\", \"CreateDate\" "
+             "FROM \"Users\" WHERE \"IsCanceled\" = false AND \"Entry\" > ? ORDER BY \"Entry\" ASC LIMIT ?";
     params.push_back(omnisphere::types::MakeSQLParam(afterEntry.value()));
     params.push_back(omnisphere::types::MakeSQLParam(limit + 1));
   } else {
-    sQuery = "SELECT Entry, Code, Name, Email, Phone, IsLocked, IsActive, CreatedBy, CreateDate "
-             "FROM Users ORDER BY Entry ASC LIMIT ?";
+    sQuery = "SELECT \"Entry\", \"Code\", \"Name\", \"Email\", \"Phone\", \"RoleCode\", \"EmployeeCode\", \"IsLocked\", \"IsActive\", \"CreatedBy\", \"CreateDate\" "
+             "FROM \"Users\" WHERE \"IsCanceled\" = false ORDER BY \"Entry\" ASC LIMIT ?";
     params.push_back(omnisphere::types::MakeSQLParam(limit + 1));
   }
 
@@ -411,6 +431,8 @@ UserCursorPage User::GetPage(std::optional<int> afterEntry, int limit) const {
     if (!table[i]["Name"].IsNull()) u.Name = static_cast<std::string>(table[i]["Name"]);
     if (!table[i]["Email"].IsNull()) u.Email = static_cast<std::string>(table[i]["Email"]);
     if (!table[i]["Phone"].IsNull()) u.Phone = static_cast<std::string>(table[i]["Phone"]);
+    if (!table[i]["RoleCode"].IsNull()) u.RoleCode = static_cast<std::string>(table[i]["RoleCode"]);
+    if (!table[i]["EmployeeCode"].IsNull()) u.EmployeeCode = static_cast<std::string>(table[i]["EmployeeCode"]);
     u.IsLocked = table[i]["IsLocked"];
     u.IsActive = table[i]["IsActive"];
     page.users.push_back(u);
@@ -503,6 +525,16 @@ bool User::ExistsCode(const std::string &code) const {
     return total > 0;
   } catch (const std::exception &e) {
     throw std::runtime_error(e.what());
+  }
+}
+
+bool User::Delete(const std::string &code) const {
+  auto conn = database->Acquire();
+  try {
+    std::string sql = "UPDATE \"Users\" SET \"IsCanceled\" = true, \"IsActive\" = false, \"UpdateDate\" = CURRENT_TIMESTAMP WHERE \"Code\" = ?";
+    return conn->RunPrepared(sql, { omnisphere::types::MakeSQLParam(code) });
+  } catch (const std::exception &e) {
+    throw std::runtime_error(std::string("[User Delete Exception] ") + e.what());
   }
 }
 

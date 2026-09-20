@@ -20,6 +20,7 @@ public:
   bool Add(const omnisphere::dtos::CreateUser &user) const;
   omnisphere::models::User
   Modify(const omnisphere::dtos::UpdateUser &user) const;
+  bool Delete(const std::string &code) const;
   bool ModifyPassword(const omnisphere::dtos::ChangePassword &) const;
   bool CheckPassword(const omnisphere::enums::UserFilter &filter,
                      const std::string &oldPassword,

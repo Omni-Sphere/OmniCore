@@ -10,7 +10,9 @@ struct CreateUser {
   std::optional<std::string> Email;
   std::optional<std::string> Phone;
   std::optional<int> Employee;
+  std::optional<std::string> EmployeeCode;
   std::optional<int> RoleEntry;
+  std::optional<std::string> RoleCode;
   std::optional<double> MaxDisccountPerLine;
   std::optional<double> MaxDisccountPerDocument;
   std::optional<omnisphere::enums::PermissionMode> PermissionMode;

@@ -102,8 +102,41 @@ CREATE TABLE IF NOT EXISTS "Users" (
     "CreatedBy" INT NOT NULL DEFAULT 0,
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "LastUpdatedBy" INT,
+    "UpdateDate" TIMESTAMP,
+    "EmployeeCode" VARCHAR(50)
+);
+
+-- Migration for existing Users table
+ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "EmployeeCode" VARCHAR(50);
+CREATE INDEX IF NOT EXISTS "IDX_Users_EmployeeCode" ON "Users" ("EmployeeCode");
+
+-- 2.1 Employees (Agnostic Master Entity)
+CREATE TABLE IF NOT EXISTS "Employees" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(50) NOT NULL UNIQUE,
+    "Name" VARCHAR(255) NOT NULL,
+    "FirstName" VARCHAR(100),
+    "SecondName" VARCHAR(100),
+    "LastName" VARCHAR(100),
+    "SecondLastName" VARCHAR(100),
+    "Email" VARCHAR(100),
+    "Phone" VARCHAR(50),
+    "Department" VARCHAR(100),
+    "Position" VARCHAR(100),
+    "DirectManagerCode" VARCHAR(50),
+    "UserCode" VARCHAR(50),
+    "DateOfBirth" DATE,
+    "Comments" TEXT,
+    "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "IsCanceled" BOOLEAN NOT NULL DEFAULT false,
+    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" INT,
     "UpdateDate" TIMESTAMP
 );
+CREATE INDEX IF NOT EXISTS "IDX_Employees_Code_Active" ON "Employees" ("Code") WHERE "IsCanceled" = false;
+CREATE INDEX IF NOT EXISTS "IDX_Employees_UserCode" ON "Employees" ("UserCode");
+CREATE INDEX IF NOT EXISTS "IDX_Employees_Email" ON "Employees" ("Email");
 
 -- 3. Sessions
 CREATE TABLE IF NOT EXISTS "Sessions" (
@@ -1245,3 +1278,196 @@ CREATE UNIQUE INDEX IF NOT EXISTS "UQ_SystemLicenses_Active"
 INSERT INTO "Identities" ("Domain", "Prefix1", "CurrentSequence")
 VALUES ('SystemLicense', 'LIC', 0)
 ON CONFLICT ("Domain") DO NOTHING;
+
+-- =============================================================================
+-- 35. Access Control & Security (Modules, Permissions, Roles, RolePermissions, UserPermissions, AuthorizationAuditLog)
+-- =============================================================================
+
+ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "RoleCode" VARCHAR(50);
+ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "IsCanceled" BOOLEAN NOT NULL DEFAULT false;
+
+-- Identities seed for Roles, Permissions, Modules
+INSERT INTO "Identities" ("Domain", "Prefix1", "CurrentSequence") VALUES
+('Role', 'ROL', 0),
+('Permission', 'PRM', 0),
+('Module', 'MOD', 0)
+ON CONFLICT ("Domain") DO NOTHING;
+
+-- A. Modules
+CREATE TABLE IF NOT EXISTS "Modules" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(50) NOT NULL UNIQUE,
+    "Name" VARCHAR(100) NOT NULL UNIQUE,
+    "Description" TEXT,
+    "Icon" VARCHAR(50) NOT NULL DEFAULT 'folder',
+    "SortOrder" INT NOT NULL DEFAULT 1,
+    "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" INT,
+    "UpdateDate" TIMESTAMP
+);
+
+-- B. Permissions
+CREATE TABLE IF NOT EXISTS "Permissions" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(50) NOT NULL UNIQUE,
+    "Name" VARCHAR(150) NOT NULL,
+    "Description" TEXT,
+    "ModuleCode" VARCHAR(50) NOT NULL,
+    "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" INT,
+    "UpdateDate" TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS "IDX_Permissions_ModuleCode" ON "Permissions" ("ModuleCode");
+
+-- C. Roles
+CREATE TABLE IF NOT EXISTS "Roles" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(50) NOT NULL UNIQUE,
+    "Name" VARCHAR(100) NOT NULL UNIQUE,
+    "Description" TEXT,
+    "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "IsCanceled" BOOLEAN NOT NULL DEFAULT false,
+    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" INT,
+    "UpdateDate" TIMESTAMP
+);
+
+-- D. RolePermissions
+CREATE TABLE IF NOT EXISTS "RolePermissions" (
+    "Entry" SERIAL PRIMARY KEY,
+    "RoleCode" VARCHAR(50) NOT NULL,
+    "PermissionCode" VARCHAR(50) NOT NULL,
+    "ModuleCode" VARCHAR(50) NOT NULL,
+    "IsAllowed" BOOLEAN NOT NULL DEFAULT true,
+    "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" INT,
+    "UpdateDate" TIMESTAMP,
+    CONSTRAINT "UQ_RolePermissions" UNIQUE ("RoleCode", "PermissionCode")
+);
+CREATE INDEX IF NOT EXISTS "IDX_RolePermissions_RoleCode" ON "RolePermissions" ("RoleCode");
+
+-- E. UserPermissions
+CREATE TABLE IF NOT EXISTS "UserPermissions" (
+    "Entry" SERIAL PRIMARY KEY,
+    "UserCode" VARCHAR(50) NOT NULL,
+    "PermissionCode" VARCHAR(50) NOT NULL,
+    "ModuleCode" VARCHAR(50) NOT NULL,
+    "IsAllowed" BOOLEAN NOT NULL DEFAULT true,
+    "GrantedByCode" VARCHAR(50),
+    "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" INT,
+    "UpdateDate" TIMESTAMP,
+    CONSTRAINT "UQ_UserPermissions" UNIQUE ("UserCode", "PermissionCode")
+);
+CREATE INDEX IF NOT EXISTS "IDX_UserPermissions_UserCode" ON "UserPermissions" ("UserCode");
+
+-- F. AuthorizationAuditLog
+CREATE TABLE IF NOT EXISTS "AuthorizationAuditLog" (
+    "Entry" SERIAL PRIMARY KEY,
+    "UserCode" VARCHAR(50),
+    "GrantedByCode" VARCHAR(50),
+    "Module" VARCHAR(50),
+    "Permission" VARCHAR(100),
+    "ResourceCode" VARCHAR(50),
+    "Status" BOOLEAN NOT NULL,
+    "Reason" TEXT,
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS "IDX_AuthAudit_UserCode" ON "AuthorizationAuditLog" ("UserCode");
+CREATE INDEX IF NOT EXISTS "IDX_AuthAudit_CreateDate" ON "AuthorizationAuditLog" ("CreateDate");
+
+-- Seed Modules
+INSERT INTO "Modules" ("Code", "Name", "Description", "Icon", "SortOrder") VALUES
+('MOD_OVERVIEW', 'Panel Analítico', 'Métricas y estadísticas globales', 'dashboard', 1),
+('MOD_RESERVATIONS', 'Reservaciones', 'Control de boletos y pasajeros', 'confirmation_number', 2),
+('MOD_SCHEDULES', 'Horarios y Salidas', 'Programación de corridas y viajes', 'schedule', 3),
+('MOD_EVENTS', 'Eventos', 'Conciertos, festivales y eventos', 'event', 4),
+('MOD_VENUES', 'Destinos', 'Recintos, estadios y destinos finales', 'flag', 5),
+('MOD_POINTS', 'Orígenes y Paradas', 'Puntos de abordaje y paradas intermedias', 'place', 6),
+('MOD_ROUTES', 'Rutas de Viaje', 'Trazado de rutas y tarifas base', 'alt_route', 7),
+('MOD_PAYMENTS', 'Formas de Pago', 'Métodos de pago y cuentas bancarias', 'payments', 8),
+('MOD_INTEGRATIONS', 'Integraciones', 'WhatsApp Cloud API y Stripe', 'hub', 9),
+('MOD_SETTINGS', 'Configuración General', 'Parámetros del sistema y licencias', 'settings', 10),
+('MOD_USERS', 'Personal y Accesos', 'Gestión de colaboradores, roles y permisos', 'badge', 11)
+ON CONFLICT ("Code") DO NOTHING;
+
+-- Seed Permissions in Spanish
+INSERT INTO "Permissions" ("Code", "Name", "Description", "ModuleCode") VALUES
+-- 01. Panel Analítico
+('MODULE_OVERVIEW_ACCESS', 'Acceso a Estadísticas', 'Permite visualizar el panel de control y métricas globales', 'MOD_OVERVIEW'),
+('ROUTE_OVERVIEW_EXPORT', 'Exportar Informes', 'Permite descargar reportes ejecutivos en formato Excel/PDF', 'MOD_OVERVIEW'),
+
+-- 02. Reservaciones
+('MODULE_RESERVATIONS_ACCESS', 'Acceso a Reservaciones', 'Permite ingresar a la lista de reservaciones y boletos', 'MOD_RESERVATIONS'),
+('ROUTE_RESERVATION_CREATE', 'Registrar Reservación', 'Permite crear nuevas reservaciones manuales en taquilla', 'MOD_RESERVATIONS'),
+('ROUTE_RESERVATION_UPDATE', 'Modificar Reservación', 'Permite cambiar datos de pasajeros, asientos o paradas', 'MOD_RESERVATIONS'),
+('ROUTE_RESERVATION_STATUS', 'Actualizar Estatus', 'Permite cambiar el estado (Confirmar, Completar, etc.)', 'MOD_RESERVATIONS'),
+('ROUTE_RESERVATION_PAY', 'Procesar Cobros', 'Permite registrar pagos en efectivo, tarjeta o validar transferencias', 'MOD_RESERVATIONS'),
+('ROUTE_RESERVATION_CANCEL', 'Cancelar Reservación', 'Permite anular una reservación liberando los asientos ocupados', 'MOD_RESERVATIONS'),
+('ROUTE_RESERVATION_DELETE', 'Eliminar Registro', 'Permite dar de baja lógica la reservación del sistema', 'MOD_RESERVATIONS'),
+
+-- 03. Horarios y Salidas
+('MODULE_SCHEDULES_ACCESS', 'Acceso a Horarios', 'Permite visualizar los horarios y salidas programadas', 'MOD_SCHEDULES'),
+('ROUTE_SCHEDULE_CREATE', 'Programar Salida', 'Permite dar de alta una nueva corrida o salida programada', 'MOD_SCHEDULES'),
+('ROUTE_SCHEDULE_UPDATE', 'Editar Salida', 'Permite modificar horas de salida, capacidad y precios', 'MOD_SCHEDULES'),
+('ROUTE_SCHEDULE_DELETE', 'Cancelar/Eliminar Salida', 'Permite anular o eliminar corridas programadas', 'MOD_SCHEDULES'),
+
+-- 04. Eventos
+('MODULE_EVENTS_ACCESS', 'Acceso a Eventos', 'Permite consultar el catálogo de conciertos y eventos', 'MOD_EVENTS'),
+('ROUTE_EVENT_CREATE', 'Crear Evento', 'Permite registrar nuevos eventos con fecha y recinto', 'MOD_EVENTS'),
+('ROUTE_EVENT_UPDATE', 'Editar Evento', 'Permite modificar la información, imagen o categoría del evento', 'MOD_EVENTS'),
+('ROUTE_EVENT_DELETE', 'Eliminar Evento', 'Permite dar de baja un evento del sistema', 'MOD_EVENTS'),
+
+-- 05. Destinos (Venues)
+('MODULE_VENUES_ACCESS', 'Acceso a Destinos', 'Permite consultar recintos, estadios y destinos', 'MOD_VENUES'),
+('ROUTE_VENUE_CREATE', 'Registrar Destino', 'Permite dar de alta nuevos destinos y ubicaciones', 'MOD_VENUES'),
+('ROUTE_VENUE_UPDATE', 'Modificar Destino', 'Permite editar dirección, ciudad y nombre del destino', 'MOD_VENUES'),
+('ROUTE_VENUE_DELETE', 'Eliminar Destino', 'Permite eliminar destinos registrados', 'MOD_VENUES'),
+
+-- 06. Orígenes y Paradas
+('MODULE_POINTS_ACCESS', 'Acceso a Paradas', 'Permite consultar orígenes, puntos de abordaje y paradas', 'MOD_POINTS'),
+('ROUTE_POINT_CREATE', 'Crear Punto de Abordaje', 'Permite dar de alta nuevas paradas y terminales', 'MOD_POINTS'),
+('ROUTE_POINT_UPDATE', 'Editar Parada', 'Permite modificar dirección y tipo de punto de abordaje', 'MOD_POINTS'),
+('ROUTE_POINT_DELETE', 'Eliminar Parada', 'Permite retirar paradas del catálogo', 'MOD_POINTS'),
+
+-- 07. Rutas de Viaje
+('MODULE_ROUTES_ACCESS', 'Acceso a Rutas', 'Permite ver las rutas trazadas entre origen y destino', 'MOD_ROUTES'),
+('ROUTE_ROUTE_CREATE', 'Trazar Nueva Ruta', 'Permite vincular origen y destino con precio base', 'MOD_ROUTES'),
+('ROUTE_ROUTE_UPDATE', 'Modificar Ruta', 'Permite cambiar itinerarios, paradas intermedias y tarifas', 'MOD_ROUTES'),
+('ROUTE_ROUTE_DELETE', 'Eliminar Ruta', 'Permite dar de baja rutas de viaje', 'MOD_ROUTES'),
+
+-- 08. Formas de Pago
+('MODULE_PAYMENTS_ACCESS', 'Acceso a Métodos de Pago', 'Permite ver las opciones y cuentas bancarias configuradas', 'MOD_PAYMENTS'),
+('PAYMENTS_METHOD_CREATE', 'Crear Método de Pago', 'Permite habilitar nuevas formas de pago en el checkout', 'MOD_PAYMENTS'),
+('PAYMENTS_METHOD_UPDATE', 'Editar Configuración de Pago', 'Permite modificar comisiones y pasarelas vinculadas', 'MOD_PAYMENTS'),
+('PAYMENTS_BANK_MANAGE', 'Administrar Cuentas Bancarias', 'Permite editar CLABEs, bancos y beneficiarios de transferencia', 'MOD_PAYMENTS'),
+('PAYMENTS_METHOD_DELETE', 'Eliminar Método de Pago', 'Permite desactivar o eliminar opciones de pago', 'MOD_PAYMENTS'),
+
+-- 09. Integraciones
+('MODULE_INTEGRATIONS_ACCESS', 'Acceso a Integraciones', 'Permite ver el estado de WhatsApp y pasarelas externas', 'MOD_INTEGRATIONS'),
+('INTEGRATION_STRIPE_MANAGE', 'Configurar Stripe', 'Permite editar claves de API y webhooks de Stripe', 'MOD_INTEGRATIONS'),
+('INTEGRATION_WHATSAPP_MANAGE', 'Configurar WhatsApp API', 'Permite vincular tokens de Meta Cloud y plantillas', 'MOD_INTEGRATIONS'),
+('INTEGRATION_TEST', 'Pruebas de Diagnóstico', 'Permite enviar mensajes y cobros de prueba', 'MOD_INTEGRATIONS'),
+('NOTIF_STAFF_MANAGE', 'Notificaciones a Personal', 'Permite configurar alertas de salida a choferes y staff', 'MOD_INTEGRATIONS'),
+
+-- 10. Configuración
+('MODULE_SETTINGS_ACCESS', 'Acceso a Configuración', 'Permite visualizar parámetros globales y sistema', 'MOD_SETTINGS'),
+('ROUTE_CONFIG_UPDATE', 'Modificar Parámetros', 'Permite cambiar datos de la empresa, impuestos y divisas', 'MOD_SETTINGS'),
+
+-- 11. Personal y Roles
+('MODULE_USERS_ACCESS', 'Acceso a Personal', 'Permite acceder a la administración de usuarios y accesos', 'MOD_USERS'),
+('CORE_USER_CREATE', 'Registrar Empleado/Usuario', 'Permite dar de alta nuevos colaboradores y cuentas de acceso', 'MOD_USERS'),
+('CORE_USER_UPDATE', 'Modificar Usuario', 'Permite editar datos personales, teléfonos y estatus', 'MOD_USERS'),
+('CORE_USER_DELETE', 'Eliminar Usuario', 'Permite dar de baja un usuario del sistema', 'MOD_USERS'),
+('CORE_ROLE_MANAGE', 'Administrar Roles', 'Permite crear o ajustar perfiles de seguridad predefinidos', 'MOD_USERS'),
+('CORE_PERM_MANAGE', 'Modificar Permisos', 'Permite otorgar o revocar permisos específicos a usuarios', 'MOD_USERS')
+ON CONFLICT ("Code") DO NOTHING;

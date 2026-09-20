@@ -45,5 +45,18 @@ namespace omnisphere::services
 
         omnisphere::models::AuthorizationResult GrantRolePermission(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::GrantRolePermissionInput& input) const;
         omnisphere::models::AuthorizationResult RevokeRolePermission(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::RevokeRolePermissionInput& input) const;
+
+        std::vector<omnisphere::models::PermissionModule> GetPermissionsCatalog() const;
+        std::vector<std::string> GetUserPermissions(const std::string& userCode) const;
+        std::vector<std::string> GetRolePermissions(const std::string& roleCode) const;
+        std::vector<omnisphere::models::Role> GetAllRoles() const;
+
+        omnisphere::models::AuthorizationResult SetUserPermissions(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::SetUserPermissionsInput& input) const;
+        omnisphere::models::AuthorizationResult SetRolePermissions(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::SetRolePermissionsInput& input) const;
+
+        bool CreateRole(const omnisphere::models::SecurityContext& ctx, const omnisphere::models::Role& role) const;
+        bool UpdateRole(const omnisphere::models::SecurityContext& ctx, const omnisphere::models::Role& role) const;
+        bool DeleteRole(const omnisphere::models::SecurityContext& ctx, const std::string& roleCode) const;
     };
 } // namespace omnisphere::services
+

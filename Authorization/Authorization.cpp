@@ -147,4 +147,110 @@ namespace omnisphere::services
 
         return result;
     }
+
+    std::vector<omnisphere::models::PermissionModule> Authorization::GetPermissionsCatalog() const
+    {
+        if (m_repository)
+        {
+            return m_repository->GetPermissionsCatalog();
+        }
+        return {};
+    }
+
+    std::vector<std::string> Authorization::GetUserPermissions(const std::string& userCode) const
+    {
+        if (m_repository)
+        {
+            return m_repository->GetUserPermissions(userCode);
+        }
+        return {};
+    }
+
+    std::vector<std::string> Authorization::GetRolePermissions(const std::string& roleCode) const
+    {
+        if (m_repository)
+        {
+            return m_repository->GetRolePermissions(roleCode);
+        }
+        return {};
+    }
+
+    std::vector<omnisphere::models::Role> Authorization::GetAllRoles() const
+    {
+        if (m_repository)
+        {
+            return m_repository->GetAllRoles();
+        }
+        return {};
+    }
+
+    omnisphere::models::AuthorizationResult Authorization::SetUserPermissions(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::SetUserPermissionsInput& input) const
+    {
+        Authorize(ctx, "CORE_PERM_MANAGE");
+
+        bool ok = false;
+        if (m_repository)
+        {
+            omnisphere::dtos::SetUserPermissionsInput finalInput = input;
+            if (finalInput.grantedByCode.empty())
+            {
+                finalInput.grantedByCode = ctx.userCode;
+            }
+            ok = m_repository->SetUserPermissions(finalInput);
+        }
+
+        omnisphere::models::AuthorizationResult result;
+        result.success = ok;
+        result.message = ok ? "Permisos de usuario actualizados correctamente" : "Error al actualizar permisos de usuario";
+        result.userCode = input.userCode;
+        return result;
+    }
+
+    omnisphere::models::AuthorizationResult Authorization::SetRolePermissions(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::SetRolePermissionsInput& input) const
+    {
+        Authorize(ctx, "CORE_ROLE_MANAGE");
+
+        bool ok = false;
+        if (m_repository)
+        {
+            ok = m_repository->SetRolePermissions(input);
+        }
+
+        omnisphere::models::AuthorizationResult result;
+        result.success = ok;
+        result.message = ok ? "Permisos de rol actualizados correctamente" : "Error al actualizar permisos de rol";
+        result.userCode = input.roleCode;
+        return result;
+    }
+
+    bool Authorization::CreateRole(const omnisphere::models::SecurityContext& ctx, const omnisphere::models::Role& role) const
+    {
+        Authorize(ctx, "CORE_ROLE_MANAGE");
+        if (m_repository)
+        {
+            return m_repository->CreateRole(role);
+        }
+        return false;
+    }
+
+    bool Authorization::UpdateRole(const omnisphere::models::SecurityContext& ctx, const omnisphere::models::Role& role) const
+    {
+        Authorize(ctx, "CORE_ROLE_MANAGE");
+        if (m_repository)
+        {
+            return m_repository->UpdateRole(role);
+        }
+        return false;
+    }
+
+    bool Authorization::DeleteRole(const omnisphere::models::SecurityContext& ctx, const std::string& roleCode) const
+    {
+        Authorize(ctx, "CORE_ROLE_MANAGE");
+        if (m_repository)
+        {
+            return m_repository->DeleteRole(roleCode);
+        }
+        return false;
+    }
 } // namespace omnisphere::services
+
