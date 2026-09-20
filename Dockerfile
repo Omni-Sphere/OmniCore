@@ -29,6 +29,8 @@ ENV TZ=America/Mexico_City
 COPY . /tmp/src/
 
 # 3. Compilación e Instalación Autónoma de cppgraphqlgen y la suite OmniSDK
+ARG OMNISPHERE_SCOPE=all
+
 RUN set -e && \
     # A. Compilar e instalar cppgraphqlgen (schemagen) desde fuentes locales
     rm -rf /tmp/src/cppgraphqlgen/build /tmp/cppgraphqlgen-build 2>/dev/null || true && \
@@ -49,11 +51,24 @@ RUN set -e && \
     cp /usr/bin/cppgraphqlgen/schemagen /usr/bin/ 2>/dev/null || true && \
     rm -rf /tmp/src/cppgraphqlgen/build /tmp/cppgraphqlgen-build 2>/dev/null || true && \
     \
-    # B. Compilar e instalar las 6 librerías de OmniSphere en secuencia
-    for LIB in OmniUtils OmniData OmniCore OmniERP OmniRoute OmniGraph; do \
+    # B. Determinar librerías y flags de OmniGraph según el ámbito (OMNISPHERE_SCOPE)
+    SCOPE="${OMNISPHERE_SCOPE:-all}" && \
+    if [ "$SCOPE" = "route" ]; then \
+        LIBS="OmniUtils OmniData OmniCore OmniRoute OmniGraph" && \
+        GRAPH_FLAGS="-DOMNIGRAPH_ENABLE_ERP=OFF -DOMNIGRAPH_ENABLE_ROUTE=ON"; \
+    elif [ "$SCOPE" = "cafe" ]; then \
+        LIBS="OmniUtils OmniData OmniCore OmniERP OmniGraph" && \
+        GRAPH_FLAGS="-DOMNIGRAPH_ENABLE_ERP=ON -DOMNIGRAPH_ENABLE_ROUTE=OFF"; \
+    else \
+        LIBS="OmniUtils OmniData OmniCore OmniERP OmniRoute OmniGraph" && \
+        GRAPH_FLAGS="-DOMNIGRAPH_ENABLE_ERP=ON -DOMNIGRAPH_ENABLE_ROUTE=ON"; \
+    fi && \
+    \
+    # C. Compilar e instalar las librerías de OmniSphere en secuencia
+    for LIB in $LIBS; do \
         rm -rf /tmp/src/${LIB}/build /tmp/${LIB}-build 2>/dev/null || true && \
         EXTRA_FLAGS="" && \
-        if [ "$LIB" = "OmniGraph" ]; then rm -rf /tmp/src/OmniGraph/GraphQL/Generated/* 2>/dev/null || true && EXTRA_FLAGS="-DOMNIGRAPH_ENABLE_ERP=ON -DOMNIGRAPH_ENABLE_ROUTE=ON"; fi && \
+        if [ "$LIB" = "OmniGraph" ]; then rm -rf /tmp/src/OmniGraph/GraphQL/Generated/* 2>/dev/null || true && EXTRA_FLAGS="$GRAPH_FLAGS"; fi && \
         cmake -B /tmp/${LIB}-build -S /tmp/src/${LIB} \
             -Wno-dev \
             -Wno-unused-cli \
@@ -73,12 +88,13 @@ RUN set -e && \
         rm -rf /tmp/src/${LIB}/build /tmp/${LIB}-build 2>/dev/null ; \
     done && \
     \
-    # C. Limpieza de carpetas temporales
+    # D. Limpieza de carpetas temporales
     rm -rf /tmp/src && \
     pacman -Scc --noconfirm && \
     rm -rf /tmp/* /var/tmp/* && \
     useradd -u 10001 -m -s /bin/bash appuser && \
     mkdir -p /app && chown -R 10001:10001 /app
+
 
 # Configuración de Entorno
 ENV LD_LIBRARY_PATH=/usr/lib/OmniSphere:/usr/lib:$LD_LIBRARY_PATH
