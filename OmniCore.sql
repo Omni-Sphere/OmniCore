@@ -454,6 +454,7 @@ CREATE TABLE IF NOT EXISTS "PaymentMethods" (
     "UsesIntegration" BOOLEAN NOT NULL DEFAULT false,
     "IntegrationProvider" VARCHAR(50),
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "IsCanceled" BOOLEAN NOT NULL DEFAULT false,
     "CreatedBy" INT NOT NULL DEFAULT 0,
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "LastUpdatedBy" INT,
@@ -463,8 +464,9 @@ CREATE TABLE IF NOT EXISTS "PaymentMethods" (
 
 ALTER TABLE "PaymentMethods" ADD COLUMN IF NOT EXISTS "UsesIntegration" BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE "PaymentMethods" ADD COLUMN IF NOT EXISTS "IntegrationProvider" VARCHAR(50);
+ALTER TABLE "PaymentMethods" ADD COLUMN IF NOT EXISTS "IsCanceled" BOOLEAN NOT NULL DEFAULT false;
 
-CREATE UNIQUE INDEX IF NOT EXISTS "UQ_PaymentMethods_Name_Active" ON "PaymentMethods" (LOWER(TRIM("Name"))) WHERE "IsActive" = true;
+CREATE UNIQUE INDEX IF NOT EXISTS "UQ_PaymentMethods_Name_Active" ON "PaymentMethods" (LOWER(TRIM("Name"))) WHERE "IsActive" = true AND "IsCanceled" = false;
 
 INSERT INTO "PaymentMethods" ("Code", "Name", "Type", "UsesCommission", "CommissionRate", "CreatedBy") VALUES
 ('PMT1', 'Efectivo', 'CASH', false, 0.00, 1),
