@@ -408,12 +408,12 @@ UserCursorPage User::GetPage(std::optional<int> afterEntry, int limit) const {
   std::vector<omnisphere::types::SQLParam> params;
 
   if (afterEntry.has_value()) {
-    sQuery = "SELECT \"Entry\", \"Code\", \"Name\", \"Email\", \"Phone\", \"RoleCode\", \"EmployeeCode\", \"IsLocked\", \"IsActive\", \"CreatedBy\", \"CreateDate\" "
+    sQuery = "SELECT \"Entry\", \"Code\", \"Name\", \"Email\", \"Phone\", \"RoleCode\", \"EmployeeCode\", \"SuperUser\", \"IsLocked\", \"IsActive\", \"CreatedBy\", \"CreateDate\" "
              "FROM \"Users\" WHERE \"IsCanceled\" = false AND \"Entry\" > ? ORDER BY \"Entry\" ASC LIMIT ?";
     params.push_back(omnisphere::types::MakeSQLParam(afterEntry.value()));
     params.push_back(omnisphere::types::MakeSQLParam(limit + 1));
   } else {
-    sQuery = "SELECT \"Entry\", \"Code\", \"Name\", \"Email\", \"Phone\", \"RoleCode\", \"EmployeeCode\", \"IsLocked\", \"IsActive\", \"CreatedBy\", \"CreateDate\" "
+    sQuery = "SELECT \"Entry\", \"Code\", \"Name\", \"Email\", \"Phone\", \"RoleCode\", \"EmployeeCode\", \"SuperUser\", \"IsLocked\", \"IsActive\", \"CreatedBy\", \"CreateDate\" "
              "FROM \"Users\" WHERE \"IsCanceled\" = false ORDER BY \"Entry\" ASC LIMIT ?";
     params.push_back(omnisphere::types::MakeSQLParam(limit + 1));
   }
@@ -433,6 +433,7 @@ UserCursorPage User::GetPage(std::optional<int> afterEntry, int limit) const {
     if (!table[i]["Phone"].IsNull()) u.Phone = static_cast<std::string>(table[i]["Phone"]);
     if (!table[i]["RoleCode"].IsNull()) u.RoleCode = static_cast<std::string>(table[i]["RoleCode"]);
     if (!table[i]["EmployeeCode"].IsNull()) u.EmployeeCode = static_cast<std::string>(table[i]["EmployeeCode"]);
+    u.SuperUser = table[i]["SuperUser"];
     u.IsLocked = table[i]["IsLocked"];
     u.IsActive = table[i]["IsActive"];
     page.users.push_back(u);
