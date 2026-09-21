@@ -15,6 +15,7 @@ struct UserData {
   std::optional<std::string> Phone;
   std::optional<int> Employee;
   std::optional<std::string> EmployeeCode;
+  std::optional<bool> IsActive;
   std::optional<int> RoleEntry;
   std::optional<std::string> RoleCode;
   std::optional<double> MaxDisccountPerLine;

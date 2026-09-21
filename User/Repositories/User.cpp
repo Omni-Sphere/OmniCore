@@ -208,6 +208,12 @@ bool User::Update(const omnisphere::dtos::UpdateUser &user) const {
           omnisphere::types::MakeSQLParam(user.Data.EmployeeCode.value()));
     }
 
+    if (user.Data.IsActive.has_value()) {
+      sQuery += "\"IsActive\" = ?, ";
+      updateParams.emplace_back(
+          omnisphere::types::MakeSQLParam(user.Data.IsActive.value()));
+    }
+
     if (user.Where.Entry.has_value()) {
       sQuery += "WHERE Entry = ?";
       updateParams.emplace_back(
