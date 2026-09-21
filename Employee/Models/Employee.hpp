@@ -19,7 +19,6 @@ namespace omnisphere::models
         std::optional<std::string> department;
         std::optional<std::string> position;
         std::optional<std::string> directManagerCode;
-        std::optional<std::string> userCode;
         std::optional<std::string> dateOfBirth;
         std::optional<std::string> comments;
         bool isActive = true;
@@ -30,7 +29,7 @@ namespace omnisphere::models
     };
     BOOST_DESCRIBE_STRUCT(Employee, (), (
         entry, code, name, firstName, secondName, lastName, secondLastName,
-        email, phone, department, position, directManagerCode, userCode,
+        email, phone, department, position, directManagerCode,
         dateOfBirth, comments, isActive, createdBy, createDate, lastUpdatedBy, updateDate
     ))
 } // namespace omnisphere::models

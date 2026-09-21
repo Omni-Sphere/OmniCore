@@ -22,7 +22,6 @@ namespace omnisphere::repositories
         if (!row["Department"].IsNull()) emp.department = static_cast<std::string>(row["Department"]);
         if (!row["Position"].IsNull()) emp.position = static_cast<std::string>(row["Position"]);
         if (!row["DirectManagerCode"].IsNull()) emp.directManagerCode = static_cast<std::string>(row["DirectManagerCode"]);
-        if (!row["UserCode"].IsNull()) emp.userCode = static_cast<std::string>(row["UserCode"]);
         if (!row["DateOfBirth"].IsNull()) emp.dateOfBirth = static_cast<std::string>(row["DateOfBirth"]);
         if (!row["Comments"].IsNull()) emp.comments = static_cast<std::string>(row["Comments"]);
         emp.isActive = row["IsActive"];
@@ -44,8 +43,8 @@ namespace omnisphere::repositories
                 "INSERT INTO \"Employees\" ("
                 "\"Code\", \"Name\", \"FirstName\", \"SecondName\", \"LastName\", \"SecondLastName\", "
                 "\"Email\", \"Phone\", \"Department\", \"Position\", \"DirectManagerCode\", "
-                "\"UserCode\", \"DateOfBirth\", \"Comments\", \"IsActive\", \"CreatedBy\""
-                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                "\"DateOfBirth\", \"Comments\", \"IsActive\", \"CreatedBy\""
+                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
             std::vector<omnisphere::types::SQLParam> params = {
                 omnisphere::types::MakeSQLParam(emp.code),
@@ -59,7 +58,6 @@ namespace omnisphere::repositories
                 omnisphere::types::MakeSQLParam(emp.department),
                 omnisphere::types::MakeSQLParam(emp.position),
                 omnisphere::types::MakeSQLParam(emp.directManagerCode),
-                omnisphere::types::MakeSQLParam(emp.userCode),
                 omnisphere::types::MakeSQLParam(emp.dateOfBirth),
                 omnisphere::types::MakeSQLParam(emp.comments),
                 omnisphere::types::MakeSQLParam(emp.isActive),
@@ -70,16 +68,6 @@ namespace omnisphere::repositories
             {
                 conn->RollbackTransaction();
                 return false;
-            }
-
-            // Also link back in Users if userCode was supplied
-            if (emp.userCode.has_value() && !emp.userCode.value().empty())
-            {
-                std::string linkSql = "UPDATE \"Users\" SET \"EmployeeCode\" = ? WHERE \"Code\" = ?";
-                conn->RunPrepared(linkSql, {
-                    omnisphere::types::MakeSQLParam(emp.code),
-                    omnisphere::types::MakeSQLParam(emp.userCode.value())
-                });
             }
 
             conn->CommitTransaction();
@@ -143,10 +131,6 @@ namespace omnisphere::repositories
                 sql += "\"DirectManagerCode\" = ?, ";
                 params.push_back(omnisphere::types::MakeSQLParam(emp.directManagerCode.value()));
             }
-            if (emp.userCode.has_value()) {
-                sql += "\"UserCode\" = ?, ";
-                params.push_back(omnisphere::types::MakeSQLParam(emp.userCode.value()));
-            }
             if (emp.dateOfBirth.has_value()) {
                 sql += "\"DateOfBirth\" = ?, ";
                 params.push_back(omnisphere::types::MakeSQLParam(emp.dateOfBirth.value()));
@@ -168,16 +152,6 @@ namespace omnisphere::repositories
             {
                 conn->RollbackTransaction();
                 return false;
-            }
-
-            // Sync link in Users if userCode changed
-            if (emp.userCode.has_value() && !emp.userCode.value().empty())
-            {
-                std::string linkSql = "UPDATE \"Users\" SET \"EmployeeCode\" = ? WHERE \"Code\" = ?";
-                conn->RunPrepared(linkSql, {
-                    omnisphere::types::MakeSQLParam(emp.code),
-                    omnisphere::types::MakeSQLParam(emp.userCode.value())
-                });
             }
 
             conn->CommitTransaction();

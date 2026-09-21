@@ -19,7 +19,6 @@ namespace omnisphere::dtos
         std::optional<std::string> department;
         std::optional<std::string> position;
         std::optional<std::string> directManagerCode;
-        std::optional<std::string> userCode;
         std::optional<std::string> dateOfBirth;
         std::optional<std::string> comments;
         std::optional<bool> isActive;
@@ -27,7 +26,7 @@ namespace omnisphere::dtos
     };
     BOOST_DESCRIBE_STRUCT(UpdateEmployee, (), (
         entry, code, name, firstName, secondName, lastName, secondLastName,
-        email, phone, department, position, directManagerCode, userCode,
+        email, phone, department, position, directManagerCode,
         dateOfBirth, comments, isActive, updatedBy
     ))
 } // namespace omnisphere::dtos

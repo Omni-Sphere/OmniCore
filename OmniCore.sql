@@ -124,7 +124,6 @@ CREATE TABLE IF NOT EXISTS "Employees" (
     "Department" VARCHAR(100),
     "Position" VARCHAR(100),
     "DirectManagerCode" VARCHAR(50),
-    "UserCode" VARCHAR(50),
     "DateOfBirth" DATE,
     "Comments" TEXT,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
@@ -135,8 +134,25 @@ CREATE TABLE IF NOT EXISTS "Employees" (
     "UpdateDate" TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS "IDX_Employees_Code_Active" ON "Employees" ("Code") WHERE "IsCanceled" = false;
-CREATE INDEX IF NOT EXISTS "IDX_Employees_UserCode" ON "Employees" ("UserCode");
 CREATE INDEX IF NOT EXISTS "IDX_Employees_Email" ON "Employees" ("Email");
+
+-- Users.EmployeeCode is the single source of truth for employee-user links.
+-- Preserve links from installations that previously stored them on Employees.
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'Employees' AND column_name = 'UserCode'
+    ) THEN
+        UPDATE "Users" AS u
+        SET "EmployeeCode" = e."Code"
+        FROM "Employees" AS e
+        WHERE e."UserCode" = u."Code"
+          AND (u."EmployeeCode" IS NULL OR u."EmployeeCode" = '');
+
+        ALTER TABLE "Employees" DROP COLUMN "UserCode";
+    END IF;
+END $$;
 
 -- 3. Sessions
 CREATE TABLE IF NOT EXISTS "Sessions" (
