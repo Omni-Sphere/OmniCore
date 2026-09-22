@@ -209,7 +209,7 @@ bool User::Update(const omnisphere::dtos::UpdateUser &user) const {
     }
 
     if (user.Data.IsActive.has_value()) {
-      sQuery += "\"IsActive\" = ?, ";
+      sQuery += "\"IsActive\" = ? ";
       updateParams.emplace_back(
           omnisphere::types::MakeSQLParam(user.Data.IsActive.value()));
     }
