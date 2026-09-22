@@ -43,7 +43,7 @@ namespace omnisphere::repositories
                 "INSERT INTO \"Employees\" ("
                 "\"Code\", \"Name\", \"FirstName\", \"SecondName\", \"LastName\", \"SecondLastName\", "
                 "\"Email\", \"Phone\", \"Department\", \"Position\", \"DirectManagerCode\", "
-                "\"DateOfBirth\", \"Comments\", \"IsActive\", \"CreatedBy\""
+                "\"DateOfBirth\", \"Comments\", \"IsActive\", \"CreateDate\", \"CreatedBy\""
                 ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
             std::vector<omnisphere::types::SQLParam> params = {
@@ -61,6 +61,7 @@ namespace omnisphere::repositories
                 omnisphere::types::MakeSQLParam(emp.dateOfBirth),
                 omnisphere::types::MakeSQLParam(emp.comments),
                 omnisphere::types::MakeSQLParam(emp.isActive),
+                omnisphere::types::MakeSQLParam(emp.createDate),
                 omnisphere::types::MakeSQLParam(emp.createdBy)
             };
 
