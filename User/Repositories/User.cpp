@@ -1,6 +1,7 @@
 #include <OmniUtils/Hasher.hpp>
 #include "User/Enums/PermissionMode.hpp"
 #include "User/Repositories/User.hpp"
+#include <OmniData/QueryBuilder.hpp>
 #include <functional>
 #include <algorithm>
 #include <sstream>
@@ -135,101 +136,22 @@ int User::GetCurrentSequence() const {
 
 bool User::Update(const omnisphere::dtos::UpdateUser &user) const {
   auto conn = database->Acquire();
-  try {
-    std::string sQuery = "UPDATE Users SET ";
-    std::vector<omnisphere::types::SQLParam> updateParams;
 
-    if (user.Data.Name.has_value()) {
-      sQuery += "Name = ?, ";
-      updateParams.emplace_back(
-          omnisphere::types::MakeSQLParam(user.Data.Name.value()));
-    }
+  try 
+  {
+    auto updateColumns = omnisphere::types::ExtractUpdateColumns(user.Data);
 
-    if (user.Data.Email.has_value()) {
-      sQuery += "Email = ?, ";
-      updateParams.emplace_back(
-          omnisphere::types::MakeSQLParam(user.Data.Email.value()));
-    }
+    if(updateColumns.empty())
+      return false;
+    auto updateResult = omnisphere::types::BuildUpdateQuery("\"Users\"", updateColumns, "\"Code\"", omnisphere::types::MakeSQLParam(user.Where.Code));
 
-    if (user.Data.Phone.has_value()) {
-      sQuery += "Phone = ?, ";
-      updateParams.emplace_back(
-          omnisphere::types::MakeSQLParam(user.Data.Phone.value()));
-    }
-
-    if (user.Data.Employee.has_value()) {
-      sQuery += "Employee = ?, ";
-      updateParams.emplace_back(
-          omnisphere::types::MakeSQLParam(user.Data.Employee.value()));
-    }
-
-    if (user.Data.RoleEntry.has_value()) {
-      sQuery += "RoleEntry = ?, ";
-      updateParams.emplace_back(
-          omnisphere::types::MakeSQLParam(user.Data.RoleEntry.value()));
-    }
-
-    if (user.Data.RoleCode.has_value()) {
-      sQuery += "\"RoleCode\" = ?, ";
-      updateParams.emplace_back(
-          omnisphere::types::MakeSQLParam(user.Data.RoleCode.value()));
-    }
-
-    if (user.Data.MaxDisccountPerLine.has_value()) {
-      sQuery += "MaxDisccountPerLine = ?, ";
-      updateParams.emplace_back(omnisphere::types::MakeSQLParam(
-          user.Data.MaxDisccountPerLine.value()));
-    }
-
-    if (user.Data.MaxDisccountPerDocument.has_value()) {
-      sQuery += "MaxDisccountPerDocument = ?, ";
-      updateParams.emplace_back(omnisphere::types::MakeSQLParam(
-          user.Data.MaxDisccountPerDocument.value()));
-    }
-
-    if (user.Data.PermissionMode.has_value()) {
-      sQuery += "PermissionMode = ?, ";
-      updateParams.emplace_back(omnisphere::types::MakeSQLParam(
-          std::string(user.Data.PermissionMode.value() ==
-                              omnisphere::enums::PermissionMode::P
-                          ? "P"
-                          : "M")));
-    }
-
-    if (user.Data.Department.has_value()) {
-      sQuery += "Department = ?, ";
-      updateParams.emplace_back(
-          omnisphere::types::MakeSQLParam(user.Data.Department.value()));
-    }
-
-    if (user.Data.EmployeeCode.has_value()) {
-      sQuery += "\"EmployeeCode\" = ?, ";
-      updateParams.emplace_back(
-          omnisphere::types::MakeSQLParam(user.Data.EmployeeCode.value()));
-    }
-
-    if (user.Data.IsActive.has_value()) {
-      sQuery += "\"IsActive\" = ? ";
-      updateParams.emplace_back(
-          omnisphere::types::MakeSQLParam(user.Data.IsActive.value()));
-    }
-
-
-    if (user.Where.Code.has_value()) {
-      sQuery += " WHERE Code = ?";
-      updateParams.emplace_back(
-          omnisphere::types::MakeSQLParam(user.Where.Code.value()));
-    }
-
-    conn->BeginTransaction();
-
-    if (!conn->RunPrepared(sQuery, updateParams))
-      throw std::runtime_error("Update failed");
-
-    conn->CommitTransaction();
-
+    if(!conn->RunPrepared(updateResult.Query, updateResult.Parameters))
+      return false;
+    
     return true;
-  } catch (const std::exception &e) {
+  } 
+  catch (const std::exception &e) 
+  {
     conn->RollbackTransaction();
     throw std::runtime_error(std::string("[UpdateUser Exception]") + e.what());
   }
