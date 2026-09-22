@@ -26,8 +26,8 @@ struct UserData {
   std::optional<double> MaxDisccountPerDocument;
   std::optional<omnisphere::enums::PermissionMode> PermissionMode;
   std::optional<int> Department;
-  std::optional<int> LastUpdatedBy;
-  std::optional<std::string> UpdateDate;
+  int LastUpdatedBy;
+  std::string UpdateDate;
 };
 
 BOOST_DESCRIBE_STRUCT(UserData, (), (
@@ -50,15 +50,11 @@ BOOST_DESCRIBE_STRUCT(UserData, (), (
 struct UpdateUser {
   UserCondition Where;
   UserData Data;
-  std::string UpdateDate;
-  int UpdatedBy;
 };
 
 BOOST_DESCRIBE_STRUCT(UpdateUser, (), (
   Where,
-  Data,
-  UpdateDate,
-  UpdatedBy
+  Data
 ))
 
 } // namespace omnisphere::dtos
