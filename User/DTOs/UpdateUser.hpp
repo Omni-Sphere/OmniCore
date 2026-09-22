@@ -26,8 +26,8 @@ struct UserData {
   std::optional<double> MaxDisccountPerDocument;
   std::optional<omnisphere::enums::PermissionMode> PermissionMode;
   std::optional<int> Department;
-  int LastUpdatedBy;
-  std::string UpdateDate;
+  std::optional<int> LastUpdatedBy;
+  std::optional<std::string> UpdateDate;
 };
 
 BOOST_DESCRIBE_STRUCT(UserData, (), (

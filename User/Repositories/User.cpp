@@ -143,6 +143,7 @@ bool User::Update(const omnisphere::dtos::UpdateUser &user) const {
 
     if(updateColumns.empty())
       return false;
+    
     auto updateResult = omnisphere::types::BuildUpdateQuery("\"Users\"", updateColumns, "\"Code\"", omnisphere::types::MakeSQLParam(user.Where.Code));
 
     if(!conn->RunPrepared(updateResult.Query, updateResult.Parameters))
