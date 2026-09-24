@@ -1,5 +1,6 @@
 #include "Employee/Repositories/Employee.hpp"
 #include <OmniData/Database.hpp>
+#include <OmniData/QueryBuilder.hpp>
 #include <iostream>
 
 namespace omnisphere::repositories
@@ -9,27 +10,7 @@ namespace omnisphere::repositories
 
     omnisphere::models::Employee Employee::MapRow(omnisphere::types::DataTable::Row& row) const
     {
-        omnisphere::models::Employee emp;
-        emp.entry = row["Entry"];
-        emp.code = static_cast<std::string>(row["Code"]);
-        emp.name = static_cast<std::string>(row["Name"]);
-        if (!row["FirstName"].IsNull()) emp.firstName = static_cast<std::string>(row["FirstName"]);
-        if (!row["SecondName"].IsNull()) emp.secondName = static_cast<std::string>(row["SecondName"]);
-        if (!row["LastName"].IsNull()) emp.lastName = static_cast<std::string>(row["LastName"]);
-        if (!row["SecondLastName"].IsNull()) emp.secondLastName = static_cast<std::string>(row["SecondLastName"]);
-        if (!row["Email"].IsNull()) emp.email = static_cast<std::string>(row["Email"]);
-        if (!row["Phone"].IsNull()) emp.phone = static_cast<std::string>(row["Phone"]);
-        if (!row["Department"].IsNull()) emp.department = static_cast<std::string>(row["Department"]);
-        if (!row["Position"].IsNull()) emp.position = static_cast<std::string>(row["Position"]);
-        if (!row["DirectManagerCode"].IsNull()) emp.directManagerCode = static_cast<std::string>(row["DirectManagerCode"]);
-        if (!row["DateOfBirth"].IsNull()) emp.dateOfBirth = static_cast<std::string>(row["DateOfBirth"]);
-        if (!row["Comments"].IsNull()) emp.comments = static_cast<std::string>(row["Comments"]);
-        emp.isActive = row["IsActive"];
-        emp.createdBy = row["CreatedBy"];
-        emp.createDate = static_cast<std::string>(row["CreateDate"]);
-        if (!row["LastUpdatedBy"].IsNull()) emp.lastUpdatedBy = static_cast<int>(row["LastUpdatedBy"]);
-        if (!row["UpdateDate"].IsNull()) emp.updateDate = static_cast<std::string>(row["UpdateDate"]);
-        return emp;
+        return omnisphere::types::FromDataRow<omnisphere::models::Employee>(row);
     }
 
     bool Employee::Create(const omnisphere::dtos::CreateEmployee& emp) const
@@ -191,14 +172,24 @@ namespace omnisphere::repositories
         }
     }
 
-    std::optional<omnisphere::models::Employee> Employee::GetByCode(const std::string& code) const
+    std::optional<omnisphere::models::Employee> Employee::GetByCode(const std::string& code, const std::vector<std::string>& fields) const
     {
         if (!m_dbPool) return std::nullopt;
         auto conn = m_dbPool->Acquire();
         try
         {
-            std::string sql = "SELECT * FROM \"Employees\" WHERE \"Code\" = ? AND \"IsCanceled\" = false LIMIT 1";
-            auto dt = conn->FetchPrepared(sql, { omnisphere::types::MakeSQLParam(code) });
+            auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::Employee>(fields);
+            std::vector<omnisphere::types::Condition> conditions = {
+                {"", "\"Code\"", "=", "?"},
+                {"", "\"IsCanceled\"", "=", "?"}
+            };
+            auto qp = omnisphere::types::BuildQueryParts(selectFields, conditions);
+            std::string sql = "SELECT " + qp.SelectClause + " FROM \"Employees\" WHERE " + qp.WhereClause + " LIMIT 1";
+
+            auto dt = conn->FetchPrepared(sql, {
+                omnisphere::types::MakeSQLParam(code),
+                omnisphere::types::MakeSQLParam(false)
+            });
             if (dt.RowsCount() > 0)
             {
                 return MapRow(dt[0]);
@@ -211,14 +202,24 @@ namespace omnisphere::repositories
         return std::nullopt;
     }
 
-    std::optional<omnisphere::models::Employee> Employee::GetByEntry(int entry) const
+    std::optional<omnisphere::models::Employee> Employee::GetByEntry(int entry, const std::vector<std::string>& fields) const
     {
         if (!m_dbPool) return std::nullopt;
         auto conn = m_dbPool->Acquire();
         try
         {
-            std::string sql = "SELECT * FROM \"Employees\" WHERE \"Entry\" = ? AND \"IsCanceled\" = false LIMIT 1";
-            auto dt = conn->FetchPrepared(sql, { omnisphere::types::MakeSQLParam(entry) });
+            auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::Employee>(fields);
+            std::vector<omnisphere::types::Condition> conditions = {
+                {"", "\"Entry\"", "=", "?"},
+                {"", "\"IsCanceled\"", "=", "?"}
+            };
+            auto qp = omnisphere::types::BuildQueryParts(selectFields, conditions);
+            std::string sql = "SELECT " + qp.SelectClause + " FROM \"Employees\" WHERE " + qp.WhereClause + " LIMIT 1";
+
+            auto dt = conn->FetchPrepared(sql, {
+                omnisphere::types::MakeSQLParam(entry),
+                omnisphere::types::MakeSQLParam(false)
+            });
             if (dt.RowsCount() > 0)
             {
                 return MapRow(dt[0]);
@@ -231,15 +232,21 @@ namespace omnisphere::repositories
         return std::nullopt;
     }
 
-    std::vector<omnisphere::models::Employee> Employee::GetAll() const
+    std::vector<omnisphere::models::Employee> Employee::GetAll(const std::vector<std::string>& fields) const
     {
         std::vector<omnisphere::models::Employee> result;
         if (!m_dbPool) return result;
         auto conn = m_dbPool->Acquire();
         try
         {
-            std::string sql = "SELECT * FROM \"Employees\" WHERE \"IsCanceled\" = false ORDER BY \"Entry\" ASC";
-            auto dt = conn->FetchResults(sql);
+            auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::Employee>(fields);
+            std::vector<omnisphere::types::Condition> conditions = {
+                {"", "\"IsCanceled\"", "=", "?"}
+            };
+            auto qp = omnisphere::types::BuildQueryParts(selectFields, conditions);
+            std::string sql = "SELECT " + qp.SelectClause + " FROM \"Employees\" WHERE " + qp.WhereClause + " ORDER BY \"Entry\" ASC";
+
+            auto dt = conn->FetchPrepared(sql, { omnisphere::types::MakeSQLParam(false) });
             result.reserve(dt.RowsCount());
             for (size_t i = 0; i < dt.RowsCount(); ++i)
             {
@@ -253,7 +260,7 @@ namespace omnisphere::repositories
         return result;
     }
 
-    EmployeeCursorPage Employee::GetPage(std::optional<int> afterEntry, int limit) const
+    EmployeeCursorPage Employee::GetPage(std::optional<int> afterEntry, int limit, const std::vector<std::string>& fields) const
     {
         EmployeeCursorPage page;
         if (!m_dbPool) return page;
@@ -267,19 +274,32 @@ namespace omnisphere::repositories
                 page.totalCount = countDt[0]["Total"];
             }
 
-            std::string sql;
-            std::vector<omnisphere::types::SQLParam> params;
+            auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::Employee>(fields);
+            // Ensure Entry is always present for cursor pagination
+            bool hasEntry = false;
+            for (const auto& f : selectFields) {
+                if (f == "\"Entry\"" || f == "Entry") { hasEntry = true; break; }
+            }
+            if (!hasEntry) {
+                selectFields.insert(selectFields.begin(), "\"Entry\"");
+            }
+
+            std::vector<omnisphere::types::Condition> conditions = {
+                {"", "\"IsCanceled\"", "=", "?"}
+            };
+            std::vector<omnisphere::types::SQLParam> params = {
+                omnisphere::types::MakeSQLParam(false)
+            };
+
             if (afterEntry.has_value())
             {
-                sql = "SELECT * FROM \"Employees\" WHERE \"IsCanceled\" = false AND \"Entry\" > ? ORDER BY \"Entry\" ASC LIMIT ?";
+                conditions.push_back({"AND", "\"Entry\"", ">", "?"});
                 params.push_back(omnisphere::types::MakeSQLParam(afterEntry.value()));
-                params.push_back(omnisphere::types::MakeSQLParam(limit + 1));
             }
-            else
-            {
-                sql = "SELECT * FROM \"Employees\" WHERE \"IsCanceled\" = false ORDER BY \"Entry\" ASC LIMIT ?";
-                params.push_back(omnisphere::types::MakeSQLParam(limit + 1));
-            }
+
+            auto qp = omnisphere::types::BuildQueryParts(selectFields, conditions);
+            std::string sql = "SELECT " + qp.SelectClause + " FROM \"Employees\" WHERE " + qp.WhereClause + " ORDER BY \"Entry\" ASC LIMIT ?";
+            params.push_back(omnisphere::types::MakeSQLParam(limit + 1));
 
             auto dt = conn->FetchPrepared(sql, params);
             page.hasPreviousPage = afterEntry.has_value();

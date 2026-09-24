@@ -198,117 +198,63 @@ bool User::UpdatePassword(const omnisphere::enums::UserFilter &filter,
 }
 
 types::DataTable User::Read(const omnisphere::enums::UserFilter &filter,
-                            const std::string &value) const {
+                            const std::string &value,
+                            const std::vector<std::string> &fields) const {
   auto conn = database->Acquire();
   try {
-    std::string sQuery = "SELECT "
-                         "\"Entry\" AS UserEntry, "
-                         "\"Code\", "
-                         "\"Name\", "
-                         "\"Email\", "
-                         "\"Phone\", "
-                         "\"Employee\" AS EmpEntry, "
-                         "\"RoleEntry\", "
-                         "\"RoleCode\", "
-                         "\"MaxDisccountPerLine\", "
-                         "\"MaxDisccountPerDocument\", "
-                         "\"PermissionMode\", "
-                         "\"Department\", "
-                         "\"SuperUser\", "
-                         "\"IsLocked\", "
-                         "\"IsActive\", "
-                         "\"ChangePasswordNextLogin\", "
-                         "\"PasswordNeverExpires\", "
-                         "\"CreateDate\", "
-                         "\"CreatedBy\", "
-                         "\"LastUpdatedBy\", "
-                         "\"UpdateDate\" "
-                         "FROM \"Users\" WHERE ";
-
+    auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::User>(fields);
+    std::string filterCol;
     switch (filter) {
-    case omnisphere::enums::UserFilter::Entry:
-      sQuery += "\"Entry\" = ?";
-      break;
-
-    case omnisphere::enums::UserFilter::Name:
-      sQuery += "\"Name\" = ?";
-      break;
-
-    case omnisphere::enums::UserFilter::Code:
-      sQuery += "\"Code\" = ?";
-      break;
-
-    case omnisphere::enums::UserFilter::Email:
-      sQuery += "\"Email\" = ?";
-      break;
-
-    case omnisphere::enums::UserFilter::Phone:
-      sQuery += "\"Phone\" = ?";
-      break;
-
-    case omnisphere::enums::UserFilter::Employee:
-      sQuery += "\"Employee\" = ?";
-      break;
-
-    default:
-      break;
+    case omnisphere::enums::UserFilter::Entry: filterCol = "\"Entry\""; break;
+    case omnisphere::enums::UserFilter::Name: filterCol = "\"Name\""; break;
+    case omnisphere::enums::UserFilter::Code: filterCol = "\"Code\""; break;
+    case omnisphere::enums::UserFilter::Email: filterCol = "\"Email\""; break;
+    case omnisphere::enums::UserFilter::Phone: filterCol = "\"Phone\""; break;
+    case omnisphere::enums::UserFilter::Employee: filterCol = "\"Employee\""; break;
+    default: filterCol = "\"Code\""; break;
     }
 
-    sQuery += " AND \"IsCanceled\" = false";
+    std::vector<omnisphere::types::Condition> conditions = {
+      {"", filterCol, "=", "?"},
+      {"AND", "\"IsCanceled\"", "=", "?"}
+    };
+    auto qp = omnisphere::types::BuildQueryParts(selectFields, conditions);
+    std::string sQuery = "SELECT " + qp.SelectClause + " FROM \"Users\" WHERE " + qp.WhereClause;
 
-    omnisphere::types::DataTable dataTable =
-        conn->FetchPrepared(sQuery, value);
+    std::vector<omnisphere::types::SQLParam> params = {
+      omnisphere::types::MakeSQLParam(value),
+      omnisphere::types::MakeSQLParam(false)
+    };
 
-    return dataTable;
+    return conn->FetchPrepared(sQuery, params);
   } catch (const std::exception &e) {
-    throw std::runtime_error(std::string("[ReadByCode Exception] ") + " " +
-                             e.what());
+    throw std::runtime_error(std::string("[ReadByUserFilter Exception] ") + e.what());
   }
 }
 
-types::DataTable User::Read(const omnisphere::dtos::SearchUsers &filter) const {
+types::DataTable User::Read(const omnisphere::dtos::SearchUsers &filter,
+                            const std::vector<std::string> &fields) const {
   auto conn = database->Acquire();
   try {
-    std::string baseQuery = "SELECT "
-                            "\"Entry\" AS UserEntry, "
-                            "\"Code\", "
-                            "\"Name\", "
-                            "\"Email\", "
-                            "\"Phone\", "
-                            "\"IsLocked\", "
-                            "\"IsActive\", "
-                            "\"Employee\" AS EmpEntry, "
-                            "\"RoleEntry\", "
-                            "\"RoleCode\", "
-                            "\"MaxDisccountPerLine\", "
-                            "\"MaxDisccountPerDocument\", "
-                            "\"PermissionMode\", "
-                            "\"Department\", "
-                            "\"SuperUser\", "
-                            "\"PasswordNeverExpires\", "
-                            "\"ChangePasswordNextLogin\", "
-                            "\"CreatedBy\", "
-                            "\"LastUpdatedBy\", "
-                            "\"UpdateDate\" "
-                            "FROM \"Users\" WHERE \"IsCanceled\" = false";
+    auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::User>(fields);
+    std::vector<omnisphere::types::Condition> conditions = {
+      {"", "\"IsCanceled\"", "=", "?"}
+    };
+    auto qp = omnisphere::types::BuildQueryParts(selectFields, conditions);
+    std::string baseQuery = "SELECT " + qp.SelectClause + " FROM \"Users\" WHERE " + qp.WhereClause;
 
-    std::vector<std::string> conditions;
-    std::vector<std::string> parameters;
-
-    omnisphere::types::DataTable dataTable =
-        conn->FetchPrepared(baseQuery, parameters);
-
-    return dataTable;
+    return conn->FetchPrepared(baseQuery, { omnisphere::types::MakeSQLParam(false) });
   } catch (const std::exception &e) {
     throw std::runtime_error(std::string("ReadUsers exception: ") + e.what());
   }
 }
 
-omnisphere::types::DataTable User::GetByIds(const std::vector<int> &ids) const {
+omnisphere::types::DataTable User::GetByIds(const std::vector<int> &ids, const std::vector<std::string> &fields) const {
   if (ids.empty()) return omnisphere::types::DataTable{};
   auto conn = database->Acquire();
-  std::string sQuery = "SELECT \"Entry\", \"Code\", \"Name\", \"Email\", \"Phone\", \"RoleCode\", \"IsLocked\", \"IsActive\", "
-                       "\"RoleEntry\", \"SuperUser\", \"CreateDate\" FROM \"Users\" WHERE \"IsCanceled\" = false AND \"Entry\" IN (";
+  auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::User>(fields);
+  auto qp = omnisphere::types::BuildQueryParts(selectFields, {});
+  std::string sQuery = "SELECT " + qp.SelectClause + " FROM \"Users\" WHERE \"IsCanceled\" = false AND \"Entry\" IN (";
   std::vector<omnisphere::types::SQLParam> params;
   for (size_t i = 0; i < ids.size(); ++i) {
     if (i > 0) sQuery += ", ";
@@ -319,7 +265,7 @@ omnisphere::types::DataTable User::GetByIds(const std::vector<int> &ids) const {
   return conn->FetchPrepared(sQuery, params);
 }
 
-UserCursorPage User::GetPage(std::optional<int> afterEntry, int limit) const {
+UserCursorPage User::GetPage(std::optional<int> afterEntry, int limit, const std::vector<std::string> &fields) const {
   auto conn = database->Acquire();
   std::string countQuery = "SELECT COALESCE(COUNT(*), 0) AS Total FROM \"Users\" WHERE \"IsCanceled\" = false";
   auto totalTable = conn->FetchResults(countQuery);
@@ -328,19 +274,30 @@ UserCursorPage User::GetPage(std::optional<int> afterEntry, int limit) const {
     totalCount = totalTable[0]["Total"];
   }
 
-  std::string sQuery;
-  std::vector<omnisphere::types::SQLParam> params;
+  auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::User>(fields);
+  bool hasEntry = false;
+  for (const auto& f : selectFields) {
+    if (f == "\"Entry\"" || f == "Entry") { hasEntry = true; break; }
+  }
+  if (!hasEntry) {
+    selectFields.insert(selectFields.begin(), "\"Entry\"");
+  }
+
+  std::vector<omnisphere::types::Condition> conditions = {
+    {"", "\"IsCanceled\"", "=", "?"}
+  };
+  std::vector<omnisphere::types::SQLParam> params = {
+    omnisphere::types::MakeSQLParam(false)
+  };
 
   if (afterEntry.has_value()) {
-    sQuery = "SELECT \"Entry\", \"Code\", \"Name\", \"Email\", \"Phone\", \"RoleCode\", \"EmployeeCode\", \"SuperUser\", \"IsLocked\", \"IsActive\", \"CreatedBy\", \"CreateDate\" "
-             "FROM \"Users\" WHERE \"IsCanceled\" = false AND \"Entry\" > ? ORDER BY \"Entry\" ASC LIMIT ?";
+    conditions.push_back({"AND", "\"Entry\"", ">", "?"});
     params.push_back(omnisphere::types::MakeSQLParam(afterEntry.value()));
-    params.push_back(omnisphere::types::MakeSQLParam(limit + 1));
-  } else {
-    sQuery = "SELECT \"Entry\", \"Code\", \"Name\", \"Email\", \"Phone\", \"RoleCode\", \"EmployeeCode\", \"SuperUser\", \"IsLocked\", \"IsActive\", \"CreatedBy\", \"CreateDate\" "
-             "FROM \"Users\" WHERE \"IsCanceled\" = false ORDER BY \"Entry\" ASC LIMIT ?";
-    params.push_back(omnisphere::types::MakeSQLParam(limit + 1));
   }
+
+  auto qp = omnisphere::types::BuildQueryParts(selectFields, conditions);
+  std::string sQuery = "SELECT " + qp.SelectClause + " FROM \"Users\" WHERE " + qp.WhereClause + " ORDER BY \"Entry\" ASC LIMIT ?";
+  params.push_back(omnisphere::types::MakeSQLParam(limit + 1));
 
   auto table = conn->FetchPrepared(sQuery, params);
   UserCursorPage page;
@@ -349,18 +306,7 @@ UserCursorPage User::GetPage(std::optional<int> afterEntry, int limit) const {
 
   size_t rowLimit = std::min<size_t>(table.RowsCount(), static_cast<size_t>(limit));
   for (size_t i = 0; i < rowLimit; ++i) {
-    omnisphere::models::User u;
-    u.Entry = table[i]["Entry"];
-    u.Code = static_cast<std::string>(table[i]["Code"]);
-    if (!table[i]["Name"].IsNull()) u.Name = static_cast<std::string>(table[i]["Name"]);
-    if (!table[i]["Email"].IsNull()) u.Email = static_cast<std::string>(table[i]["Email"]);
-    if (!table[i]["Phone"].IsNull()) u.Phone = static_cast<std::string>(table[i]["Phone"]);
-    if (!table[i]["RoleCode"].IsNull()) u.RoleCode = static_cast<std::string>(table[i]["RoleCode"]);
-    if (!table[i]["EmployeeCode"].IsNull()) u.EmployeeCode = static_cast<std::string>(table[i]["EmployeeCode"]);
-    u.SuperUser = table[i]["SuperUser"];
-    u.IsLocked = table[i]["IsLocked"];
-    u.IsActive = table[i]["IsActive"];
-    page.users.push_back(u);
+    page.users.push_back(omnisphere::types::FromDataRow<omnisphere::models::User>(table[i]));
   }
 
   if (table.RowsCount() > static_cast<size_t>(limit)) {

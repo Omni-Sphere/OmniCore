@@ -39,16 +39,16 @@ public:
   bool Delete(const std::string &code) const;
 
   omnisphere::types::DataTable
-  Read(const omnisphere::dtos::SearchUsers &user) const;
+  Read(const omnisphere::dtos::SearchUsers &user, const std::vector<std::string>& fields = {}) const;
 
   omnisphere::types::DataTable Read(const omnisphere::enums::UserFilter &filter,
-                                    const std::string &value) const;
+                                    const std::string &value, const std::vector<std::string>& fields = {}) const;
 
   // Batch lookup for DataLoader
-  omnisphere::types::DataTable GetByIds(const std::vector<int> &ids) const;
+  omnisphere::types::DataTable GetByIds(const std::vector<int> &ids, const std::vector<std::string>& fields = {}) const;
 
   // Keyset pagination (cursor = Entry)
-  UserCursorPage GetPage(std::optional<int> afterEntry, int limit) const;
+  UserCursorPage GetPage(std::optional<int> afterEntry, int limit, const std::vector<std::string>& fields = {}) const;
 
   bool ExistsEntry(const int &entry) const;
 

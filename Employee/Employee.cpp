@@ -36,27 +36,27 @@ namespace omnisphere::services
         return m_repository->Delete(code);
     }
 
-    std::optional<omnisphere::models::Employee> Employee::GetByCode(const std::string& code) const
+    std::optional<omnisphere::models::Employee> Employee::GetByCode(const std::string& code, const std::vector<std::string>& fields) const
     {
         if (!m_repository) return std::nullopt;
-        return m_repository->GetByCode(code);
+        return m_repository->GetByCode(code, fields);
     }
 
-    std::optional<omnisphere::models::Employee> Employee::GetByEntry(int entry) const
+    std::optional<omnisphere::models::Employee> Employee::GetByEntry(int entry, const std::vector<std::string>& fields) const
     {
         if (!m_repository) return std::nullopt;
-        return m_repository->GetByEntry(entry);
+        return m_repository->GetByEntry(entry, fields);
     }
 
-    std::vector<omnisphere::models::Employee> Employee::GetAll() const
+    std::vector<omnisphere::models::Employee> Employee::GetAll(const std::vector<std::string>& fields) const
     {
         if (!m_repository) return {};
-        return m_repository->GetAll();
+        return m_repository->GetAll(fields);
     }
 
-    omnisphere::repositories::EmployeeCursorPage Employee::GetPage(std::optional<int> afterEntry, int limit) const
+    omnisphere::repositories::EmployeeCursorPage Employee::GetPage(std::optional<int> afterEntry, int limit, const std::vector<std::string>& fields) const
     {
         if (!m_repository) return {};
-        return m_repository->GetPage(afterEntry, limit);
+        return m_repository->GetPage(afterEntry, limit, fields);
     }
 } // namespace omnisphere::services

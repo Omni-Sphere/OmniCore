@@ -28,14 +28,14 @@ public:
   bool LockUnlockUser(const omnisphere::enums::UserFilter &filter,
                       const std::string &value, const bool &lock) const;
   std::vector<omnisphere::models::User>
-  Search(const omnisphere::dtos::SearchUsers &user) const;
+  Search(const omnisphere::dtos::SearchUsers &user, const std::vector<std::string> &fields = {}) const;
   omnisphere::models::User Get(const omnisphere::enums::UserFilter &filter,
-                               const std::string &value) const;
+                               const std::string &value, const std::vector<std::string> &fields = {}) const;
   bool Exists(const omnisphere::enums::UserFilter &filter,
               const std::string &value) const;
 
   omnisphere::repositories::UserCursorPage
-  GetPage(std::optional<int> afterEntry, int limit) const;
+  GetPage(std::optional<int> afterEntry, int limit, const std::vector<std::string> &fields = {}) const;
 
 private:
   struct Impl;

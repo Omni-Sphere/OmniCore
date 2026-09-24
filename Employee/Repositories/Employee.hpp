@@ -34,9 +34,9 @@ namespace omnisphere::repositories
         bool Update(const omnisphere::dtos::UpdateEmployee& employee) const;
         bool Delete(const std::string& code) const;
 
-        std::optional<omnisphere::models::Employee> GetByCode(const std::string& code) const;
-        std::optional<omnisphere::models::Employee> GetByEntry(int entry) const;
-        std::vector<omnisphere::models::Employee> GetAll() const;
-        EmployeeCursorPage GetPage(std::optional<int> afterEntry, int limit) const;
+        std::optional<omnisphere::models::Employee> GetByCode(const std::string& code, const std::vector<std::string>& fields = {}) const;
+        std::optional<omnisphere::models::Employee> GetByEntry(int entry, const std::vector<std::string>& fields = {}) const;
+        std::vector<omnisphere::models::Employee> GetAll(const std::vector<std::string>& fields = {}) const;
+        EmployeeCursorPage GetPage(std::optional<int> afterEntry, int limit, const std::vector<std::string>& fields = {}) const;
     };
 } // namespace omnisphere::repositories
