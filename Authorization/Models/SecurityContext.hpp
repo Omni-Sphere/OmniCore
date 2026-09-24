@@ -17,10 +17,5 @@ namespace omnisphere::models
         {
             return !userCode.empty();
         }
-
-        bool isSuperAdmin() const
-        {
-            return userRole == "ADMIN" || userRole == "SUPERADMIN";
-        }
     };
 } // namespace omnisphere::models

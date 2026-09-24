@@ -28,13 +28,13 @@ namespace omnisphere::repositories
         ~Authorization() = default;
 
         bool CheckPermission(const std::string& userCode, const std::string& permission) const;
-        bool CheckRole(const std::string& userRole, const std::vector<std::string>& allowedRoles) const;
+        bool CheckRole(const std::string& userCode, const std::vector<std::string>& allowedRoles) const;
         void LogAudit(const omnisphere::models::SecurityContext& ctx, const omnisphere::models::AuditLogEntry& entry) const;
 
         std::vector<omnisphere::models::PermissionModule> GetPermissionsCatalog() const;
         std::vector<std::string> GetUserPermissions(const std::string& userCode) const;
         std::vector<std::string> GetRolePermissions(const std::string& roleCode) const;
-        std::vector<omnisphere::models::Role> GetAllRoles() const;
+        std::vector<omnisphere::models::Role> GetAllRoles(const std::vector<std::string>& fields = {}) const;
 
         bool SetUserPermissions(const omnisphere::dtos::SetUserPermissionsInput& input) const;
         bool SetRolePermissions(const omnisphere::dtos::SetRolePermissionsInput& input) const;

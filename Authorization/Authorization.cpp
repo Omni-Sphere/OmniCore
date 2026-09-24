@@ -22,7 +22,6 @@ namespace omnisphere::services
     bool Authorization::HasPermission(const omnisphere::models::SecurityContext& ctx, const std::string& permission) const
     {
         if (!ctx.isAuthenticated()) return false;
-        if (ctx.isSuperAdmin()) return true;
         if (!m_repository) return true;
 
         return m_repository->CheckPermission(ctx.userCode, permission);
@@ -49,9 +48,8 @@ namespace omnisphere::services
     void Authorization::AuthorizeRoles(const omnisphere::models::SecurityContext& ctx, const std::vector<std::string>& allowedRoles) const
     {
         RequireAuthenticated(ctx);
-        if (ctx.isSuperAdmin()) return;
 
-        if (m_repository && m_repository->CheckRole(ctx.userRole, allowedRoles))
+        if (m_repository && m_repository->CheckRole(ctx.userCode, allowedRoles))
         {
             return;
         }
@@ -175,11 +173,11 @@ namespace omnisphere::services
         return {};
     }
 
-    std::vector<omnisphere::models::Role> Authorization::GetAllRoles() const
+    std::vector<omnisphere::models::Role> Authorization::GetAllRoles(const std::vector<std::string>& fields) const
     {
         if (m_repository)
         {
-            return m_repository->GetAllRoles();
+            return m_repository->GetAllRoles(fields);
         }
         return {};
     }
