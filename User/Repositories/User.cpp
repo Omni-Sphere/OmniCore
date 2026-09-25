@@ -125,7 +125,7 @@ bool User::UpdatePassword(const omnisphere::enums::UserFilter &filter,
                           const std::string &newPassword) const {
   auto conn = database->Acquire();
   try {
-    std::string sQuery = "UPDATE Users SET Password = ? WHERE ";
+    std::string sQuery = "UPDATE \"Users\" SET \"Password\" = ?, \"UpdateDate\" = CURRENT_TIMESTAMP WHERE ";
 
     const std::vector<uint8_t> hashedPassword =
         omnisphere::utils::Hasher::HashPassword(newPassword);
@@ -134,13 +134,23 @@ bool User::UpdatePassword(const omnisphere::enums::UserFilter &filter,
         omnisphere::types::MakeSQLParam(hashedPassword)};
 
     switch (filter) {
+    case omnisphere::enums::UserFilter::Entry:
+      sQuery += "\"Entry\" = ?";
+      vParams.push_back(omnisphere::types::MakeSQLParam(std::stoi(value)));
+      break;
+
     case omnisphere::enums::UserFilter::Code:
-      sQuery += "Code = ?";
+      sQuery += "\"Code\" = ?";
+      vParams.push_back(omnisphere::types::MakeSQLParam(value));
+      break;
+
+    case omnisphere::enums::UserFilter::Email:
+      sQuery += "\"Email\" = ?";
       vParams.push_back(omnisphere::types::MakeSQLParam(value));
       break;
 
     default:
-      break;
+      throw std::invalid_argument("Unsupported UserFilter in UpdatePassword");
     }
 
     conn->BeginTransaction();
