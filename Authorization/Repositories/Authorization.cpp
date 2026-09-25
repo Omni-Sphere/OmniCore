@@ -19,13 +19,13 @@ namespace omnisphere::repositories
         {
             auto conn = m_dbPool->Acquire();
 
-            // 1. Validar directamente del usuario en la base de datos (SuperUser y RoleCode)
+            // 1. Validar directamente del usuario en la base de datos (SuperUser, RoleCode y PermissionMode)
             std::vector<omnisphere::types::Condition> userConditions = {
                 {"", "\"Code\"", "=", "?"},
                 {"", "\"IsActive\"", "=", "true"},
                 {"", "\"IsCanceled\"", "=", "false"}
             };
-            auto userQp = omnisphere::types::BuildQueryParts({"\"RoleCode\"", "\"SuperUser\""}, userConditions);
+            auto userQp = omnisphere::types::BuildQueryParts({"\"RoleCode\"", "\"SuperUser\"", "\"PermissionMode\""}, userConditions);
             std::string userQuery = "SELECT " + userQp.SelectClause + " FROM \"Users\" WHERE " + userQp.WhereClause;
             std::vector<omnisphere::types::SQLParam> userParams = {
                 omnisphere::types::MakeSQLParam(userCode)
@@ -44,61 +44,32 @@ namespace omnisphere::repositories
                 if (isSuper) return true;
             }
 
-            // 2. Comprobar si el usuario tiene permisos personalizados en UserPermissions
-            std::vector<omnisphere::types::Condition> permConditions = {
-                {"", "\"UserCode\"", "=", "?"},
-                {"", "\"PermissionCode\"", "=", "?"},
-                {"", "\"IsActive\"", "=", "true"}
-            };
-            auto permQp = omnisphere::types::BuildQueryParts({"\"IsAllowed\""}, permConditions);
-            std::string userPermQuery = "SELECT " + permQp.SelectClause + " FROM \"UserPermissions\" WHERE " + permQp.WhereClause;
-            auto userPermDt = conn->FetchPrepared(userPermQuery, {
-                omnisphere::types::MakeSQLParam(userCode),
-                omnisphere::types::MakeSQLParam(permission)
-            });
-            if (userPermDt.RowsCount() > 0)
-            {
-                bool isAllowed = userPermDt[0]["IsAllowed"];
-                return isAllowed;
-            }
-
-            // Si no se encontró el permiso individualmente, verificar si el usuario tiene alguna regla personalizada en UserPermissions
-            std::vector<omnisphere::types::Condition> countConditions = {
-                {"", "\"UserCode\"", "=", "?"},
-                {"", "\"IsActive\"", "=", "true"}
-            };
-            auto countQp = omnisphere::types::BuildQueryParts({"COUNT(1) AS \"CustomCount\""}, countConditions);
-            std::string countQuery = "SELECT " + countQp.SelectClause + " FROM \"UserPermissions\" WHERE " + countQp.WhereClause;
-            auto countDt = conn->FetchPrepared(countQuery, { omnisphere::types::MakeSQLParam(userCode) });
-            if (countDt.RowsCount() > 0)
-            {
-                int customCount = countDt[0]["CustomCount"];
-                if (customCount > 0)
-                {
-                    // El usuario tiene permisos personalizados configurados y este permiso no está otorgado
-                    return false;
-                }
-            }
-
-            // 3. Si no tiene permisos personalizados en UserPermissions, validar según su RoleCode
             std::string roleCode = "";
             if (!userDt[0]["RoleCode"].IsNull())
             {
                 roleCode = std::string(userDt[0]["RoleCode"]);
             }
 
-            if (!roleCode.empty())
+            // Si el rol es de administración total
+            if (roleCode == "ADMIN" || roleCode == "SUPERADMIN")
             {
-                // Si el rol es de administración total
-                if (roleCode == "ADMIN" || roleCode == "SUPERADMIN")
-                {
-                    return true;
-                }
+                return true;
+            }
+
+            std::string permMode = "P";
+            if (!userDt[0]["PermissionMode"].IsNull())
+            {
+                permMode = std::string(userDt[0]["PermissionMode"]);
+            }
+
+            // MODO R (Role-based): Valida única y estrictamente contra RolePermissions
+            if (permMode == "R")
+            {
+                if (roleCode.empty()) return false;
 
                 std::vector<omnisphere::types::Condition> roleConditions = {
                     {"", "\"RoleCode\"", "=", "?"},
                     {"", "\"PermissionCode\"", "=", "?"},
-                    {"", "\"IsAllowed\"", "=", "true"},
                     {"", "\"IsActive\"", "=", "true"}
                 };
                 auto roleQp = omnisphere::types::BuildQueryParts({"COUNT(1) AS \"Allowed\""}, roleConditions);
@@ -115,6 +86,25 @@ namespace omnisphere::repositories
                 }
                 return false;
             }
+
+            // MODO P (Permissions-based): Valida única y estrictamente contra UserPermissions activos
+            std::vector<omnisphere::types::Condition> permConditions = {
+                {"", "\"UserCode\"", "=", "?"},
+                {"", "\"PermissionCode\"", "=", "?"},
+                {"", "\"IsActive\"", "=", "true"}
+            };
+            auto permQp = omnisphere::types::BuildQueryParts({"COUNT(1) AS \"Allowed\""}, permConditions);
+            std::string userPermQuery = "SELECT " + permQp.SelectClause + " FROM \"UserPermissions\" WHERE " + permQp.WhereClause;
+            auto userPermDt = conn->FetchPrepared(userPermQuery, {
+                omnisphere::types::MakeSQLParam(userCode),
+                omnisphere::types::MakeSQLParam(permission)
+            });
+            if (userPermDt.RowsCount() > 0)
+            {
+                int count = userPermDt[0]["Allowed"];
+                return count > 0;
+            }
+            return false;
         }
         catch (const std::exception& ex)
         {
@@ -262,22 +252,24 @@ namespace omnisphere::repositories
         {
             auto conn = m_dbPool->Acquire();
 
-            // 1. Consultar directamente del usuario en Users
+            // 1. Consultar directamente del usuario en Users (RoleCode, SuperUser y PermissionMode)
             std::vector<omnisphere::types::Condition> userConds = {
                 {"", "\"Code\"", "=", "?"},
                 {"", "\"IsActive\"", "=", "true"},
                 {"", "\"IsCanceled\"", "=", "false"}
             };
-            auto userQp = omnisphere::types::BuildQueryParts({"\"RoleCode\"", "\"SuperUser\""}, userConds);
+            auto userQp = omnisphere::types::BuildQueryParts({"\"RoleCode\"", "\"SuperUser\"", "\"PermissionMode\""}, userConds);
             std::string userSql = "SELECT " + userQp.SelectClause + " FROM \"Users\" WHERE " + userQp.WhereClause;
             auto userDt = conn->FetchPrepared(userSql, { omnisphere::types::MakeSQLParam(userCode) });
 
             bool isSuper = false;
             std::string roleCode = "";
+            std::string permMode = "P";
             if (userDt.RowsCount() > 0)
             {
                 if (!userDt[0]["SuperUser"].IsNull() && (bool)userDt[0]["SuperUser"]) isSuper = true;
                 if (!userDt[0]["RoleCode"].IsNull()) roleCode = std::string(userDt[0]["RoleCode"]);
+                if (!userDt[0]["PermissionMode"].IsNull()) permMode = std::string(userDt[0]["PermissionMode"]);
             }
 
             // Si es SuperUser o tiene rol ADMIN/SUPERADMIN, devolver todos los permisos del catálogo
@@ -296,10 +288,19 @@ namespace omnisphere::repositories
                 return perms;
             }
 
-            // 2. Si tiene permisos explícitos en UserPermissions
+            // Si el modo es R (Basado en Rol):
+            if (permMode == "R")
+            {
+                if (!roleCode.empty())
+                {
+                    return GetRolePermissions(roleCode);
+                }
+                return perms;
+            }
+
+            // Si el modo es P (Permisos Personalizados):
             std::vector<omnisphere::types::Condition> permConds = {
                 {"", "\"UserCode\"", "=", "?"},
-                {"", "\"IsAllowed\"", "=", "true"},
                 {"", "\"IsActive\"", "=", "true"}
             };
             auto permQp = omnisphere::types::BuildQueryParts({"\"PermissionCode\""}, permConds);
@@ -311,13 +312,6 @@ namespace omnisphere::repositories
                 {
                     perms.push_back(std::string(userPermDt[i]["PermissionCode"]));
                 }
-                return perms;
-            }
-
-            // 3. De lo contrario, consultar los permisos de su Rol
-            if (!roleCode.empty())
-            {
-                return GetRolePermissions(roleCode);
             }
         }
         catch (const std::exception& ex)
@@ -392,14 +386,19 @@ namespace omnisphere::repositories
         try
         {
             auto conn = m_dbPool->Acquire();
-            std::string delSql = "DELETE FROM \"UserPermissions\" WHERE \"UserCode\" = ?";
-            conn->RunPrepared(delSql, { omnisphere::types::MakeSQLParam(input.userCode) });
+            // Desactivar todos los permisos actuales del usuario en lugar de eliminarlos físicamente
+            std::string deactSql = "UPDATE \"UserPermissions\" SET \"IsActive\" = false, \"IsAllowed\" = false, \"UpdateDate\" = CURRENT_TIMESTAMP WHERE \"UserCode\" = ?";
+            conn->RunPrepared(deactSql, { omnisphere::types::MakeSQLParam(input.userCode) });
+
+            // Al configurar permisos personalizados, el usuario pasa automáticamente a PermissionMode = 'P'
+            std::string updateModeSql = "UPDATE \"Users\" SET \"PermissionMode\" = 'P', \"UpdateDate\" = CURRENT_TIMESTAMP WHERE \"Code\" = ?";
+            conn->RunPrepared(updateModeSql, { omnisphere::types::MakeSQLParam(input.userCode) });
 
             for (const auto& perm : input.permissions)
             {
-                std::string insSql = "INSERT INTO \"UserPermissions\" (\"UserCode\", \"PermissionCode\", \"ModuleCode\", \"IsAllowed\", \"GrantedByCode\") "
-                                     "VALUES (?, ?, COALESCE((SELECT \"ModuleCode\" FROM \"Permissions\" WHERE \"Code\" = ? LIMIT 1), ''), true, ?) "
-                                     "ON CONFLICT (\"UserCode\", \"PermissionCode\") DO UPDATE SET \"IsAllowed\" = true, \"IsActive\" = true";
+                std::string insSql = "INSERT INTO \"UserPermissions\" (\"UserCode\", \"PermissionCode\", \"ModuleCode\", \"IsAllowed\", \"GrantedByCode\", \"IsActive\", \"UpdateDate\") "
+                                     "VALUES (?, ?, COALESCE((SELECT \"ModuleCode\" FROM \"Permissions\" WHERE \"Code\" = ? LIMIT 1), ''), true, ?, true, CURRENT_TIMESTAMP) "
+                                     "ON CONFLICT (\"UserCode\", \"PermissionCode\") DO UPDATE SET \"IsAllowed\" = true, \"IsActive\" = true, \"GrantedByCode\" = EXCLUDED.\"GrantedByCode\", \"UpdateDate\" = CURRENT_TIMESTAMP";
                 conn->RunPrepared(insSql, {
                     omnisphere::types::MakeSQLParam(input.userCode),
                     omnisphere::types::MakeSQLParam(perm),
@@ -424,14 +423,15 @@ namespace omnisphere::repositories
         try
         {
             auto conn = m_dbPool->Acquire();
-            std::string delSql = "DELETE FROM \"RolePermissions\" WHERE \"RoleCode\" = ?";
-            conn->RunPrepared(delSql, { omnisphere::types::MakeSQLParam(input.roleCode) });
+            // Desactivar todos los permisos actuales del rol en lugar de eliminarlos físicamente
+            std::string deactSql = "UPDATE \"RolePermissions\" SET \"IsActive\" = false, \"IsAllowed\" = false, \"UpdateDate\" = CURRENT_TIMESTAMP WHERE \"RoleCode\" = ?";
+            conn->RunPrepared(deactSql, { omnisphere::types::MakeSQLParam(input.roleCode) });
 
             for (const auto& perm : input.permissions)
             {
-                std::string insSql = "INSERT INTO \"RolePermissions\" (\"RoleCode\", \"PermissionCode\", \"ModuleCode\", \"IsAllowed\") "
-                                     "VALUES (?, ?, COALESCE((SELECT \"ModuleCode\" FROM \"Permissions\" WHERE \"Code\" = ? LIMIT 1), ''), true) "
-                                     "ON CONFLICT (\"RoleCode\", \"PermissionCode\") DO UPDATE SET \"IsAllowed\" = true, \"IsActive\" = true";
+                std::string insSql = "INSERT INTO \"RolePermissions\" (\"RoleCode\", \"PermissionCode\", \"ModuleCode\", \"IsAllowed\", \"IsActive\", \"UpdateDate\") "
+                                     "VALUES (?, ?, COALESCE((SELECT \"ModuleCode\" FROM \"Permissions\" WHERE \"Code\" = ? LIMIT 1), ''), true, true, CURRENT_TIMESTAMP) "
+                                     "ON CONFLICT (\"RoleCode\", \"PermissionCode\") DO UPDATE SET \"IsAllowed\" = true, \"IsActive\" = true, \"UpdateDate\" = CURRENT_TIMESTAMP";
                 conn->RunPrepared(insSql, {
                     omnisphere::types::MakeSQLParam(input.roleCode),
                     omnisphere::types::MakeSQLParam(perm),
@@ -548,17 +548,11 @@ namespace omnisphere::repositories
         if (!m_dbPool) return true;
 
         auto conn = m_dbPool->Acquire();
-        std::vector<std::string> setCols = {"\"IsAllowed\""};
-        std::string sql = omnisphere::types::BuildUpdateQuery(
-            "\"UserPermissions\"", setCols, "\"UserCode\" = ? AND \"PermissionCode\" = ?"
-        );
-
-        std::vector<omnisphere::types::SQLParam> params = {
-            omnisphere::types::MakeSQLParam(false),
+        std::string sql = "UPDATE \"UserPermissions\" SET \"IsActive\" = false, \"IsAllowed\" = false, \"UpdateDate\" = CURRENT_TIMESTAMP WHERE \"UserCode\" = ? AND \"PermissionCode\" = ?";
+        return conn->RunPrepared(sql, {
             omnisphere::types::MakeSQLParam(input.userCode),
             omnisphere::types::MakeSQLParam(input.permission)
-        };
-        return conn->RunPrepared(sql, params);
+        });
     }
 
     bool Authorization::GrantRolePermission(const omnisphere::dtos::GrantRolePermissionInput& input) const
@@ -570,7 +564,7 @@ namespace omnisphere::repositories
             "\"RoleCode\"", "\"ModuleCode\"", "\"PermissionCode\"", "\"IsAllowed\""
         };
         std::string baseInsert = omnisphere::types::BuildInsertQuery("\"RolePermissions\"", cols);
-        std::string sql = baseInsert + " ON CONFLICT (\"RoleCode\", \"PermissionCode\") DO UPDATE SET \"IsAllowed\" = true, \"IsActive\" = true";
+        std::string sql = baseInsert + " ON CONFLICT (\"RoleCode\", \"PermissionCode\") DO UPDATE SET \"IsAllowed\" = true, \"IsActive\" = true, \"UpdateDate\" = CURRENT_TIMESTAMP";
 
         std::vector<omnisphere::types::SQLParam> params = {
             omnisphere::types::MakeSQLParam(input.roleCode),
@@ -586,17 +580,11 @@ namespace omnisphere::repositories
         if (!m_dbPool) return true;
 
         auto conn = m_dbPool->Acquire();
-        std::vector<std::string> setCols = {"\"IsAllowed\""};
-        std::string sql = omnisphere::types::BuildUpdateQuery(
-            "\"RolePermissions\"", setCols, "\"RoleCode\" = ? AND \"PermissionCode\" = ?"
-        );
-
-        std::vector<omnisphere::types::SQLParam> params = {
-            omnisphere::types::MakeSQLParam(false),
+        std::string sql = "UPDATE \"RolePermissions\" SET \"IsActive\" = false, \"IsAllowed\" = false, \"UpdateDate\" = CURRENT_TIMESTAMP WHERE \"RoleCode\" = ? AND \"PermissionCode\" = ?";
+        return conn->RunPrepared(sql, {
             omnisphere::types::MakeSQLParam(input.roleCode),
             omnisphere::types::MakeSQLParam(input.permission)
-        };
-        return conn->RunPrepared(sql, params);
+        });
     }
 } // namespace omnisphere::repositories
 

@@ -15,7 +15,7 @@ namespace omnisphere::services
     {
         if (!ctx.isAuthenticated())
         {
-            throw AccessDeniedException("401 Unauthorized: User authentication required.");
+            throw AccessDeniedException("Se requiere autenticación de usuario para acceder a esta función.");
         }
     }
 
@@ -41,7 +41,7 @@ namespace omnisphere::services
                 }
             }
 
-            throw AccessDeniedException("403 Forbidden: Missing required permission '" + requiredPermission + "'.");
+            throw AccessDeniedException("No se tienen los permisos necesarios para ejecutar la función solicitada.");
         }
     }
 
@@ -54,7 +54,7 @@ namespace omnisphere::services
             return;
         }
 
-        throw AccessDeniedException("403 Forbidden: Insufficient role privileges.");
+        throw AccessDeniedException("No se tienen los permisos necesarios para ejecutar la función solicitada.");
     }
 
     void Authorization::LogAudit(const omnisphere::models::SecurityContext& ctx, const std::string& module, const std::string& permission, const std::string& resourceCode, bool isGranted, const std::string& reason) const
