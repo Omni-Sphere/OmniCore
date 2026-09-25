@@ -21,8 +21,8 @@ namespace omnisphere::services
         explicit PaymentMethodService(std::shared_ptr<omnisphere::data::DatabasePool> dbPool);
         ~PaymentMethodService() = default;
 
-        bool Create(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::CreatePaymentMethodInput& input) const;
-        bool Update(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::UpdatePaymentMethodInput& input) const;
+        bool Create(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::CreatePaymentMethodInput& input, const std::vector<std::string>& mutationFields = {}) const;
+        bool Update(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::UpdatePaymentMethodInput& input, const std::vector<std::string>& mutationFields = {}) const;
         bool Delete(const omnisphere::models::SecurityContext& ctx, int entry) const;
 
         omnisphere::types::DataTable ReadAll(const omnisphere::models::SecurityContext& ctx, const std::vector<std::string>& fields = {}) const;

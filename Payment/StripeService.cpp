@@ -247,7 +247,7 @@ namespace omnisphere::services
                         dbSession.amount = amount;
                         dbSession.currency = curr;
                         dbSession.status = "open";
-                        dbSession.createdBy = 1;
+                        dbSession.createdBy = "SYSTEM";
 
                         if (m_repository)
                         {
@@ -567,7 +567,7 @@ namespace omnisphere::services
                             tx.clabe = res.clabe;
                             tx.bankName = res.bankName;
                             tx.hostedInstructionsUrl = res.hostedInstructionsUrl;
-                            tx.createdBy = 1;
+                            tx.createdBy = "SYSTEM";
 
                             m_repository->SaveTransaction(tx);
                         }

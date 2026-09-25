@@ -17,7 +17,7 @@ User::User(std::shared_ptr<omnisphere::data::DatabasePool> db)
 
 User::~User() = default;
 
-bool User::Add(const omnisphere::dtos::CreateUser &newUser) const {
+bool User::Add(const omnisphere::dtos::CreateUser &newUser, const std::vector<std::string>& mutationFields) const {
   try {
     if (Exists(omnisphere::enums::UserFilter::Code, newUser.Code))
       throw std::runtime_error("Code already exists");
@@ -34,7 +34,7 @@ bool User::Add(const omnisphere::dtos::CreateUser &newUser) const {
         Exists(omnisphere::enums::UserFilter::Email, newUser.Email.value()))
       throw std::runtime_error("Email already exists");
 
-    if (pimpl->user->Create(newUser))
+    if (pimpl->user->Create(newUser, mutationFields))
       return true;
 
     return false;
@@ -44,7 +44,7 @@ bool User::Add(const omnisphere::dtos::CreateUser &newUser) const {
 }
 
 omnisphere::models::User
-User::Modify(const omnisphere::dtos::UpdateUser &uUser) const {
+User::Modify(const omnisphere::dtos::UpdateUser &uUser, const std::vector<std::string>& mutationFields, const std::vector<std::string> &fields) const {
   try {
     if (uUser.Where.Code.has_value() &&
         !Exists(omnisphere::enums::UserFilter::Code, uUser.Where.Code.value()))
@@ -62,10 +62,10 @@ User::Modify(const omnisphere::dtos::UpdateUser &uUser) const {
         Exists(omnisphere::enums::UserFilter::Phone, uUser.Data.Phone.value()))
       throw std::runtime_error("User Phone already exists");
 
-    if (!pimpl->user->Update(uUser))
+    if (!pimpl->user->Update(uUser, mutationFields))
       throw std::runtime_error("User wasn't modified");
 
-    return Get(omnisphere::enums::UserFilter::Code, uUser.Where.Code.value());
+    return Get(omnisphere::enums::UserFilter::Code, uUser.Where.Code.value(), fields);
 
   } catch (const std::exception &e) {
     throw std::runtime_error(std::string("[ModifyUser Exeption] ") + e.what());

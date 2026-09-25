@@ -16,7 +16,7 @@ namespace omnisphere::models
         bool isRequired = true;
         std::optional<std::string> description;
         int sortOrder = 1;
-        int createdBy = 1;
+        std::string createdBy = "SYSTEM";
         std::optional<std::string> createDate;
     };
 

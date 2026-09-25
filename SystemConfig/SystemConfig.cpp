@@ -15,15 +15,15 @@ namespace omnisphere::services
         return m_repository->GetActiveConfig(fields);
     }
 
-    bool SystemConfig::Update(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::UpdateSystemConfigInput& input) const
+    bool SystemConfig::Update(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::UpdateSystemConfigInput& input, const std::vector<std::string>& mutationFields) const
     {
         if (!m_repository) return false;
         auto mutableInput = input;
-        if (ctx.isAuthenticated() && !ctx.userCode.empty())
+        if (ctx.isAuthenticated() && !ctx.userCode.empty() && (mutableInput.LastUpdatedBy.empty() || mutableInput.LastUpdatedBy == "SYSTEM"))
         {
-            try { mutableInput.LastUpdatedBy = std::stoi(ctx.userCode); } catch (...) { mutableInput.LastUpdatedBy = 1; }
+            mutableInput.LastUpdatedBy = ctx.userCode;
         }
-        return m_repository->Update(mutableInput);
+        return m_repository->Update(mutableInput, mutationFields);
     }
 
     bool SystemConfig::EnsureDefaultExists(const omnisphere::models::SecurityContext& ctx) const

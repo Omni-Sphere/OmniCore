@@ -17,9 +17,9 @@ public:
 
   ~User();
 
-  bool Add(const omnisphere::dtos::CreateUser &user) const;
+  bool Add(const omnisphere::dtos::CreateUser &user, const std::vector<std::string>& mutationFields = {}) const;
   omnisphere::models::User
-  Modify(const omnisphere::dtos::UpdateUser &user) const;
+  Modify(const omnisphere::dtos::UpdateUser &user, const std::vector<std::string>& mutationFields = {}, const std::vector<std::string> &fields = {}) const;
   bool Delete(const std::string &code) const;
   bool ModifyPassword(const omnisphere::dtos::ChangePassword &) const;
   bool CheckPassword(const omnisphere::enums::UserFilter &filter,

@@ -20,7 +20,7 @@ namespace omnisphere::repositories
         ~SystemConfig() = default;
 
         omnisphere::types::DataTable GetActiveConfig(const std::vector<std::string>& fields = {}) const;
-        bool Update(const omnisphere::dtos::UpdateSystemConfigInput& input) const;
+        bool Update(const omnisphere::dtos::UpdateSystemConfigInput& input, const std::vector<std::string>& mutationFields = {}) const;
         bool EnsureDefaultExists() const;
         double CalculateAuthorizedTotal(double baseAmount, int paymentMethodEntry) const;
     };

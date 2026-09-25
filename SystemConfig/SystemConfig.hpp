@@ -21,7 +21,7 @@ namespace omnisphere::services
         ~SystemConfig() = default;
 
         omnisphere::types::DataTable GetActiveConfig(const omnisphere::models::SecurityContext& ctx, const std::vector<std::string>& fields = {}) const;
-        bool Update(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::UpdateSystemConfigInput& input) const;
+        bool Update(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::UpdateSystemConfigInput& input, const std::vector<std::string>& mutationFields = {}) const;
         bool EnsureDefaultExists(const omnisphere::models::SecurityContext& ctx) const;
         std::optional<omnisphere::models::SystemConfig> GetModel(const omnisphere::models::SecurityContext& ctx, const std::vector<std::string>& fields = {}) const;
         double CalculateAuthorizedTotal(const omnisphere::models::SecurityContext& ctx, double baseAmount, int paymentMethodEntry) const;

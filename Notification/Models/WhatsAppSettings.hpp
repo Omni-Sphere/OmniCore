@@ -16,9 +16,9 @@ namespace omnisphere::models
         std::string webhookVerifyToken;
         std::string apiVersion = "v24.0";
         bool isActive = true;
-        int createdBy = 1;
+        std::string createdBy = "SYSTEM";
         std::optional<std::string> createDate;
-        std::optional<int> lastUpdatedBy;
+        std::optional<std::string> lastUpdatedBy;
         std::optional<std::string> updateDate;
     };
 

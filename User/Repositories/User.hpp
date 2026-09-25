@@ -32,9 +32,9 @@ public:
 
   ~User() {};
 
-  bool Create(const omnisphere::dtos::CreateUser &user) const;
+  bool Create(const omnisphere::dtos::CreateUser &user, const std::vector<std::string>& mutationFields = {}) const;
 
-  bool Update(const omnisphere::dtos::UpdateUser &user) const;
+  bool Update(const omnisphere::dtos::UpdateUser &user, const std::vector<std::string>& mutationFields = {}) const;
 
   bool Delete(const std::string &code) const;
 

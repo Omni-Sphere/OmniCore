@@ -11,82 +11,26 @@ namespace omnisphere::repositories {
 User::User(std::shared_ptr<omnisphere::data::DatabasePool> _database)
     : database(std::move(_database)) {}
 
-bool User::Create(const omnisphere::dtos::CreateUser &user) const {
+bool User::Create(const omnisphere::dtos::CreateUser &user, const std::vector<std::string>& mutationFields) const {
   auto conn = database->Acquire();
   try {
     conn->BeginTransaction();
 
-    std::vector<uint8_t> hashedPassword =
-        omnisphere::utils::Hasher::HashPassword(user.Password);
+    auto insertData = omnisphere::types::BuildInsertQuery("\"Users\"", 0, user, mutationFields);
 
-    std::string sQuery =
-        "INSERT INTO \"Users\" ("
-        "\"Code\", "
-        "\"Name\", "
-        "\"Email\", "
-        "\"Phone\", "
-        "\"Employee\", "
-        "\"RoleEntry\", "
-        "\"RoleCode\", "
-        "\"MaxDisccountPerLine\", "
-        "\"MaxDisccountPerDocument\", "
-        "\"PermissionMode\", "
-        "\"Department\", "
-        "\"SuperUser\", "
-        "\"IsLocked\", "
-        "\"IsActive\", "
-        "\"Password\", "
-        "\"PasswordNeverExpires\", "
-        "\"ChangePasswordNextLogin\", "
-        "\"CreatedBy\", "
-        "\"CreateDate\", "
-        "\"EmployeeCode\""
-        ") "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    auto pos = insertData.Query.find("\"Password\"");
+    if (pos != std::string::npos && !user.Password.empty()) {
+      size_t openParen = insertData.Query.find('(');
+      size_t paramIdx = 0;
+      for (size_t i = openParen + 1; i < pos; ++i) {
+        if (insertData.Query[i] == ',') ++paramIdx;
+      }
+      if (paramIdx < insertData.Parameters.size()) {
+        insertData.Parameters[paramIdx] = omnisphere::utils::Hasher::HashPassword(user.Password);
+      }
+    }
 
-    const std::vector<omnisphere::types::SQLParam> params = {
-        omnisphere::types::MakeSQLParam(user.Code),
-        omnisphere::types::MakeSQLParam(user.Name),
-        omnisphere::types::MakeSQLParam(user.Email),
-        omnisphere::types::MakeSQLParam(user.Phone),
-        omnisphere::types::MakeSQLParam(user.Employee),
-        omnisphere::types::MakeSQLParam(user.RoleEntry),
-        omnisphere::types::MakeSQLParam(user.RoleCode),
-        omnisphere::types::MakeSQLParam(user.MaxDisccountPerLine),
-        omnisphere::types::MakeSQLParam(user.MaxDisccountPerDocument),
-        omnisphere::types::MakeSQLParam(
-            user.PermissionMode.has_value()
-                ? std::optional<std::string>(
-                      user.PermissionMode.value() ==
-                              omnisphere::enums::PermissionMode::P
-                          ? "P"
-                          : "R")
-                : std::optional<std::string>("P")),
-        omnisphere::types::MakeSQLParam(user.Department),
-        omnisphere::types::MakeSQLParam(user.SuperUser),
-        omnisphere::types::MakeSQLParam(false),
-        omnisphere::types::MakeSQLParam(true),
-        omnisphere::types::MakeSQLParam(hashedPassword),
-        omnisphere::types::MakeSQLParam(user.PasswordNeverExpires),
-        omnisphere::types::MakeSQLParam(user.ChangePasswordNextLogin),
-        omnisphere::types::MakeSQLParam(user.CreatedBy),
-        omnisphere::types::MakeSQLParam(user.CreateDate),
-        omnisphere::types::MakeSQLParam(user.EmployeeCode)};
-
-    std::cout << "\n==================================================" << std::endl;
-    std::cout << "[OmniCore::User::Create] Executing SQL Query:" << std::endl;
-    std::cout << sQuery << std::endl;
-    std::cout << "[OmniCore::User::Create] Values: Code='" << user.Code
-              << "', Name='" << user.Name.value_or("")
-              << "', SuperUser='" << (user.SuperUser ? "true" : "false")
-              << "', IsLocked='false', IsActive='true'"
-              << "', PasswordNeverExpires='" << (user.PasswordNeverExpires ? "true" : "false")
-              << "', ChangePasswordNextLogin='" << (user.ChangePasswordNextLogin ? "true" : "false")
-              << "', CreatedBy=" << user.CreatedBy
-              << ", CreateDate='" << user.CreateDate << "'" << std::endl;
-    std::cout << "==================================================\n" << std::endl;
-
-    if (!conn->RunPrepared(sQuery, params)) {
+    if (!conn->RunPrepared(insertData.Query, insertData.Parameters)) {
       conn->RollbackTransaction();
       throw std::runtime_error("Error executing User::Create statement");
     }
@@ -134,15 +78,32 @@ int User::GetCurrentSequence() const {
   }
 }
 
-bool User::Update(const omnisphere::dtos::UpdateUser &user) const {
+bool User::Update(const omnisphere::dtos::UpdateUser &user, const std::vector<std::string>& mutationFields) const {
   auto conn = database->Acquire();
 
   try 
   {
-    auto updateColumns = omnisphere::types::ExtractUpdateColumns(user.Data);
+    auto updateColumns = omnisphere::types::ExtractUpdateColumns(user.Data, mutationFields);
 
     if(updateColumns.empty())
       return false;
+
+    bool hasLastUpdatedBy = false;
+    bool hasUpdateDate = false;
+    for (const auto& c : updateColumns) {
+      if (c.Column == "\"LastUpdatedBy\"") hasLastUpdatedBy = true;
+      if (c.Column == "\"UpdateDate\"") hasUpdateDate = true;
+    }
+    if (!hasLastUpdatedBy) {
+      updateColumns.push_back({"\"LastUpdatedBy\"", omnisphere::types::MakeSQLParam(user.Data.LastUpdatedBy.value_or("SYSTEM"))});
+    }
+    if (!hasUpdateDate) {
+      auto now = std::chrono::system_clock::now();
+      auto in_time_t = std::chrono::system_clock::to_time_t(now);
+      char buf[32];
+      std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", std::gmtime(&in_time_t));
+      updateColumns.push_back({"\"UpdateDate\"", omnisphere::types::MakeSQLParam(user.Data.UpdateDate.value_or(std::string(buf)))});
+    }
     
     auto updateResult = omnisphere::types::BuildUpdateQuery("\"Users\"", updateColumns, "\"Code\"", omnisphere::types::MakeSQLParam(user.Where.Code));
 

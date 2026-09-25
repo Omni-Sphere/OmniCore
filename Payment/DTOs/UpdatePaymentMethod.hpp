@@ -17,7 +17,7 @@ namespace omnisphere::dtos
         std::optional<bool> UsesIntegration;
         std::optional<std::string> IntegrationProvider;
         std::optional<bool> IsActive;
-        int LastUpdatedBy = 0;
+        std::string LastUpdatedBy = "SYSTEM";
         std::optional<std::string> UpdateDate;
 
         std::optional<PaymentMethodDetailInput> Details;

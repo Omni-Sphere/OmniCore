@@ -34,26 +34,30 @@ namespace omnisphere::repositories
         }
     }
 
-    bool SystemConfig::Update(const omnisphere::dtos::UpdateSystemConfigInput& input) const
+    bool SystemConfig::Update(const omnisphere::dtos::UpdateSystemConfigInput& input, const std::vector<std::string>& mutationFields) const
     {
         if (!m_dbPool) return false;
         try
         {
             auto conn = m_dbPool->Acquire();
 
-            std::vector<omnisphere::types::ColumnValue> updateCols;
-            if (input.FeeHandlingStrategy.has_value()) updateCols.push_back({"\"FeeHandlingStrategy\"", omnisphere::types::MakeSQLParam(input.FeeHandlingStrategy.value())});
-            if (input.TaxRatePercent.has_value()) updateCols.push_back({"\"TaxRatePercent\"", omnisphere::types::MakeSQLParam(input.TaxRatePercent.value())});
-            if (input.DefaultCurrency.has_value()) updateCols.push_back({"\"DefaultCurrency\"", omnisphere::types::MakeSQLParam(input.DefaultCurrency.value())});
-            if (input.CompanyName.has_value()) updateCols.push_back({"\"CompanyName\"", omnisphere::types::MakeSQLParam(input.CompanyName.value())});
-            if (input.EnableEmailNotifications.has_value()) updateCols.push_back({"\"EnableEmailNotifications\"", omnisphere::types::MakeSQLParam(input.EnableEmailNotifications.value())});
-            if (input.EnableWhatsappNotifications.has_value()) updateCols.push_back({"\"EnableWhatsappNotifications\"", omnisphere::types::MakeSQLParam(input.EnableWhatsappNotifications.value())});
-            if (input.AllowPartialPayments.has_value()) updateCols.push_back({"\"AllowPartialPayments\"", omnisphere::types::MakeSQLParam(input.AllowPartialPayments.value())});
-            if (input.IsActive.has_value()) updateCols.push_back({"\"IsActive\"", omnisphere::types::MakeSQLParam(input.IsActive.value())});
-
-            if (updateCols.empty()) return true;
-
-            updateCols.push_back({"\"LastUpdatedBy\"", omnisphere::types::MakeSQLParam(input.LastUpdatedBy)});
+            auto updateCols = omnisphere::types::ExtractUpdateColumns(input, mutationFields);
+            bool hasLastUpdatedBy = false;
+            bool hasUpdateDate = false;
+            for (const auto& c : updateCols) {
+                if (c.Column == "\"LastUpdatedBy\"") hasLastUpdatedBy = true;
+                if (c.Column == "\"UpdateDate\"") hasUpdateDate = true;
+            }
+            if (!hasLastUpdatedBy) {
+                updateCols.push_back({"\"LastUpdatedBy\"", omnisphere::types::MakeSQLParam(input.LastUpdatedBy.empty() ? "SYSTEM" : input.LastUpdatedBy)});
+            }
+            if (!hasUpdateDate) {
+                auto now = std::chrono::system_clock::now();
+                auto in_time_t = std::chrono::system_clock::to_time_t(now);
+                char buf[32];
+                std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", std::gmtime(&in_time_t));
+                updateCols.push_back({"\"UpdateDate\"", omnisphere::types::MakeSQLParam(std::string(buf))});
+            }
 
             int targetEntry = input.Entry;
             if (targetEntry <= 0)

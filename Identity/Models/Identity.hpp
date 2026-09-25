@@ -14,9 +14,9 @@ namespace omnisphere::models
         std::optional<std::string> prefix3;
         int currentSequence = 0;
         bool isActive = true;
-        int createdBy = 0;
+        std::string createdBy = "SYSTEM";
         std::string createDate;
-        std::optional<int> lastUpdatedBy;
+        std::optional<std::string> lastUpdatedBy;
         std::optional<std::string> updateDate;
     };
 

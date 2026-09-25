@@ -17,9 +17,9 @@ namespace omnisphere::models
         std::string currency = "mxn";
         std::string status = "open";
         bool isActive = true;
-        int createdBy = 1;
+        std::string createdBy = "SYSTEM";
         std::optional<std::string> createDate;
-        std::optional<int> lastUpdatedBy;
+        std::optional<std::string> lastUpdatedBy;
         std::optional<std::string> updateDate;
     };
 

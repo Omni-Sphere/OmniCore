@@ -1,7 +1,9 @@
 #pragma once
 #include "User/Enums/PermissionMode.hpp"
+#include <boost/describe.hpp>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace omnisphere::dtos {
 struct CreateUser {
@@ -17,11 +19,37 @@ struct CreateUser {
   std::optional<double> MaxDisccountPerDocument;
   std::optional<omnisphere::enums::PermissionMode> PermissionMode;
   std::optional<int> Department;
+  bool SuperUser = false;
+  bool IsLocked = false;
+  bool IsActive = true;
   std::string Password;
-  bool SuperUser;
-  bool ChangePasswordNextLogin;
-  bool PasswordNeverExpires;
-  int CreatedBy;
+  bool PasswordNeverExpires = false;
+  bool ChangePasswordNextLogin = false;
+  std::string CreatedBy = "SYSTEM";
   std::string CreateDate;
 };
+
+BOOST_DESCRIBE_STRUCT(CreateUser, (), (
+  Code,
+  Name,
+  Email,
+  Phone,
+  Employee,
+  RoleEntry,
+  RoleCode,
+  MaxDisccountPerLine,
+  MaxDisccountPerDocument,
+  PermissionMode,
+  Department,
+  SuperUser,
+  IsLocked,
+  IsActive,
+  Password,
+  PasswordNeverExpires,
+  ChangePasswordNextLogin,
+  CreatedBy,
+  CreateDate,
+  EmployeeCode
+))
+
 } // namespace omnisphere::dtos

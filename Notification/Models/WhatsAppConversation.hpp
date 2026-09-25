@@ -16,9 +16,9 @@ namespace omnisphere::models
         int unreadCount = 0;
         std::string status = "OPEN";
         bool isActive = true;
-        int createdBy = 1;
+        std::string createdBy = "SYSTEM";
         std::optional<std::string> createDate;
-        std::optional<int> lastUpdatedBy;
+        std::optional<std::string> lastUpdatedBy;
         std::optional<std::string> updateDate;
     };
 

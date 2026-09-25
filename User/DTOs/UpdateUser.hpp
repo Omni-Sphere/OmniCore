@@ -26,7 +26,7 @@ struct UserData {
   std::optional<double> MaxDisccountPerDocument;
   std::optional<omnisphere::enums::PermissionMode> PermissionMode;
   std::optional<int> Department;
-  std::optional<int> LastUpdatedBy;
+  std::optional<std::string> LastUpdatedBy;
   std::optional<std::string> UpdateDate;
 };
 

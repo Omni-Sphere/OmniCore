@@ -14,7 +14,7 @@ namespace omnisphere::models
         std::string actionType = "TRIGGER_MESSAGE"; // "EXECUTE_COMMAND", "TRIGGER_MESSAGE", "URL_REDIRECT", "TRANSFER_TO_AGENT"
         std::optional<std::string> actionPayload;
         int sortOrder = 1;
-        int createdBy = 1;
+        std::string createdBy = "SYSTEM";
         std::optional<std::string> createDate;
     };
 

@@ -22,9 +22,9 @@ namespace omnisphere::models
         std::optional<std::string> dateOfBirth;
         std::optional<std::string> comments;
         bool isActive = true;
-        int createdBy = 1;
+        std::string createdBy = "SYSTEM";
         std::string createDate;
-        std::optional<int> lastUpdatedBy;
+        std::optional<std::string> lastUpdatedBy;
         std::optional<std::string> updateDate;
     };
     BOOST_DESCRIBE_STRUCT(Employee, (), (

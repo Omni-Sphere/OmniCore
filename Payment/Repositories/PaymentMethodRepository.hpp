@@ -14,8 +14,8 @@ namespace omnisphere::repositories
     public:
         explicit PaymentMethodRepository(std::shared_ptr<omnisphere::data::DatabasePool> dbPool);
 
-        bool Create(const omnisphere::dtos::CreatePaymentMethodInput& input) const;
-        bool Update(const omnisphere::dtos::UpdatePaymentMethodInput& input) const;
+        bool Create(const omnisphere::dtos::CreatePaymentMethodInput& input, const std::vector<std::string>& mutationFields = {}) const;
+        bool Update(const omnisphere::dtos::UpdatePaymentMethodInput& input, const std::vector<std::string>& mutationFields = {}) const;
         bool Delete(int entry) const;
 
         omnisphere::types::DataTable ReadAll(const std::vector<std::string>& fields = {}) const;
@@ -24,8 +24,8 @@ namespace omnisphere::repositories
         omnisphere::types::DataTable GetActiveMethods(const std::vector<std::string>& fields = {}) const;
 
         std::optional<omnisphere::models::PaymentMethodDetail> GetDetailByCode(const std::string& code) const;
-        bool SaveDetail(const std::string& code, const omnisphere::dtos::PaymentMethodDetailInput& detailInput, int userId) const;
-        bool DeactivateDetail(const std::string& code, int userId) const;
+        bool SaveDetail(const std::string& code, const omnisphere::dtos::PaymentMethodDetailInput& detailInput, const std::string& userId) const;
+        bool DeactivateDetail(const std::string& code, const std::string& userId) const;
 
     private:
         std::shared_ptr<omnisphere::data::DatabasePool> m_dbPool;

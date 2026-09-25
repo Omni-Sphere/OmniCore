@@ -22,11 +22,12 @@ namespace omnisphere::dtos
         std::optional<std::string> dateOfBirth;
         std::optional<std::string> comments;
         std::optional<bool> isActive;
-        int updatedBy = 1;
+        std::optional<std::string> lastUpdatedBy;
+        std::optional<std::string> updateDate;
     };
     BOOST_DESCRIBE_STRUCT(UpdateEmployee, (), (
         entry, code, name, firstName, secondName, lastName, secondLastName,
         email, phone, department, position, directManagerCode,
-        dateOfBirth, comments, isActive, updatedBy
+        dateOfBirth, comments, isActive, lastUpdatedBy, updateDate
     ))
 } // namespace omnisphere::dtos

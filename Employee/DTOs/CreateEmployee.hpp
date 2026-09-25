@@ -22,7 +22,7 @@ namespace omnisphere::dtos
         std::optional<std::string> comments;
         bool isActive = true;
         std::string createDate;
-        int createdBy = 1;
+        std::string createdBy = "SYSTEM";
     };
     BOOST_DESCRIBE_STRUCT(CreateEmployee, (), (
         code, name, firstName, secondName, lastName, secondLastName,

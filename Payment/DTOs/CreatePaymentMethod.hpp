@@ -16,7 +16,7 @@ namespace omnisphere::dtos
         bool UsesIntegration = false;
         std::optional<std::string> IntegrationProvider;
         bool IsActive = true;
-        int CreatedBy = 0;
+        std::string CreatedBy = "SYSTEM";
         std::optional<std::string> CreateDate;
 
         std::optional<PaymentMethodDetailInput> Details;

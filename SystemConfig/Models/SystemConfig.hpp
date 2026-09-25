@@ -17,9 +17,9 @@ namespace omnisphere::models
         bool enableWhatsappNotifications = true;
         bool allowPartialPayments = false;
         bool isActive = true;
-        int createdBy = 1;
+        std::string createdBy = "SYSTEM";
         std::string createDate;
-        std::optional<int> lastUpdatedBy;
+        std::optional<std::string> lastUpdatedBy;
         std::optional<std::string> updateDate;
     };
 

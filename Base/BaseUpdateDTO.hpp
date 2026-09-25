@@ -7,15 +7,15 @@
 namespace omnisphere::dtos {
 struct BaseUpdateDTO {
   BaseUpdateDTO(std::string _Code, std::optional<std::string> _Name,
-                int _LastUpdatedBy, std::string _UpdateDate)
+                std::string _LastUpdatedBy, std::string _UpdateDate)
       : Code(std::move(_Code)), Name(std::move(_Name)),
-        LastUpdatedBy(_LastUpdatedBy), UpdateDate(std::move(_UpdateDate)) {
+        LastUpdatedBy(std::move(_LastUpdatedBy)), UpdateDate(std::move(_UpdateDate)) {
     Validate();
   }
 
   const std::string Code;
   const std::optional<std::string> Name;
-  const int LastUpdatedBy;
+  const std::string LastUpdatedBy;
   const std::string UpdateDate;
 
   void Validate() {

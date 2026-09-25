@@ -412,7 +412,7 @@ namespace omnisphere::repositories
                 p.isRequired = dt[i]["IsRequired"];
                 try { if (dt[i].HasColumn("Description") && !dt[i]["Description"].IsNull()) p.description = (std::string)dt[i]["Description"]; } catch(...) {}
                 p.sortOrder = dt[i]["SortOrder"];
-                p.createdBy = dt[i]["CreatedBy"];
+                p.createdBy = (std::string)dt[i]["CreatedBy"];
                 result.push_back(p);
             }
             return result;
@@ -474,7 +474,7 @@ namespace omnisphere::repositories
                 {
                     conn->RunPrepared("UPDATE \"CustomMessages\" SET \"MessageType\" = 'INTERACTIVE_BUTTON' WHERE \"Code\" = 'TPL_WELCOME_WITH_RESERVATION'", {});
                     conn->RunPrepared("DELETE FROM \"CustomButtons\" WHERE \"MessageCode\" = 'TPL_WELCOME_WITH_RESERVATION'", {});
-                    conn->RunPrepared("INSERT INTO \"CustomButtons\" (\"MessageCode\", \"ButtonId\", \"Title\", \"SortOrder\", \"CreatedBy\") VALUES ('TPL_WELCOME_WITH_RESERVATION', 'BTN_DETAILS_{folio}', 'Ver Detalles', 1, 1)", {});
+                    conn->RunPrepared("INSERT INTO \"CustomButtons\" (\"MessageCode\", \"ButtonId\", \"Title\", \"SortOrder\", \"CreatedBy\") VALUES ('TPL_WELCOME_WITH_RESERVATION', 'BTN_DETAILS_{folio}', 'Ver Detalles', 1, 'SYSTEM')", {});
                     
                     msg.messageType = "INTERACTIVE_BUTTON";
                     msg.buttons = GetButtonsForMessageCode(msg.code);
@@ -688,7 +688,7 @@ namespace omnisphere::repositories
                     omnisphere::types::MakeSQLParam(btn.actionType),
                     omnisphere::types::MakeSQLParam(btn.actionPayload.value_or("")),
                     omnisphere::types::MakeSQLParam(btn.sortOrder > 0 ? btn.sortOrder : sortOrder++),
-                    omnisphere::types::MakeSQLParam(btn.createdBy > 0 ? btn.createdBy : 1)
+                    omnisphere::types::MakeSQLParam(!btn.createdBy.empty() ? btn.createdBy : std::string("SYSTEM"))
                 };
                 conn->RunPrepared(sql, params);
             }

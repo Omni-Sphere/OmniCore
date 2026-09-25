@@ -11,7 +11,7 @@ namespace omnisphere::repositories
     PaymentMethodRepository::PaymentMethodRepository(std::shared_ptr<omnisphere::data::DatabasePool> dbPool)
         : m_dbPool(std::move(dbPool)) {}
 
-    bool PaymentMethodRepository::Create(const omnisphere::dtos::CreatePaymentMethodInput& input) const
+    bool PaymentMethodRepository::Create(const omnisphere::dtos::CreatePaymentMethodInput& input, const std::vector<std::string>& mutationFields) const
     {
         if (!m_dbPool) return false;
         if (input.UsesIntegration && input.Details.has_value())
@@ -27,7 +27,7 @@ namespace omnisphere::repositories
             tempInput.Code = identityRepo.GetNextCode("PaymentMethod", "PMT");
             const_cast<omnisphere::dtos::CreatePaymentMethodInput&>(input).Code = tempInput.Code;
 
-            auto insertResult = omnisphere::types::BuildInsertQuery("\"PaymentMethods\"", 0, tempInput);
+            auto insertResult = omnisphere::types::BuildInsertQuery("\"PaymentMethods\"", 0, tempInput, mutationFields);
             bool ok = conn->RunPrepared(insertResult.Query, insertResult.Parameters);
             if (ok && !input.UsesIntegration && input.Details.has_value())
             {
@@ -46,7 +46,7 @@ namespace omnisphere::repositories
         }
     }
 
-    bool PaymentMethodRepository::Update(const omnisphere::dtos::UpdatePaymentMethodInput& input) const
+    bool PaymentMethodRepository::Update(const omnisphere::dtos::UpdatePaymentMethodInput& input, const std::vector<std::string>& mutationFields) const
     {
         if (!m_dbPool || input.Entry <= 0) return false;
         if (input.UsesIntegration.value_or(false) && input.Details.has_value())
@@ -77,7 +77,7 @@ namespace omnisphere::repositories
                 throw std::runtime_error("No se permiten detalles de transferencia para formas de pago que usan integración");
             }
 
-            auto updateCols = omnisphere::types::ExtractUpdateColumns(input);
+            auto updateCols = omnisphere::types::ExtractUpdateColumns(input, mutationFields);
             if (!updateCols.empty())
             {
                 updateCols.push_back({"\"LastUpdatedBy\"", omnisphere::types::MakeSQLParam(input.LastUpdatedBy)});
@@ -260,9 +260,9 @@ namespace omnisphere::repositories
                 detail.paymentReference = ref.empty() ? std::nullopt : std::make_optional(ref);
             }
             detail.isActive = (bool)row["IsActive"];
-            if (row.HasColumn("CreatedBy") && !row["CreatedBy"].IsNull()) detail.createdBy = (int)row["CreatedBy"];
+            if (row.HasColumn("CreatedBy") && !row["CreatedBy"].IsNull()) detail.createdBy = (std::string)row["CreatedBy"];
             if (row.HasColumn("CreateDate") && !row["CreateDate"].IsNull()) detail.createDate = (std::string)row["CreateDate"];
-            if (row.HasColumn("LastUpdatedBy") && !row["LastUpdatedBy"].IsNull()) detail.lastUpdatedBy = (int)row["LastUpdatedBy"];
+            if (row.HasColumn("LastUpdatedBy") && !row["LastUpdatedBy"].IsNull()) detail.lastUpdatedBy = (std::string)row["LastUpdatedBy"];
             if (row.HasColumn("UpdateDate") && !row["UpdateDate"].IsNull()) detail.updateDate = (std::string)row["UpdateDate"];
 
             return detail;
@@ -274,7 +274,7 @@ namespace omnisphere::repositories
         }
     }
 
-    bool PaymentMethodRepository::SaveDetail(const std::string& code, const omnisphere::dtos::PaymentMethodDetailInput& detailInput, int userId) const
+    bool PaymentMethodRepository::SaveDetail(const std::string& code, const omnisphere::dtos::PaymentMethodDetailInput& detailInput, const std::string& userId) const
     {
         if (!m_dbPool || code.empty()) return false;
         try
@@ -330,7 +330,7 @@ namespace omnisphere::repositories
         }
     }
 
-    bool PaymentMethodRepository::DeactivateDetail(const std::string& code, int userId) const
+    bool PaymentMethodRepository::DeactivateDetail(const std::string& code, const std::string& userId) const
     {
         if (!m_dbPool || code.empty()) return false;
         try

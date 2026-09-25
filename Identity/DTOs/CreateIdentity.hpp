@@ -12,7 +12,7 @@ namespace omnisphere::dtos
         std::optional<std::string> prefix2;
         std::optional<std::string> prefix3;
         int initialSequence = 0;
-        int createdBy = 1;
+        std::string createdBy = "SYSTEM";
     };
 
     BOOST_DESCRIBE_STRUCT(CreateIdentityInput, (), (

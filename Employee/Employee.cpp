@@ -8,32 +8,32 @@ namespace omnisphere::services
     Employee::Employee(std::shared_ptr<omnisphere::data::DatabasePool> dbPool)
         : m_repository(std::make_shared<omnisphere::repositories::Employee>(std::move(dbPool))) {}
 
-    bool Employee::Create(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::CreateEmployee& employee) const
+    bool Employee::Create(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::CreateEmployee& employee, const std::vector<std::string>& mutationFields) const
     {
         if (!m_repository) return false;
         auto mutableDto = employee;
-        if (ctx.isAuthenticated() && !ctx.userCode.empty())
+        if (ctx.isAuthenticated() && !ctx.userCode.empty() && (mutableDto.createdBy.empty() || mutableDto.createdBy == "SYSTEM"))
         {
-            try { mutableDto.createdBy = std::stoi(ctx.userCode); } catch (...) { mutableDto.createdBy = 1; }
+            mutableDto.createdBy = ctx.userCode;
         }
-        return m_repository->Create(mutableDto);
+        return m_repository->Create(mutableDto, mutationFields);
     }
 
-    bool Employee::Update(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::UpdateEmployee& employee) const
+    bool Employee::Update(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::UpdateEmployee& employee, const std::vector<std::string>& mutationFields) const
     {
         if (!m_repository) return false;
         auto mutableDto = employee;
-        if (ctx.isAuthenticated() && !ctx.userCode.empty())
+        if (ctx.isAuthenticated() && !ctx.userCode.empty() && !mutableDto.lastUpdatedBy.has_value())
         {
-            try { mutableDto.updatedBy = std::stoi(ctx.userCode); } catch (...) { mutableDto.updatedBy = 1; }
+            mutableDto.lastUpdatedBy = ctx.userCode;
         }
-        return m_repository->Update(mutableDto);
+        return m_repository->Update(mutableDto, mutationFields);
     }
 
-    bool Employee::Delete(const omnisphere::models::SecurityContext& /*ctx*/, const std::string& code) const
+    bool Employee::Delete(const omnisphere::models::SecurityContext& /*ctx*/, const std::string& code, const std::vector<std::string>& mutationFields) const
     {
         if (!m_repository) return false;
-        return m_repository->Delete(code);
+        return m_repository->Delete(code, mutationFields);
     }
 
     std::optional<omnisphere::models::Employee> Employee::GetByCode(const std::string& code, const std::vector<std::string>& fields) const

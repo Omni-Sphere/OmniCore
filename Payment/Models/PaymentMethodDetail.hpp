@@ -14,9 +14,9 @@ namespace omnisphere::models
         std::string accountHolder;
         std::optional<std::string> paymentReference;
         bool isActive = true;
-        int createdBy = 0;
+        std::string createdBy = "SYSTEM";
         std::string createDate;
-        std::optional<int> lastUpdatedBy;
+        std::optional<std::string> lastUpdatedBy;
         std::optional<std::string> updateDate;
     };
 

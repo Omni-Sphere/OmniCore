@@ -13,40 +13,16 @@ namespace omnisphere::repositories
         return omnisphere::types::FromDataRow<omnisphere::models::Employee>(row);
     }
 
-    bool Employee::Create(const omnisphere::dtos::CreateEmployee& emp) const
+    bool Employee::Create(const omnisphere::dtos::CreateEmployee& emp, const std::vector<std::string>& mutationFields) const
     {
         if (!m_dbPool) return false;
         auto conn = m_dbPool->Acquire();
         try
         {
             conn->BeginTransaction();
-            std::string sql =
-                "INSERT INTO \"Employees\" ("
-                "\"Code\", \"Name\", \"FirstName\", \"SecondName\", \"LastName\", \"SecondLastName\", "
-                "\"Email\", \"Phone\", \"Department\", \"Position\", \"DirectManagerCode\", "
-                "\"DateOfBirth\", \"Comments\", \"IsActive\", \"CreateDate\", \"CreatedBy\""
-                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            auto insertData = omnisphere::types::BuildInsertQuery("\"Employees\"", 0, emp, mutationFields);
 
-            std::vector<omnisphere::types::SQLParam> params = {
-                omnisphere::types::MakeSQLParam(emp.code),
-                omnisphere::types::MakeSQLParam(emp.name),
-                omnisphere::types::MakeSQLParam(emp.firstName),
-                omnisphere::types::MakeSQLParam(emp.secondName),
-                omnisphere::types::MakeSQLParam(emp.lastName),
-                omnisphere::types::MakeSQLParam(emp.secondLastName),
-                omnisphere::types::MakeSQLParam(emp.email),
-                omnisphere::types::MakeSQLParam(emp.phone),
-                omnisphere::types::MakeSQLParam(emp.department),
-                omnisphere::types::MakeSQLParam(emp.position),
-                omnisphere::types::MakeSQLParam(emp.directManagerCode),
-                omnisphere::types::MakeSQLParam(emp.dateOfBirth),
-                omnisphere::types::MakeSQLParam(emp.comments),
-                omnisphere::types::MakeSQLParam(emp.isActive),
-                omnisphere::types::MakeSQLParam(emp.createDate),
-                omnisphere::types::MakeSQLParam(emp.createdBy)
-            };
-
-            if (!conn->RunPrepared(sql, params))
+            if (!conn->RunPrepared(insertData.Query, insertData.Parameters))
             {
                 conn->RollbackTransaction();
                 return false;
@@ -63,74 +39,39 @@ namespace omnisphere::repositories
         }
     }
 
-    bool Employee::Update(const omnisphere::dtos::UpdateEmployee& emp) const
+    bool Employee::Update(const omnisphere::dtos::UpdateEmployee& emp, const std::vector<std::string>& mutationFields) const
     {
         if (!m_dbPool) return false;
         auto conn = m_dbPool->Acquire();
         try
         {
             conn->BeginTransaction();
-            std::string sql = "UPDATE \"Employees\" SET ";
-            std::vector<omnisphere::types::SQLParam> params;
+            auto cols = omnisphere::types::ExtractUpdateColumns(emp, mutationFields);
 
-            if (emp.name.has_value()) {
-                sql += "\"Name\" = ?, ";
-                params.push_back(omnisphere::types::MakeSQLParam(emp.name.value()));
+            auto now = std::chrono::system_clock::now();
+            auto in_time_t = std::chrono::system_clock::to_time_t(now);
+            char timeBuf[32];
+            std::strftime(timeBuf, sizeof(timeBuf), "%Y-%m-%d %H:%M:%S", std::localtime(&in_time_t));
+
+            bool hasLastUpdatedBy = false;
+            for (const auto& c : cols) {
+                if (c.Column == "\"LastUpdatedBy\"") { hasLastUpdatedBy = true; break; }
             }
-            if (emp.firstName.has_value()) {
-                sql += "\"FirstName\" = ?, ";
-                params.push_back(omnisphere::types::MakeSQLParam(emp.firstName.value()));
+            if (!hasLastUpdatedBy) {
+                cols.push_back({"\"LastUpdatedBy\"", omnisphere::types::MakeSQLParam(emp.lastUpdatedBy.value_or("SYSTEM"))});
             }
-            if (emp.secondName.has_value()) {
-                sql += "\"SecondName\" = ?, ";
-                params.push_back(omnisphere::types::MakeSQLParam(emp.secondName.value()));
+            bool hasUpdateDate = false;
+            for (const auto& c : cols) {
+                if (c.Column == "\"UpdateDate\"") { hasUpdateDate = true; break; }
             }
-            if (emp.lastName.has_value()) {
-                sql += "\"LastName\" = ?, ";
-                params.push_back(omnisphere::types::MakeSQLParam(emp.lastName.value()));
-            }
-            if (emp.secondLastName.has_value()) {
-                sql += "\"SecondLastName\" = ?, ";
-                params.push_back(omnisphere::types::MakeSQLParam(emp.secondLastName.value()));
-            }
-            if (emp.email.has_value()) {
-                sql += "\"Email\" = ?, ";
-                params.push_back(omnisphere::types::MakeSQLParam(emp.email.value()));
-            }
-            if (emp.phone.has_value()) {
-                sql += "\"Phone\" = ?, ";
-                params.push_back(omnisphere::types::MakeSQLParam(emp.phone.value()));
-            }
-            if (emp.department.has_value()) {
-                sql += "\"Department\" = ?, ";
-                params.push_back(omnisphere::types::MakeSQLParam(emp.department.value()));
-            }
-            if (emp.position.has_value()) {
-                sql += "\"Position\" = ?, ";
-                params.push_back(omnisphere::types::MakeSQLParam(emp.position.value()));
-            }
-            if (emp.directManagerCode.has_value()) {
-                sql += "\"DirectManagerCode\" = ?, ";
-                params.push_back(omnisphere::types::MakeSQLParam(emp.directManagerCode.value()));
-            }
-            if (emp.dateOfBirth.has_value()) {
-                sql += "\"DateOfBirth\" = ?, ";
-                params.push_back(omnisphere::types::MakeSQLParam(emp.dateOfBirth.value()));
-            }
-            if (emp.comments.has_value()) {
-                sql += "\"Comments\" = ?, ";
-                params.push_back(omnisphere::types::MakeSQLParam(emp.comments.value()));
-            }
-            if (emp.isActive.has_value()) {
-                sql += "\"IsActive\" = ?, ";
-                params.push_back(omnisphere::types::MakeSQLParam(emp.isActive.value()));
+            if (!hasUpdateDate) {
+                cols.push_back({"\"UpdateDate\"", omnisphere::types::MakeSQLParam(std::string(timeBuf))});
             }
 
-            sql += "\"LastUpdatedBy\" = ?, \"UpdateDate\" = CURRENT_TIMESTAMP WHERE \"Code\" = ?";
-            params.push_back(omnisphere::types::MakeSQLParam(emp.updatedBy));
-            params.push_back(omnisphere::types::MakeSQLParam(emp.code));
+            auto updateResult = omnisphere::types::BuildUpdateQuery(
+                "\"Employees\"", cols, "\"Code\"", omnisphere::types::MakeSQLParam(emp.code));
 
-            if (!conn->RunPrepared(sql, params))
+            if (!conn->RunPrepared(updateResult.Query, updateResult.Parameters))
             {
                 conn->RollbackTransaction();
                 return false;
@@ -147,19 +88,35 @@ namespace omnisphere::repositories
         }
     }
 
-    bool Employee::Delete(const std::string& code) const
+    bool Employee::Delete(const std::string& code, const std::vector<std::string>& /*mutationFields*/) const
     {
         if (!m_dbPool) return false;
         auto conn = m_dbPool->Acquire();
         try
         {
             conn->BeginTransaction();
-            std::string sql = "UPDATE \"Employees\" SET \"IsCanceled\" = true, \"IsActive\" = false, \"UpdateDate\" = CURRENT_TIMESTAMP WHERE \"Code\" = ?";
-            bool ok = conn->RunPrepared(sql, { omnisphere::types::MakeSQLParam(code) });
+            auto now = std::chrono::system_clock::now();
+            auto in_time_t = std::chrono::system_clock::to_time_t(now);
+            char timeBuf[32];
+            std::strftime(timeBuf, sizeof(timeBuf), "%Y-%m-%d %H:%M:%S", std::localtime(&in_time_t));
+
+            std::vector<omnisphere::types::ColumnValue> updateCols = {
+                {"\"IsCanceled\"", omnisphere::types::MakeSQLParam(true)},
+                {"\"IsActive\"", omnisphere::types::MakeSQLParam(false)},
+                {"\"UpdateDate\"", omnisphere::types::MakeSQLParam(std::string(timeBuf))}
+            };
+
+            auto updateResult = omnisphere::types::BuildUpdateQuery(
+                "\"Employees\"", updateCols, "\"Code\"", omnisphere::types::MakeSQLParam(code));
+            bool ok = conn->RunPrepared(updateResult.Query, updateResult.Parameters);
 
             // Unlink in Users
-            std::string unlink = "UPDATE \"Users\" SET \"EmployeeCode\" = NULL WHERE \"EmployeeCode\" = ?";
-            conn->RunPrepared(unlink, { omnisphere::types::MakeSQLParam(code) });
+            std::vector<omnisphere::types::ColumnValue> unlinkCols = {
+                {"\"EmployeeCode\"", omnisphere::types::MakeSQLParam(std::optional<std::string>())}
+            };
+            auto unlinkResult = omnisphere::types::BuildUpdateQuery(
+                "\"Users\"", unlinkCols, "\"EmployeeCode\"", omnisphere::types::MakeSQLParam(code));
+            conn->RunPrepared(unlinkResult.Query, unlinkResult.Parameters);
 
             conn->CommitTransaction();
             return ok;

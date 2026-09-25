@@ -99,9 +99,9 @@ CREATE TABLE IF NOT EXISTS "Users" (
     "Password" BYTEA,
     "ChangePasswordNextLogin" BOOLEAN NOT NULL DEFAULT false,
     "PasswordNeverExpires" BOOLEAN NOT NULL DEFAULT false,
-    "CreatedBy" INT NOT NULL DEFAULT 0,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP,
     "EmployeeCode" VARCHAR(50)
 );
@@ -128,9 +128,9 @@ CREATE TABLE IF NOT EXISTS "Employees" (
     "Comments" TEXT,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
     "IsCanceled" BOOLEAN NOT NULL DEFAULT false,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS "IDX_Employees_Code_Active" ON "Employees" ("Code") WHERE "IsCanceled" = false;
@@ -182,9 +182,9 @@ CREATE TABLE IF NOT EXISTS "GlobalConfiguration" (
     "Value" TEXT,
     "IsEncrypted" BOOLEAN NOT NULL DEFAULT false,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP
 );
 
@@ -200,9 +200,9 @@ CREATE TABLE IF NOT EXISTS "SystemConfigs" (
     "EnableWhatsappNotifications" BOOLEAN NOT NULL DEFAULT true,
     "AllowPartialPayments" BOOLEAN NOT NULL DEFAULT false,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP
 );
 
@@ -215,9 +215,9 @@ CREATE TABLE IF NOT EXISTS "Identities" (
     "Prefix3" VARCHAR(3),
     "CurrentSequence" INT NOT NULL DEFAULT 0,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" INT NOT NULL DEFAULT 0,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "CHK_Identities_IsActive" CHECK ("IsActive" IN (true, false)),
     CONSTRAINT "CHK_Identities_CurrentSequence" CHECK ("CurrentSequence" >= 0),
@@ -258,9 +258,9 @@ CREATE TABLE IF NOT EXISTS "Venues" (
     "City" VARCHAR(3) NOT NULL,
     "Address" TEXT NOT NULL,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "CHK_Venues_IsActive" CHECK ("IsActive" IN (true, false))
 );
@@ -281,9 +281,9 @@ CREATE TABLE IF NOT EXISTS "Events" (
     "IsUpcoming" BOOLEAN NOT NULL DEFAULT true,
     "CommingSoon" BOOLEAN NOT NULL DEFAULT false,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "CHK_Events_IsPromoted" CHECK ("IsPromoted" IN (true, false)),
     CONSTRAINT "CHK_Events_IsUpcoming" CHECK ("IsUpcoming" IN (true, false)),
@@ -305,9 +305,9 @@ CREATE TABLE IF NOT EXISTS "DeparturePoints" (
     "Address" TEXT NOT NULL,
     "PointType" "DeparturePointType" NOT NULL,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "CHK_DeparturePoints_IsActive" CHECK ("IsActive" IN (true, false))
 );
@@ -324,9 +324,9 @@ CREATE TABLE IF NOT EXISTS "Routes" (
     "DestinationVenueCode" VARCHAR(50) NOT NULL,
     "BasePrice" NUMERIC(10, 2) NOT NULL,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "CHK_Routes_BasePrice" CHECK ("BasePrice" >= 0),
     CONSTRAINT "CHK_Routes_IsActive" CHECK ("IsActive" IN (true, false))
@@ -345,9 +345,9 @@ CREATE TABLE IF NOT EXISTS "RouteStops" (
     "BasePrice" NUMERIC(10, 2) NOT NULL,
     "ArrivalTime" VARCHAR(50),
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "CHK_RouteStops_BasePrice" CHECK ("BasePrice" >= 0),
     CONSTRAINT "CHK_RouteStops_IsActive" CHECK ("IsActive" IN (true, false))
@@ -375,9 +375,9 @@ CREATE TABLE IF NOT EXISTS "Schedules" (
     "AvailableSeats" INT NOT NULL,
     "Price" NUMERIC(10, 2) NOT NULL,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "CHK_Schedules_Capacity" CHECK ("Capacity" >= 0),
     CONSTRAINT "CHK_Schedules_AvailableSeats" CHECK ("AvailableSeats" >= 0),
@@ -398,9 +398,9 @@ CREATE TABLE IF NOT EXISTS "Tickets" (
     "Phone" VARCHAR(50) NOT NULL,
     "Quantity" INT NOT NULL DEFAULT 1,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "CHK_Tickets_Phone" CHECK (LENGTH(TRIM("Phone")) >= 7),
     CONSTRAINT "CHK_Tickets_Quantity" CHECK ("Quantity" > 0),
@@ -417,9 +417,9 @@ CREATE TABLE IF NOT EXISTS "NotificationContacts" (
     "Phone" VARCHAR(50) NOT NULL,
     "Role" VARCHAR(100) NOT NULL,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "CHK_NotificationContacts_Phone" CHECK (LENGTH(TRIM("Phone")) >= 7),
     CONSTRAINT "CHK_NotificationContacts_IsActive" CHECK ("IsActive" IN (true, false))
@@ -433,9 +433,9 @@ CREATE TABLE IF NOT EXISTS "NotificationSettings" (
     "Code" VARCHAR(50) NOT NULL DEFAULT 'DEFAULT' UNIQUE,
     "Name" VARCHAR(255) NOT NULL DEFAULT 'Notification Settings',
     "OwnerWhatsapp" VARCHAR(50) NOT NULL,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "CHK_NotificationSettings_Code" CHECK (LENGTH(TRIM("Code")) > 0),
     CONSTRAINT "CHK_NotificationSettings_OwnerWhatsapp" CHECK (LENGTH(TRIM("OwnerWhatsapp")) >= 7)
@@ -469,9 +469,9 @@ CREATE TABLE IF NOT EXISTS "Reservations" (
     "Status" "ReservationStatusType" NOT NULL DEFAULT 'UNCONFIRMED',
     "ExpiresAt" TIMESTAMPTZ,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" INT NOT NULL DEFAULT 0,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "CHK_Reservations_FirstName1" CHECK (LENGTH(TRIM("FirstName1")) > 0),
     CONSTRAINT "CHK_Reservations_LastName1" CHECK (LENGTH(TRIM("LastName1")) > 0),
@@ -504,9 +504,9 @@ CREATE TABLE IF NOT EXISTS "PaymentMethods" (
     "IntegrationProvider" VARCHAR(50),
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
     "IsCanceled" BOOLEAN NOT NULL DEFAULT false,
-    "CreatedBy" INT NOT NULL DEFAULT 0,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "CHK_PaymentMethods_IsActive" CHECK ("IsActive" IN (true, false))
 );
@@ -518,10 +518,10 @@ ALTER TABLE "PaymentMethods" ADD COLUMN IF NOT EXISTS "IsCanceled" BOOLEAN NOT N
 CREATE UNIQUE INDEX IF NOT EXISTS "UQ_PaymentMethods_Name_Active" ON "PaymentMethods" (LOWER(TRIM("Name"))) WHERE "IsActive" = true AND "IsCanceled" = false;
 
 INSERT INTO "PaymentMethods" ("Code", "Name", "Type", "UsesCommission", "CommissionRate", "CreatedBy") VALUES
-('PMT1', 'Efectivo', 'CASH', false, 0.00, 1),
-('PMT2', 'Transferencia', 'TRANSFER', false, 0.00, 1),
-('PMT3', 'Tarjeta / Otro', 'CARD', true, 3.50, 1),
-('PMT4', 'No Aplica / Pend.', 'NOT_APPLICABLE', false, 0.00, 1)
+('PMT1', 'Efectivo', 'CASH', false, 0.00, 'SYSTEM'),
+('PMT2', 'Transferencia', 'TRANSFER', false, 0.00, 'SYSTEM'),
+('PMT3', 'Tarjeta / Otro', 'CARD', true, 3.50, 'SYSTEM'),
+('PMT4', 'No Aplica / Pend.', 'NOT_APPLICABLE', false, 0.00, 'SYSTEM')
 ON CONFLICT ("Code") DO NOTHING;
 
 -- 17.1 PaymentMethodDetails (Detalles bancarios para transferencias/sin integración)
@@ -534,9 +534,9 @@ CREATE TABLE IF NOT EXISTS "PaymentMethodDetails" (
     "AccountHolder"    VARCHAR(255) NOT NULL,
     "PaymentReference" VARCHAR(255),
     "IsActive"         BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy"        INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate"       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy"    INT,
+    "LastUpdatedBy"    VARCHAR(20),
     "UpdateDate"       TIMESTAMP,
     CONSTRAINT "CHK_PaymentMethodDetails_IsActive" CHECK ("IsActive" IN (true, false))
 );
@@ -560,9 +560,9 @@ CREATE TABLE IF NOT EXISTS "PaymentGateways" (
     "Currency" VARCHAR(10) NOT NULL DEFAULT 'mxn',
     "IsTestMode" BOOLEAN NOT NULL DEFAULT true,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "CHK_PaymentGateways_IsActive" CHECK ("IsActive" IN (true, false))
 );
@@ -570,9 +570,9 @@ CREATE TABLE IF NOT EXISTS "PaymentGateways" (
 CREATE UNIQUE INDEX IF NOT EXISTS "UQ_PaymentGateways_Provider_Active" ON "PaymentGateways" ("Provider") WHERE "IsActive" = true;
 
 INSERT INTO "PaymentGateways" ("Code", "Name", "Provider", "IsTestMode", "IsActive", "CreatedBy") VALUES
-('GW_STRIPE', 'Stripe Gateway', 'STRIPE', true, true, 1),
-('GW_OPENPAY', 'OpenPay México', 'OPENPAY', true, false, 1),
-('GW_MERCADOPAGO', 'Mercado Pago Checkout Pro', 'MERCADOPAGO', true, false, 1)
+('GW_STRIPE', 'Stripe Gateway', 'STRIPE', true, true, 'SYSTEM'),
+('GW_OPENPAY', 'OpenPay México', 'OPENPAY', true, false, 'SYSTEM'),
+('GW_MERCADOPAGO', 'Mercado Pago Checkout Pro', 'MERCADOPAGO', true, false, 'SYSTEM')
 ON CONFLICT ("Code") DO NOTHING;
 
 -- 19. PaymentTransactions (Auditoría Universal de Transacciones de Cobro)
@@ -595,9 +595,9 @@ CREATE TABLE IF NOT EXISTS "PaymentTransactions" (
     "RawPayload" TEXT,
     "ExpiresAt" TIMESTAMPTZ,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP
 );
 
@@ -619,14 +619,14 @@ CREATE TABLE IF NOT EXISTS "OpenPaySettings" (
     "ApiBaseUrl" VARCHAR(255) NOT NULL DEFAULT 'https://sandbox-api.openpay.mx/v1',
     "IsTestMode" BOOLEAN NOT NULL DEFAULT true,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP
 );
 
 INSERT INTO "OpenPaySettings" ("Code", "Name", "IsTestMode", "IsActive", "CreatedBy") VALUES
-('DEFAULT', 'OpenPay Settings', true, true, 1)
+('DEFAULT', 'OpenPay Settings', true, true, 'SYSTEM')
 ON CONFLICT ("Code") DO NOTHING;
 
 -- 21. MercadoPagoSettings
@@ -640,14 +640,14 @@ CREATE TABLE IF NOT EXISTS "MercadoPagoSettings" (
     "ApiBaseUrl" VARCHAR(255) NOT NULL DEFAULT 'https://api.mercadopago.com',
     "IsTestMode" BOOLEAN NOT NULL DEFAULT true,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP
 );
 
 INSERT INTO "MercadoPagoSettings" ("Code", "Name", "IsTestMode", "IsActive", "CreatedBy") VALUES
-('DEFAULT', 'Mercado Pago Settings', true, true, 1)
+('DEFAULT', 'Mercado Pago Settings', true, true, 'SYSTEM')
 ON CONFLICT ("Code") DO NOTHING;
 
 -- 22. StripeSettings
@@ -664,9 +664,9 @@ CREATE TABLE IF NOT EXISTS "StripeSettings" (
     "Currency" VARCHAR(10) NOT NULL DEFAULT 'mxn',
     "IsTestMode" BOOLEAN NOT NULL DEFAULT true,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP
 );
 
@@ -682,9 +682,9 @@ CREATE TABLE IF NOT EXISTS "StripeSessions" (
     "Currency" VARCHAR(10) NOT NULL DEFAULT 'mxn',
     "Status" VARCHAR(50) NOT NULL DEFAULT 'open',
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP
 );
 
@@ -713,9 +713,9 @@ CREATE TABLE IF NOT EXISTS "StripeTransactions" (
     "HostedInstructionsUrl" TEXT,
     "ClientIp" VARCHAR(50),
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP
 );
 
@@ -739,14 +739,14 @@ CREATE TABLE IF NOT EXISTS "WhatsAppSettings" (
     "WebhookVerifyToken" TEXT,
     "ApiVersion" VARCHAR(50) NOT NULL DEFAULT 'v24.0',
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP
 );
 
 INSERT INTO "WhatsAppSettings" ("Code", "Name", "PhoneId", "ApiToken", "BusinessAccountId", "WebhookVerifyToken", "ApiVersion", "IsActive", "CreatedBy") VALUES
-('DEFAULT', 'MetaConfig', '', '', '', '', 'v24.0', true, 1)
+('DEFAULT', 'MetaConfig', '', '', '', '', 'v24.0', true, 'SYSTEM')
 ON CONFLICT ("Code") DO NOTHING;
 
 -- 26. WhatsAppConversations
@@ -760,9 +760,9 @@ CREATE TABLE IF NOT EXISTS "WhatsAppConversations" (
     "UnreadCount" INT NOT NULL DEFAULT 0,
     "Status" VARCHAR(50) NOT NULL DEFAULT 'OPEN',
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP
 );
 
@@ -805,9 +805,9 @@ CREATE TABLE IF NOT EXISTS "WhatsAppTemplates" (
     "ButtonsJson" TEXT,
     "Status" VARCHAR(50) NOT NULL DEFAULT 'APPROVED',
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP
 );
 
@@ -828,9 +828,9 @@ CREATE TABLE IF NOT EXISTS "CustomMessages" (
     "MetaCategory" VARCHAR(50) DEFAULT 'UTILITY',
     "MetaRejectReason" TEXT,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP
 );
 
@@ -852,7 +852,7 @@ CREATE TABLE IF NOT EXISTS "CustomMessageParameters" (
     "IsRequired" BOOLEAN NOT NULL DEFAULT true,
     "Description" TEXT,
     "SortOrder" INT NOT NULL DEFAULT 1,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "FK_MsgParams_MessageCode" FOREIGN KEY ("MessageCode") REFERENCES "CustomMessages"("Code") ON DELETE CASCADE,
     CONSTRAINT "UQ_MsgParams_Key" UNIQUE ("MessageCode", "ParamKey")
@@ -869,7 +869,7 @@ CREATE TABLE IF NOT EXISTS "CustomButtons" (
     "ActionType" VARCHAR(50) NOT NULL DEFAULT 'TRIGGER_MESSAGE',
     "ActionPayload" TEXT,
     "SortOrder" INT NOT NULL DEFAULT 1,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -880,7 +880,7 @@ CREATE TABLE IF NOT EXISTS "CustomAttachments" (
     "MessageEntry" INT NOT NULL REFERENCES "CustomMessages"("Entry") ON DELETE CASCADE,
     "MediaType" VARCHAR(50) NOT NULL,
     "MediaUrl" TEXT NOT NULL,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -902,7 +902,7 @@ Vemos que tienes una reservación activa para:
 ⏰ Salida: *{hora_salida}*
 💳 Estatus: *{estatus}*
 
-¿Deseas consultar los detalles completos de tu viaje o necesitas ayuda adicional?', 1),
+¿Deseas consultar los detalles completos de tu viaje o necesitas ayuda adicional?', 'SYSTEM'),
 
 ('TPL_WELCOME_PROMPT', 'Bienvenida a Cliente No Registrado', 'TEXT',
 '¡Hola {nombre_cliente}! 👋 Bienvenido al asistente de {empresa} 🚌✨
@@ -911,7 +911,7 @@ No encontramos reservaciones activas vinculadas a este número de WhatsApp.
 
 Si compraste con otro número o deseas consultar tu boleto:
 🎟️ Escribe el folio de tu boleto (ejemplo: *{ejemplo_folio}*), o
-📱 Los *10 dígitos* del número celular con el que te registraste.', 1),
+📱 Los *10 dígitos* del número celular con el que te registraste.', 'SYSTEM'),
 
 ('TPL_RESERVATION_DETAILS', 'Detalle Completo de Reservación', 'TEXT',
 '📋 *DETALLES DE TU RESERVACIÓN* 🚌✨
@@ -930,7 +930,7 @@ Si compraste con otro número o deseas consultar tu boleto:
 
 ✅ *Estatus:* {estatus}
 
-¡Te esperamos puntualmente en tu punto de abordaje! 🎒', 1),
+¡Te esperamos puntualmente en tu punto de abordaje! 🎒', 'SYSTEM'),
 
 ('TPL_NOT_FOUND_ERROR', 'Reservación No Encontrada', 'TEXT',
 'Lo sentimos {nombre_cliente}, no pudimos encontrar ninguna reservación activa con los datos ingresados: "{dato_ingresado}". 🔍
@@ -939,7 +939,7 @@ Por favor verifica que:
 • El folio inicie con *RSV* (ejemplo: *{ejemplo_folio}*), o
 • Hayas escrito los *10 dígitos* del número celular registrado.
 
-Si necesitas ayuda personalizada, nuestro equipo con gusto te atenderá.', 1),
+Si necesitas ayuda personalizada, nuestro equipo con gusto te atenderá.', 'SYSTEM'),
 
 ('TPL_CARD_PAYMENT_SUCCESS', 'Pago con Tarjeta Exitoso', 'TEXT',
 '¡Tu pago con tarjeta ha sido exitoso! 🎉💳
@@ -954,7 +954,7 @@ Hola {nombre_registrado}, confirmamos la acreditación de tu pago:
 
 ✅ *Estatus:* CONFIRMADO Y PAGADO
 
-¡Tu lugar está 100% asegurado! Nos vemos en el evento. 🚌✨', 1),
+¡Tu lugar está 100% asegurado! Nos vemos en el evento. 🚌✨', 'SYSTEM'),
 
 ('TPL_CARD_PAYMENT_FAILED', 'Pago con Tarjeta Declinado', 'TEXT',
 'Aviso sobre el pago de tu reservación ⚠️💳
@@ -963,7 +963,7 @@ Hola {nombre_registrado}, no pudimos procesar el cobro con tu tarjeta para el fo
 💰 Monto: *{monto_pagado}*
 Motivo: {motivo_fallo}
 
-Para no perder tus lugares, por favor intenta con otra tarjeta o cambia tu forma de pago a Transferencia bancaria.', 1),
+Para no perder tus lugares, por favor intenta con otra tarjeta o cambia tu forma de pago a Transferencia bancaria.', 'SYSTEM'),
 
 ('TPL_TRANSFER_INSTRUCTIONS', 'Instrucciones de Transferencia Bancaria', 'TEXT',
 'Instrucciones para Pago por Transferencia 🏦📋
@@ -976,7 +976,7 @@ Hola {nombre_registrado}, para completar tu reservación *{folio}*, realiza tu t
 💰 *Monto Exacto:* *{monto_a_pagar}*
 📝 *Concepto / Referencia:* `{folio}`
 
-📸 *Importante:* Una vez realizada, envía la captura de tu comprobante por este chat para validar y asegurar tus lugares.', 1),
+📸 *Importante:* Una vez realizada, envía la captura de tu comprobante por este chat para validar y asegurar tus lugares.', 'SYSTEM'),
 
 ('TPL_TRANSFER_APPROVED', 'Transferencia Acreditada', 'TEXT',
 '¡Tu transferencia ha sido verificada con éxito! 🎉✅
@@ -990,7 +990,7 @@ Hola {nombre_registrado}, validamos tu comprobante de pago:
 
 ✅ *Estatus:* CONFIRMADO Y PAGADO
 
-¡Tu viaje está confirmado! Te esperamos en tu punto de abordaje. 🚌✨', 1),
+¡Tu viaje está confirmado! Te esperamos en tu punto de abordaje. 🚌✨', 'SYSTEM'),
 
 ('TPL_TRANSFER_REJECTED', 'Comprobante de Transferencia Rechazado', 'TEXT',
 'Aviso sobre tu comprobante de transferencia ⚠️📄
@@ -998,12 +998,12 @@ Hola {nombre_registrado}, validamos tu comprobante de pago:
 Hola {nombre_registrado}, tuvimos un inconveniente al validar tu comprobante para el folio *{folio}*:
 Motivo: {motivo_rechazo}
 
-Por favor envía un nuevo comprobante legible o comunícate por este chat para asistirte.', 1)
+Por favor envía un nuevo comprobante legible o comunícate por este chat para asistirte.', 'SYSTEM')
 ON CONFLICT ("Code") DO NOTHING;
 
 -- Seed Buttons for TPL_WELCOME_WITH_RESERVATION
 INSERT INTO "CustomButtons" ("MessageEntry", "ButtonId", "Title", "ActionType", "SortOrder", "CreatedBy")
-SELECT m."Entry", 'BTN_DETAILS_{folio}', 'Ver Detalles', 'TRIGGER_MESSAGE', 1, 1
+SELECT m."Entry", 'BTN_DETAILS_{folio}', 'Ver Detalles', 'TRIGGER_MESSAGE', 1, 'SYSTEM'
 FROM "CustomMessages" m WHERE m."Code" = 'TPL_WELCOME_WITH_RESERVATION'
 ON CONFLICT DO NOTHING;
 
@@ -1282,7 +1282,7 @@ CREATE TABLE IF NOT EXISTS "SystemLicenses" (
     "ExpiresAt"   DATE NOT NULL,
     "Modules"     TEXT NOT NULL DEFAULT '[]',
     "IsActive"    BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy"   INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate"  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "UpdateDate"  TIMESTAMP
 );
@@ -1318,9 +1318,9 @@ CREATE TABLE IF NOT EXISTS "Modules" (
     "Icon" VARCHAR(50) NOT NULL DEFAULT 'folder',
     "SortOrder" INT NOT NULL DEFAULT 1,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP
 );
 
@@ -1332,9 +1332,9 @@ CREATE TABLE IF NOT EXISTS "Permissions" (
     "Description" TEXT,
     "ModuleCode" VARCHAR(50) NOT NULL,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS "IDX_Permissions_ModuleCode" ON "Permissions" ("ModuleCode");
@@ -1347,9 +1347,9 @@ CREATE TABLE IF NOT EXISTS "Roles" (
     "Description" TEXT,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
     "IsCanceled" BOOLEAN NOT NULL DEFAULT false,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP
 );
 
@@ -1361,9 +1361,9 @@ CREATE TABLE IF NOT EXISTS "RolePermissions" (
     "ModuleCode" VARCHAR(50) NOT NULL,
     "IsAllowed" BOOLEAN NOT NULL DEFAULT true,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "UQ_RolePermissions" UNIQUE ("RoleCode", "PermissionCode")
 );
@@ -1378,9 +1378,9 @@ CREATE TABLE IF NOT EXISTS "UserPermissions" (
     "IsAllowed" BOOLEAN NOT NULL DEFAULT true,
     "GrantedByCode" VARCHAR(50),
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'SYSTEM',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" INT,
+    "LastUpdatedBy" VARCHAR(20),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "UQ_UserPermissions" UNIQUE ("UserCode", "PermissionCode")
 );

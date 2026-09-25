@@ -17,9 +17,9 @@ namespace omnisphere::models
         bool usesIntegration = false;
         std::optional<std::string> integrationProvider; // STRIPE, OPENPAY, MERCADOPAGO
         bool isActive = true;
-        int createdBy = 0;
+        std::string createdBy = "SYSTEM";
         std::string createDate;
-        std::optional<int> lastUpdatedBy;
+        std::optional<std::string> lastUpdatedBy;
         std::optional<std::string> updateDate;
 
         std::optional<PaymentMethodDetail> details;

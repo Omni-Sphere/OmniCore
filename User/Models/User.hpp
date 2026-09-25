@@ -30,9 +30,9 @@ public:
   bool IsActive = true;
   bool ChangePasswordNextLogin = false;
   bool PasswordNeverExpires = false;
-  int CreatedBy = 1;
+  std::string CreatedBy = "SYSTEM";
   std::string CreateDate;
-  std::optional<int> LastUpdatedBy;
+  std::optional<std::string> LastUpdatedBy;
   std::optional<std::string> UpdateDate;
   std::shared_ptr<User> CreatedByUser;
   std::shared_ptr<User> LastUpdatedByUser;

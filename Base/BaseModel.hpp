@@ -10,21 +10,21 @@ namespace omnisphere::models {
 class BaseModel {
 public:
   BaseModel() = default;
-  BaseModel(int _Entry, std::string _Code, std::string _Name, int _CreatedBy,
-            std::string _CreateDate, std::optional<int> _LastUpdatedBy,
+  BaseModel(int _Entry, std::string _Code, std::string _Name, std::string _CreatedBy,
+            std::string _CreateDate, std::optional<std::string> _LastUpdatedBy,
             std::optional<std::string> _UpdateDate)
       : Entry(_Entry), Code(std::move(_Code)), Name(std::move(_Name)),
-        CreatedBy(_CreatedBy), CreateDate(std::move(_CreateDate)),
-        LastUpdatedBy(_LastUpdatedBy), UpdateDate(std::move(_UpdateDate)) {
+        CreatedBy(std::move(_CreatedBy)), CreateDate(std::move(_CreateDate)),
+        LastUpdatedBy(std::move(_LastUpdatedBy)), UpdateDate(std::move(_UpdateDate)) {
     Validate();
   }
 
   int Entry;
   std::string Code;
   std::string Name;
-  int CreatedBy;
+  std::string CreatedBy;
   std::string CreateDate;
-  std::optional<int> LastUpdatedBy;
+  std::optional<std::string> LastUpdatedBy;
   std::optional<std::string> UpdateDate;
 
 protected:
@@ -48,7 +48,7 @@ protected:
     if (Name.size() > 50)
       throw std::runtime_error("Name demasiado largo");
 
-    if (CreatedBy <= 0)
+    if (CreatedBy.empty())
       throw std::runtime_error("CreatedBy inválido");
   }
 

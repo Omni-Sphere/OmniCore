@@ -27,7 +27,7 @@ namespace omnisphere::dtos
         std::optional<bool> EnableWhatsappNotifications;
         std::optional<bool> AllowPartialPayments;
         std::optional<bool> IsActive;
-        int LastUpdatedBy = 1;
+        std::string LastUpdatedBy = "SYSTEM";
     };
 
     BOOST_DESCRIBE_STRUCT(UpdateSystemConfigInput, (), (
