@@ -75,23 +75,33 @@ User::Modify(const omnisphere::dtos::UpdateUser &uUser, const std::vector<std::s
 bool User::ModifyPassword(const omnisphere::dtos::ChangePassword &cPass) const {
   try {
     if (cPass.Code.empty() || cPass.NewPassword.empty())
-      throw std::invalid_argument(
-          "Code and NewPassword are required");
+      throw std::invalid_argument("Code and NewPassword are required");
 
     if (!Exists(omnisphere::enums::UserFilter::Code, cPass.Code))
-      throw std::invalid_argument("User Code doesn't exists");
+      throw std::invalid_argument("User Code doesn't exist");
 
-    if (cPass.OldPassword.has_value() && !cPass.OldPassword.value().empty()) {
+    // Validación de seguridad a nivel de Core:
+    // Si UpdatedBy coincide con Code (o si no se especifica UpdatedBy),
+    // se trata del mismo usuario modificando su propia clave -> OldPassword es estrictamente obligatorio
+    bool isSelf = !cPass.UpdatedBy.has_value() || (cPass.UpdatedBy.value() == cPass.Code);
+
+    if (isSelf) {
+      if (!cPass.OldPassword.has_value() || cPass.OldPassword.value().empty()) {
+        throw std::invalid_argument("La contraseña anterior es obligatoria");
+      }
       if (!pimpl->user->ValidatePassword(omnisphere::enums::UserFilter::Code,
-                                         cPass.Code, cPass.OldPassword.value()))
-        throw std::invalid_argument("Invalid password");
+                                         cPass.Code, cPass.OldPassword.value())) {
+        throw std::invalid_argument("La contraseña anterior es incorrecta");
+      }
     }
+
+    bool nextLogin = isSelf ? false : cPass.ChangePasswordNextLogin.value_or(true);
 
     if (pimpl->user->UpdatePassword(omnisphere::enums::UserFilter::Code,
                                     cPass.Code,
                                     cPass.OldPassword.value_or(""),
                                     cPass.NewPassword,
-                                    cPass.ChangePasswordNextLogin))
+                                    nextLogin))
       return true;
 
     return false;
