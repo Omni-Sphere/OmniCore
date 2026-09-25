@@ -216,7 +216,7 @@ types::DataTable User::Read(const omnisphere::enums::UserFilter &filter,
 
     std::vector<omnisphere::types::Condition> conditions = {
       {"", filterCol, "=", "?"},
-      {"AND", "\"IsCanceled\"", "=", "?"}
+      {"", "\"IsCanceled\"", "=", "?"}
     };
     auto qp = omnisphere::types::BuildQueryParts(selectFields, conditions);
     std::string sQuery = "SELECT " + qp.SelectClause + " FROM \"Users\" WHERE " + qp.WhereClause;
@@ -291,7 +291,7 @@ UserCursorPage User::GetPage(std::optional<int> afterEntry, int limit, const std
   };
 
   if (afterEntry.has_value()) {
-    conditions.push_back({"AND", "\"Entry\"", ">", "?"});
+    conditions.push_back({"", "\"Entry\"", ">", "?"});
     params.push_back(omnisphere::types::MakeSQLParam(afterEntry.value()));
   }
 

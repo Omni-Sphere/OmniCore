@@ -293,7 +293,7 @@ namespace omnisphere::repositories
 
             if (afterEntry.has_value())
             {
-                conditions.push_back({"AND", "\"Entry\"", ">", "?"});
+                conditions.push_back({"", "\"Entry\"", ">", "?"});
                 params.push_back(omnisphere::types::MakeSQLParam(afterEntry.value()));
             }
 
