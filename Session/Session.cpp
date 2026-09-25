@@ -58,7 +58,13 @@ Session::Login(const omnisphere::dtos::Login &login) const {
     }();
 
     if (userModel.IsLocked)
-      throw std::runtime_error("Account is locked");
+      throw std::runtime_error("La cuenta de usuario está bloqueada");
+
+    if (userModel.IsCanceled)
+      throw std::runtime_error("La cuenta de usuario ha sido cancelada");
+
+    if (!userModel.IsActive)
+      throw std::runtime_error("La cuenta de usuario está inactiva");
 
     if (login.Code.has_value() &&
         !pimpl->user->CheckPassword(omnisphere::enums::UserFilter::Code,

@@ -28,6 +28,7 @@ public:
   bool SuperUser = false;
   bool IsLocked = false;
   bool IsActive = true;
+  bool IsCanceled = false;
   bool ChangePasswordNextLogin = false;
   bool PasswordNeverExpires = false;
   std::string CreatedBy = "SYSTEM";
@@ -41,7 +42,7 @@ public:
 BOOST_DESCRIBE_STRUCT(User, (), (
     Entry, Code, Name, Email, Phone, Employee, EmployeeCode,
     RoleEntry, RoleCode, MaxDisccountPerLine, MaxDisccountPerDocument, Department,
-    SuperUser, IsLocked, IsActive, ChangePasswordNextLogin, PasswordNeverExpires,
+    SuperUser, IsLocked, IsActive, IsCanceled, ChangePasswordNextLogin, PasswordNeverExpires,
     CreatedBy, CreateDate, LastUpdatedBy, UpdateDate
 ))
 } // namespace omnisphere::models
