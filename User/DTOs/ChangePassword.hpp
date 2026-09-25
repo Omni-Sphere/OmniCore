@@ -4,11 +4,11 @@
 
 namespace omnisphere::dtos {
 struct ChangePassword {
-  std::optional<int> Entry;
-  std::optional<std::string> Code;
-  std::string OldPassword;
+  std::string Code;
+  std::optional<std::string> OldPassword;
   std::string NewPassword;
-  std::string UpdateDate;
-  int UpdatedBy;
+  std::optional<bool> ChangePasswordNextLogin;
+  std::optional<std::string> UpdateDate;
+  std::optional<std::string> UpdatedBy;
 };
 } // namespace omnisphere::dtos

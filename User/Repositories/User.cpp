@@ -122,10 +122,15 @@ bool User::Update(const omnisphere::dtos::UpdateUser &user, const std::vector<st
 bool User::UpdatePassword(const omnisphere::enums::UserFilter &filter,
                           const std::string &value,
                           const std::string &oldPassword,
-                          const std::string &newPassword) const {
+                          const std::string &newPassword,
+                          std::optional<bool> changePasswordNextLogin) const {
   auto conn = database->Acquire();
   try {
-    std::string sQuery = "UPDATE \"Users\" SET \"Password\" = ?, \"UpdateDate\" = CURRENT_TIMESTAMP WHERE ";
+    std::string sQuery = "UPDATE \"Users\" SET \"Password\" = ?, \"UpdateDate\" = CURRENT_TIMESTAMP";
+    if (changePasswordNextLogin.has_value()) {
+      sQuery += changePasswordNextLogin.value() ? ", \"ChangePasswordNextLogin\" = true" : ", \"ChangePasswordNextLogin\" = false";
+    }
+    sQuery += " WHERE ";
 
     const std::vector<uint8_t> hashedPassword =
         omnisphere::utils::Hasher::HashPassword(newPassword);

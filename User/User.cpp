@@ -74,21 +74,24 @@ User::Modify(const omnisphere::dtos::UpdateUser &uUser, const std::vector<std::s
 
 bool User::ModifyPassword(const omnisphere::dtos::ChangePassword &cPass) const {
   try {
-    if (!cPass.Code.has_value() || cPass.Code.value().empty() || cPass.OldPassword.empty() ||
-        cPass.NewPassword.empty())
+    if (cPass.Code.empty() || cPass.NewPassword.empty())
       throw std::invalid_argument(
-          "Code, OldPassword and NewPassword are required");
+          "Code and NewPassword are required");
 
-    if (!Exists(omnisphere::enums::UserFilter::Code, cPass.Code.value()))
+    if (!Exists(omnisphere::enums::UserFilter::Code, cPass.Code))
       throw std::invalid_argument("User Code doesn't exists");
 
-    if (!pimpl->user->ValidatePassword(omnisphere::enums::UserFilter::Code,
-                                       cPass.Code.value(), cPass.OldPassword))
-      throw std::invalid_argument("Invalid password");
+    if (cPass.OldPassword.has_value() && !cPass.OldPassword.value().empty()) {
+      if (!pimpl->user->ValidatePassword(omnisphere::enums::UserFilter::Code,
+                                         cPass.Code, cPass.OldPassword.value()))
+        throw std::invalid_argument("Invalid password");
+    }
 
     if (pimpl->user->UpdatePassword(omnisphere::enums::UserFilter::Code,
-                                    cPass.Code.value(), cPass.OldPassword,
-                                    cPass.NewPassword))
+                                    cPass.Code,
+                                    cPass.OldPassword.value_or(""),
+                                    cPass.NewPassword,
+                                    cPass.ChangePasswordNextLogin))
       return true;
 
     return false;

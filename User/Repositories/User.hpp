@@ -56,7 +56,8 @@ public:
 
   bool UpdatePassword(const omnisphere::enums::UserFilter &filter,
                       const std::string &value, const std::string &oldPassword,
-                      const std::string &newPassword) const;
+                      const std::string &newPassword,
+                      std::optional<bool> changePasswordNextLogin = std::nullopt) const;
 
   bool ValidatePassword(const omnisphere::enums::UserFilter &filter,
                         const std::string &value,
