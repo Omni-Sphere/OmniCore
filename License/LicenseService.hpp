@@ -1,2 +1,2 @@
 #pragma once
-#include <OmniCore/License/Services/LicenseService.hpp>
+#include "Services/LicenseService.hpp"

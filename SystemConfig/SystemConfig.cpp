@@ -1,5 +1,5 @@
 #include "SystemConfig/SystemConfig.hpp"
-#include <OmniCore/Authorization/AuthGuard.hpp>
+#include "Authorization/AuthGuard.hpp"
 #include <OmniData/DataMapper.hpp>
 
 namespace omnisphere::services
