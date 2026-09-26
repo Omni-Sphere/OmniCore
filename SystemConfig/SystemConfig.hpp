@@ -7,6 +7,7 @@
 #include "SystemConfig/DTOs/SystemConfig.hpp"
 #include "SystemConfig/Models/SystemConfig.hpp"
 #include "Authorization/Models/SecurityContext.hpp"
+#include "Authorization/Authorization.hpp"
 
 namespace omnisphere::services
 {
@@ -14,10 +15,17 @@ namespace omnisphere::services
     {
     private:
         std::shared_ptr<omnisphere::repositories::SystemConfig> m_repository;
+        std::shared_ptr<omnisphere::services::Authorization> m_authService;
 
     public:
-        explicit SystemConfig(std::shared_ptr<omnisphere::repositories::SystemConfig> repository);
-        explicit SystemConfig(std::shared_ptr<omnisphere::data::DatabasePool> dbPool);
+        explicit SystemConfig(
+            std::shared_ptr<omnisphere::repositories::SystemConfig> repository,
+            std::shared_ptr<omnisphere::services::Authorization> authService = nullptr
+        );
+        explicit SystemConfig(
+            std::shared_ptr<omnisphere::data::DatabasePool> dbPool,
+            std::shared_ptr<omnisphere::services::Authorization> authService = nullptr
+        );
         ~SystemConfig() = default;
 
         omnisphere::types::DataTable GetActiveConfig(const omnisphere::models::SecurityContext& ctx, const std::vector<std::string>& fields = {}) const;

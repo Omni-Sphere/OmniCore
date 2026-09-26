@@ -1,16 +1,24 @@
 #include "Payment/PaymentMethodService.hpp"
+#include <OmniCore/Authorization/AuthGuard.hpp>
 #include <OmniData/DataMapper.hpp>
 
 namespace omnisphere::services
 {
-    PaymentMethodService::PaymentMethodService(std::shared_ptr<omnisphere::repositories::PaymentMethodRepository> repository)
-        : m_repository(std::move(repository)) {}
+    PaymentMethodService::PaymentMethodService(
+        std::shared_ptr<omnisphere::repositories::PaymentMethodRepository> repository,
+        std::shared_ptr<omnisphere::services::Authorization> authService)
+        : m_repository(std::move(repository)),
+          m_authService(std::move(authService)) {}
 
-    PaymentMethodService::PaymentMethodService(std::shared_ptr<omnisphere::data::DatabasePool> dbPool)
-        : m_repository(std::make_shared<omnisphere::repositories::PaymentMethodRepository>(std::move(dbPool))) {}
+    PaymentMethodService::PaymentMethodService(
+        std::shared_ptr<omnisphere::data::DatabasePool> dbPool,
+        std::shared_ptr<omnisphere::services::Authorization> authService)
+        : m_repository(std::make_shared<omnisphere::repositories::PaymentMethodRepository>(dbPool)),
+          m_authService(authService ? std::move(authService) : std::make_shared<omnisphere::services::Authorization>(dbPool)) {}
 
     bool PaymentMethodService::Create(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::CreatePaymentMethodInput& input, const std::vector<std::string>& mutationFields) const
     {
+        AUTHORIZE(ctx, "MOD_PAYMENTS", "PAYMENTS_METHOD_CREATE");
         if (!m_repository) return false;
         auto mutableInput = input;
         if (ctx.isAuthenticated() && !ctx.userCode.empty() && (mutableInput.CreatedBy.empty() || mutableInput.CreatedBy == "SYSTEM"))
@@ -22,6 +30,7 @@ namespace omnisphere::services
 
     bool PaymentMethodService::Update(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::UpdatePaymentMethodInput& input, const std::vector<std::string>& mutationFields) const
     {
+        AUTHORIZE(ctx, "MOD_PAYMENTS", "PAYMENTS_METHOD_UPDATE");
         if (!m_repository) return false;
         auto mutableInput = input;
         if (ctx.isAuthenticated() && !ctx.userCode.empty() && (mutableInput.LastUpdatedBy.empty() || mutableInput.LastUpdatedBy == "SYSTEM"))
@@ -31,8 +40,9 @@ namespace omnisphere::services
         return m_repository->Update(mutableInput, mutationFields);
     }
 
-    bool PaymentMethodService::Delete(const omnisphere::models::SecurityContext& /*ctx*/, int entry) const
+    bool PaymentMethodService::Delete(const omnisphere::models::SecurityContext& ctx, int entry) const
     {
+        AUTHORIZE(ctx, "MOD_PAYMENTS", "PAYMENTS_METHOD_DELETE");
         if (!m_repository) return false;
         return m_repository->Delete(entry);
     }

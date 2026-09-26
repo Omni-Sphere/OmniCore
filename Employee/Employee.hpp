@@ -1,6 +1,7 @@
 #pragma once
 #include "Employee/Repositories/Employee.hpp"
 #include "Authorization/Models/SecurityContext.hpp"
+#include "Authorization/Authorization.hpp"
 #include <memory>
 #include <vector>
 #include <optional>
@@ -12,10 +13,17 @@ namespace omnisphere::services
     {
     private:
         std::shared_ptr<omnisphere::repositories::Employee> m_repository;
+        std::shared_ptr<omnisphere::services::Authorization> m_authService;
 
     public:
-        explicit Employee(std::shared_ptr<omnisphere::repositories::Employee> repository);
-        explicit Employee(std::shared_ptr<omnisphere::data::DatabasePool> dbPool);
+        explicit Employee(
+            std::shared_ptr<omnisphere::repositories::Employee> repository,
+            std::shared_ptr<omnisphere::services::Authorization> authService = nullptr
+        );
+        explicit Employee(
+            std::shared_ptr<omnisphere::data::DatabasePool> dbPool,
+            std::shared_ptr<omnisphere::services::Authorization> authService = nullptr
+        );
         ~Employee() = default;
 
         bool Create(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::CreateEmployee& employee, const std::vector<std::string>& mutationFields = {}) const;

@@ -1,15 +1,23 @@
 #include "Employee/Employee.hpp"
+#include "Authorization/AuthGuard.hpp"
 
 namespace omnisphere::services
 {
-    Employee::Employee(std::shared_ptr<omnisphere::repositories::Employee> repository)
-        : m_repository(std::move(repository)) {}
+    Employee::Employee(
+        std::shared_ptr<omnisphere::repositories::Employee> repository,
+        std::shared_ptr<omnisphere::services::Authorization> authService)
+        : m_repository(std::move(repository)),
+          m_authService(std::move(authService)) {}
 
-    Employee::Employee(std::shared_ptr<omnisphere::data::DatabasePool> dbPool)
-        : m_repository(std::make_shared<omnisphere::repositories::Employee>(std::move(dbPool))) {}
+    Employee::Employee(
+        std::shared_ptr<omnisphere::data::DatabasePool> dbPool,
+        std::shared_ptr<omnisphere::services::Authorization> authService)
+        : m_repository(std::make_shared<omnisphere::repositories::Employee>(dbPool)),
+          m_authService(authService ? std::move(authService) : std::make_shared<omnisphere::services::Authorization>(dbPool)) {}
 
     bool Employee::Create(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::CreateEmployee& employee, const std::vector<std::string>& mutationFields) const
     {
+        AUTHORIZE(ctx, "MOD_USERS", "CORE_USER_CREATE");
         if (!m_repository) return false;
         auto mutableDto = employee;
         if (ctx.isAuthenticated() && !ctx.userCode.empty() && (mutableDto.createdBy.empty() || mutableDto.createdBy == "SYSTEM"))
@@ -21,6 +29,7 @@ namespace omnisphere::services
 
     bool Employee::Update(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::UpdateEmployee& employee, const std::vector<std::string>& mutationFields) const
     {
+        AUTHORIZE(ctx, "MOD_USERS", "CORE_USER_UPDATE");
         if (!m_repository) return false;
         auto mutableDto = employee;
         if (ctx.isAuthenticated() && !ctx.userCode.empty() && !mutableDto.lastUpdatedBy.has_value())
@@ -30,8 +39,9 @@ namespace omnisphere::services
         return m_repository->Update(mutableDto, mutationFields);
     }
 
-    bool Employee::Delete(const omnisphere::models::SecurityContext& /*ctx*/, const std::string& code, const std::vector<std::string>& mutationFields) const
+    bool Employee::Delete(const omnisphere::models::SecurityContext& ctx, const std::string& code, const std::vector<std::string>& mutationFields) const
     {
+        AUTHORIZE(ctx, "MOD_USERS", "CORE_USER_DELETE");
         if (!m_repository) return false;
         return m_repository->Delete(code, mutationFields);
     }
