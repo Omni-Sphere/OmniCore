@@ -81,9 +81,10 @@ bool User::ModifyPassword(const omnisphere::dtos::ChangePassword &cPass) const {
       throw std::invalid_argument("User Code doesn't exist");
 
     // Validación de seguridad a nivel de Core:
-    // Si UpdatedBy coincide con Code (o si no se especifica UpdatedBy),
-    // se trata del mismo usuario modificando su propia clave -> OldPassword es estrictamente obligatorio
-    bool isSelf = !cPass.UpdatedBy.has_value() || (cPass.UpdatedBy.value() == cPass.Code);
+    // Si se especifica clave temporal (ChangePasswordNextLogin == true), o si UpdatedBy es distinto de Code,
+    // no se trata de un cambio propio ordinario. Si es el mismo usuario cambiando su clave, OldPassword es obligatorio.
+    bool isSelf = (!cPass.UpdatedBy.has_value() || cPass.UpdatedBy.value().empty() || (cPass.UpdatedBy.value() == cPass.Code))
+                  && (!cPass.ChangePasswordNextLogin.has_value() || !cPass.ChangePasswordNextLogin.value());
 
     if (isSelf) {
       if (!cPass.OldPassword.has_value() || cPass.OldPassword.value().empty()) {
@@ -95,7 +96,9 @@ bool User::ModifyPassword(const omnisphere::dtos::ChangePassword &cPass) const {
       }
     }
 
-    bool nextLogin = isSelf ? false : cPass.ChangePasswordNextLogin.value_or(true);
+    bool nextLogin = cPass.ChangePasswordNextLogin.has_value()
+                         ? cPass.ChangePasswordNextLogin.value()
+                         : (isSelf ? false : true);
 
     if (pimpl->user->UpdatePassword(omnisphere::enums::UserFilter::Code,
                                     cPass.Code,
