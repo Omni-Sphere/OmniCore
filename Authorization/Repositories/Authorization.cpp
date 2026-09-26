@@ -165,13 +165,15 @@ namespace omnisphere::repositories
                 };
                 std::string sql = omnisphere::types::BuildInsertQuery("\"AuthorizationAuditLog\"", columns);
 
+                bool isGranted = (entry.status == "GRANTED" || entry.status == "true" || entry.status == "1");
+
                 std::vector<omnisphere::types::SQLParam> params = {
                     omnisphere::types::MakeSQLParam(ctx.userCode),
                     omnisphere::types::MakeSQLParam(ctx.grantedByCode),
                     omnisphere::types::MakeSQLParam(entry.module),
                     omnisphere::types::MakeSQLParam(entry.permission),
                     omnisphere::types::MakeSQLParam(entry.resourceCode),
-                    omnisphere::types::MakeSQLParam(entry.status),
+                    omnisphere::types::MakeSQLParam(isGranted),
                     omnisphere::types::MakeSQLParam(entry.reason)
                 };
 
