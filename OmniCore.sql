@@ -1360,6 +1360,7 @@ CREATE TABLE IF NOT EXISTS "RolePermissions" (
     "PermissionCode" VARCHAR(50) NOT NULL,
     "ModuleCode" VARCHAR(50) NOT NULL,
     "IsAllowed" BOOLEAN NOT NULL DEFAULT true,
+    "AllowOverride" BOOLEAN NOT NULL DEFAULT false,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
     "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1367,6 +1368,7 @@ CREATE TABLE IF NOT EXISTS "RolePermissions" (
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "UQ_RolePermissions" UNIQUE ("RoleCode", "PermissionCode")
 );
+ALTER TABLE "RolePermissions" ADD COLUMN IF NOT EXISTS "AllowOverride" BOOLEAN NOT NULL DEFAULT false;
 CREATE INDEX IF NOT EXISTS "IDX_RolePermissions_RoleCode" ON "RolePermissions" ("RoleCode");
 
 -- E. UserPermissions
@@ -1376,6 +1378,7 @@ CREATE TABLE IF NOT EXISTS "UserPermissions" (
     "PermissionCode" VARCHAR(50) NOT NULL,
     "ModuleCode" VARCHAR(50) NOT NULL,
     "IsAllowed" BOOLEAN NOT NULL DEFAULT true,
+    "AllowOverride" BOOLEAN NOT NULL DEFAULT false,
     "GrantedByCode" VARCHAR(50),
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
     "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
@@ -1384,6 +1387,7 @@ CREATE TABLE IF NOT EXISTS "UserPermissions" (
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "UQ_UserPermissions" UNIQUE ("UserCode", "PermissionCode")
 );
+ALTER TABLE "UserPermissions" ADD COLUMN IF NOT EXISTS "AllowOverride" BOOLEAN NOT NULL DEFAULT false;
 CREATE INDEX IF NOT EXISTS "IDX_UserPermissions_UserCode" ON "UserPermissions" ("UserCode");
 
 -- F. AuthorizationAuditLog

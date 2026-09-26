@@ -9,6 +9,7 @@ namespace omnisphere::dtos
     {
         std::string roleCode;
         std::vector<std::string> permissions;
+        std::vector<std::string> overridePermissions;
     };
-    BOOST_DESCRIBE_STRUCT(SetRolePermissionsInput, (), (roleCode, permissions))
+    BOOST_DESCRIBE_STRUCT(SetRolePermissionsInput, (), (roleCode, permissions, overridePermissions))
 } // namespace omnisphere::dtos

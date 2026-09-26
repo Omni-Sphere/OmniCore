@@ -173,6 +173,34 @@ namespace omnisphere::services
         return {};
     }
 
+    std::vector<std::string> Authorization::GetUserOverridePermissions(const std::string& userCode) const
+    {
+        if (m_repository)
+        {
+            return m_repository->GetUserOverridePermissions(userCode);
+        }
+        return {};
+    }
+
+    std::vector<std::string> Authorization::GetRoleOverridePermissions(const std::string& roleCode) const
+    {
+        if (m_repository)
+        {
+            return m_repository->GetRoleOverridePermissions(roleCode);
+        }
+        return {};
+    }
+
+    bool Authorization::CanRequestOverride(const omnisphere::models::SecurityContext& ctx, const std::string& permission) const
+    {
+        if (!ctx.isAuthenticated() || ctx.userCode.empty()) return false;
+        if (m_repository)
+        {
+            return m_repository->CheckPermissionOverride(ctx.userCode, permission);
+        }
+        return false;
+    }
+
     std::vector<omnisphere::models::Role> Authorization::GetAllRoles(const std::vector<std::string>& fields) const
     {
         if (m_repository)

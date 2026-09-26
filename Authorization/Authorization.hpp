@@ -49,6 +49,9 @@ namespace omnisphere::services
         std::vector<omnisphere::models::PermissionModule> GetPermissionsCatalog() const;
         std::vector<std::string> GetUserPermissions(const std::string& userCode) const;
         std::vector<std::string> GetRolePermissions(const std::string& roleCode) const;
+        std::vector<std::string> GetUserOverridePermissions(const std::string& userCode) const;
+        std::vector<std::string> GetRoleOverridePermissions(const std::string& roleCode) const;
+        bool CanRequestOverride(const omnisphere::models::SecurityContext& ctx, const std::string& permission) const;
         std::vector<omnisphere::models::Role> GetAllRoles(const std::vector<std::string>& fields = {}) const;
 
         omnisphere::models::AuthorizationResult SetUserPermissions(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::SetUserPermissionsInput& input) const;

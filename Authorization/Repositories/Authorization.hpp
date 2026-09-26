@@ -34,6 +34,9 @@ namespace omnisphere::repositories
         std::vector<omnisphere::models::PermissionModule> GetPermissionsCatalog() const;
         std::vector<std::string> GetUserPermissions(const std::string& userCode) const;
         std::vector<std::string> GetRolePermissions(const std::string& roleCode) const;
+        std::vector<std::string> GetUserOverridePermissions(const std::string& userCode) const;
+        std::vector<std::string> GetRoleOverridePermissions(const std::string& roleCode) const;
+        bool CheckPermissionOverride(const std::string& userCode, const std::string& permission) const;
         std::vector<omnisphere::models::Role> GetAllRoles(const std::vector<std::string>& fields = {}) const;
 
         bool SetUserPermissions(const omnisphere::dtos::SetUserPermissionsInput& input) const;
