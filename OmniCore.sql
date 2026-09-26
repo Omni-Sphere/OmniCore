@@ -1482,8 +1482,13 @@ INSERT INTO "Permissions" ("Code", "Name", "Description", "ModuleCode") VALUES
 -- 10. Configuración
 ('MODULE_SETTINGS_ACCESS', 'Acceso a Configuración', 'Permite visualizar parámetros globales y sistema', 'MOD_SETTINGS'),
 ('ROUTE_CONFIG_UPDATE', 'Modificar Parámetros', 'Permite cambiar datos de la empresa, impuestos y divisas', 'MOD_SETTINGS'),
+('MODULE_LICENSE_ACCESS', 'Acceso a Licenciamiento', 'Permite consultar y activar licencias de OmniSphere', 'MOD_SETTINGS'),
 
--- 11. Personal y Roles
+-- 11. Planes y Membresías
+('MODULE_MEMBERSHIPS_ACCESS', 'Acceso a Planes y Membresías', 'Permite gestionar planes y programas de lealtad', 'MOD_MEMBERSHIPS'),
+('MEMBERSHIPS_MANAGE', 'Administrar Planes', 'Permite crear o modificar beneficios y membresías', 'MOD_MEMBERSHIPS'),
+
+-- 12. Personal y Roles
 ('MODULE_USERS_ACCESS', 'Acceso a Personal', 'Permite acceder a la administración de usuarios y accesos', 'MOD_USERS'),
 ('CORE_USER_CREATE', 'Registrar Empleado/Usuario', 'Permite dar de alta nuevos colaboradores y cuentas de acceso', 'MOD_USERS'),
 ('CORE_USER_UPDATE', 'Modificar Usuario', 'Permite editar datos personales, teléfonos y estatus', 'MOD_USERS'),
