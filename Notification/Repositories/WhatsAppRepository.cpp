@@ -32,9 +32,10 @@ namespace omnisphere::repositories
     bool WhatsAppRepository::SaveSettings(const omnisphere::models::WhatsAppSettings& settings) const
     {
         if (!m_dbPool) return false;
+        auto conn = m_dbPool->Acquire();
         try
         {
-            auto conn = m_dbPool->Acquire();
+            conn->BeginTransaction();
             auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::WhatsAppSettings>({});
             auto qp = omnisphere::types::BuildQueryParts(selectFields, {});
             std::string selectSql = "SELECT " + qp.SelectClause + " FROM \"WhatsAppSettings\" LIMIT 1";
@@ -99,7 +100,11 @@ namespace omnisphere::repositories
                 };
 
                 auto updateQuery = omnisphere::types::BuildUpdateQuery("\"WhatsAppSettings\"", updateCols, "\"Code\"", omnisphere::types::MakeSQLParam(std::string("DEFAULT")));
-                return conn->RunPrepared(updateQuery.Query, updateQuery.Parameters);
+                if (!conn->RunPrepared(updateQuery.Query, updateQuery.Parameters))
+                {
+                    conn->RollbackTransaction();
+                    return false;
+                }
             }
             else
             {
@@ -120,11 +125,18 @@ namespace omnisphere::repositories
                     omnisphere::types::MakeSQLParam(settings.isActive),
                     omnisphere::types::MakeSQLParam(settings.createdBy)
                 };
-                return conn->RunPrepared(sql, params);
+                if (!conn->RunPrepared(sql, params))
+                {
+                    conn->RollbackTransaction();
+                    return false;
+                }
             }
+            conn->CommitTransaction();
+            return true;
         }
         catch (const std::exception& ex)
         {
+            conn->RollbackTransaction();
             std::cerr << "[WhatsAppRepository::SaveSettings Exception] " << ex.what() << std::endl;
             return false;
         }
@@ -133,9 +145,9 @@ namespace omnisphere::repositories
     int WhatsAppRepository::GetOrCreateConversation(const std::string& customerPhone, const std::string& customerName) const
     {
         if (!m_dbPool || customerPhone.empty()) return 0;
+        auto conn = m_dbPool->Acquire();
         try
         {
-            auto conn = m_dbPool->Acquire();
             std::vector<std::string> selectFields = {"\"Entry\""};
             std::vector<omnisphere::types::Condition> conditions = {{"", "\"CustomerPhone\"", "=", "?"}};
             auto qp = omnisphere::types::BuildQueryParts(selectFields, conditions);
@@ -147,8 +159,9 @@ namespace omnisphere::repositories
                 return dt[0]["Entry"];
             }
 
+            conn->BeginTransaction();
             omnisphere::repositories::IdentityRepository identityRepo(m_dbPool);
-            std::string code = identityRepo.GetNextCode("WhatsAppConversation", "WAC");
+            std::string code = identityRepo.GetNextCode(conn, "WhatsAppConversation", "WAC");
             if (code.empty()) code = "WAC1";
 
             std::vector<std::string> insertCols = {"\"Code\"", "\"CustomerPhone\"", "\"CustomerName\"", "\"Status\"", "\"IsActive\"", "\"CreatedBy\""};
@@ -164,12 +177,15 @@ namespace omnisphere::repositories
             auto insertDt = conn->FetchPrepared(insertSql, insertParams);
             if (insertDt.RowsCount() > 0)
             {
+                conn->CommitTransaction();
                 return insertDt[0]["Entry"];
             }
+            conn->RollbackTransaction();
             return 0;
         }
         catch (const std::exception& ex)
         {
+            conn->RollbackTransaction();
             std::cerr << "[WhatsAppRepository::GetOrCreateConversation Exception] " << ex.what() << std::endl;
             return 0;
         }
@@ -224,14 +240,14 @@ namespace omnisphere::repositories
     bool WhatsAppRepository::LogMessage(const omnisphere::models::WhatsAppMessage& msg) const
     {
         if (!m_dbPool) return false;
+        auto conn = m_dbPool->Acquire();
         try
         {
-            auto conn = m_dbPool->Acquire();
-
+            conn->BeginTransaction();
             omnisphere::repositories::IdentityRepository identityRepo(m_dbPool);
             std::string msgCode = (msg.code.has_value() && !msg.code.value().empty() && msg.code.value().rfind("WAM", 0) == 0)
                 ? msg.code.value()
-                : identityRepo.GetNextCode("WhatsAppMessage", "WAM");
+                : identityRepo.GetNextCode(conn, "WhatsAppMessage", "WAM");
             if (msgCode.empty()) msgCode = "WAM1";
 
             std::string waId = msg.whatsAppId.value_or("");
@@ -263,18 +279,31 @@ namespace omnisphere::repositories
             };
 
             bool ok = conn->RunPrepared(sql, params);
-            if (ok && msg.content.has_value() && !msg.content.value().empty())
+            if (!ok)
+            {
+                conn->RollbackTransaction();
+                return false;
+            }
+
+            if (msg.content.has_value() && !msg.content.value().empty())
             {
                 std::vector<omnisphere::types::ColumnValue> updateCols = {
                     {"\"LastMessageText\"", omnisphere::types::MakeSQLParam(msg.content.value())}
                 };
                 auto updateQuery = omnisphere::types::BuildUpdateQuery("\"WhatsAppConversations\"", updateCols, "\"Entry\"", omnisphere::types::MakeSQLParam(msg.conversationEntry));
-                conn->RunPrepared(updateQuery.Query, updateQuery.Parameters);
+                if (!conn->RunPrepared(updateQuery.Query, updateQuery.Parameters))
+                {
+                    conn->RollbackTransaction();
+                    return false;
+                }
             }
-            return ok;
+
+            conn->CommitTransaction();
+            return true;
         }
         catch (const std::exception& ex)
         {
+            conn->RollbackTransaction();
             std::cerr << "[WhatsAppRepository::LogMessage Exception] " << ex.what() << std::endl;
             return false;
         }
@@ -283,9 +312,10 @@ namespace omnisphere::repositories
     bool WhatsAppRepository::UpdateMessageStatus(const std::string& wamidCode, const std::string& newStatus, const std::string& responsePayload) const
     {
         if (!m_dbPool || wamidCode.empty()) return false;
+        auto conn = m_dbPool->Acquire();
         try
         {
-            auto conn = m_dbPool->Acquire();
+            conn->BeginTransaction();
             std::string sql = "UPDATE \"WhatsAppMessages\" SET \"Status\" = ?, \"ResponsePayload\" = ? WHERE \"WhatsAppId\" = ? OR \"Code\" = ?";
             std::vector<omnisphere::types::SQLParam> params = {
                 omnisphere::types::MakeSQLParam(newStatus),
@@ -293,10 +323,17 @@ namespace omnisphere::repositories
                 omnisphere::types::MakeSQLParam(wamidCode),
                 omnisphere::types::MakeSQLParam(wamidCode)
             };
-            return conn->RunPrepared(sql, params);
+            if (!conn->RunPrepared(sql, params))
+            {
+                conn->RollbackTransaction();
+                return false;
+            }
+            conn->CommitTransaction();
+            return true;
         }
         catch (const std::exception& ex)
         {
+            conn->RollbackTransaction();
             std::cerr << "[WhatsAppRepository::UpdateMessageStatus Exception] " << ex.what() << std::endl;
             return false;
         }
@@ -472,9 +509,11 @@ namespace omnisphere::repositories
             {
                 try
                 {
+                    conn->BeginTransaction();
                     conn->RunPrepared("UPDATE \"CustomMessages\" SET \"MessageType\" = 'INTERACTIVE_BUTTON' WHERE \"Code\" = 'TPL_WELCOME_WITH_RESERVATION'", {});
                     conn->RunPrepared("DELETE FROM \"CustomButtons\" WHERE \"MessageCode\" = 'TPL_WELCOME_WITH_RESERVATION'", {});
                     conn->RunPrepared("INSERT INTO \"CustomButtons\" (\"MessageCode\", \"ButtonId\", \"Title\", \"SortOrder\", \"CreatedBy\") VALUES ('TPL_WELCOME_WITH_RESERVATION', 'BTN_DETAILS_{folio}', 'Ver Detalles', 1, 'SYSTEM')", {});
+                    conn->CommitTransaction();
                     
                     msg.messageType = "INTERACTIVE_BUTTON";
                     msg.buttons = GetButtonsForMessageCode(msg.code);
@@ -485,6 +524,7 @@ namespace omnisphere::repositories
                 }
                 catch (const std::exception& ex)
                 {
+                    conn->RollbackTransaction();
                     std::cerr << "[Self-healing Exception] " << ex.what() << std::endl;
                 }
             }
@@ -543,9 +583,10 @@ namespace omnisphere::repositories
     bool WhatsAppRepository::SaveCustomMessage(const omnisphere::models::CustomMessage& msg) const
     {
         if (!m_dbPool || msg.code.empty()) return false;
+        auto conn = m_dbPool->Acquire();
         try
         {
-            auto conn = m_dbPool->Acquire();
+            conn->BeginTransaction();
             auto existing = GetCustomMessageByCode(msg.code);
             bool ok = false;
             int insertedEntry = 0;
@@ -601,14 +642,26 @@ namespace omnisphere::repositories
                 insertedEntry = existing->entry;
             }
 
-            if (ok && !msg.buttons.empty())
+            if (!ok)
             {
-                SaveButtonsForMessage(insertedEntry, msg.code, msg.buttons);
+                conn->RollbackTransaction();
+                return false;
             }
-            return ok;
+
+            if (!msg.buttons.empty())
+            {
+                if (!SaveButtonsForMessage(insertedEntry, msg.code, msg.buttons))
+                {
+                    conn->RollbackTransaction();
+                    return false;
+                }
+            }
+            conn->CommitTransaction();
+            return true;
         }
         catch (const std::exception& ex)
         {
+            conn->RollbackTransaction();
             std::cerr << "[WhatsAppRepository::SaveCustomMessage Exception] " << ex.what() << std::endl;
             return false;
         }
@@ -622,9 +675,10 @@ namespace omnisphere::repositories
     ) const
     {
         if (!m_dbPool) return false;
+        auto conn = m_dbPool->Acquire();
         try
         {
-            auto conn = m_dbPool->Acquire();
+            conn->BeginTransaction();
             std::string sql =
                 "UPDATE \"CustomMessages\" SET "
                 "  \"MetaStatus\" = ?, "
@@ -643,10 +697,17 @@ namespace omnisphere::repositories
                 omnisphere::types::MakeSQLParam(templateName),
                 omnisphere::types::MakeSQLParam(templateName)
             };
-            return conn->RunPrepared(sql, params);
+            if (!conn->RunPrepared(sql, params))
+            {
+                conn->RollbackTransaction();
+                return false;
+            }
+            conn->CommitTransaction();
+            return true;
         }
         catch (const std::exception& ex)
         {
+            conn->RollbackTransaction();
             std::cerr << "[WhatsAppRepository::UpdateMetaTemplateStatus Exception] " << ex.what() << std::endl;
             return false;
         }
@@ -659,18 +720,27 @@ namespace omnisphere::repositories
     ) const
     {
         if (!m_dbPool || (messageEntry <= 0 && messageCode.empty())) return false;
+        auto conn = m_dbPool->Acquire();
         try
         {
-            auto conn = m_dbPool->Acquire();
+            conn->BeginTransaction();
             if (messageEntry > 0)
             {
-                conn->RunPrepared("DELETE FROM \"CustomButtons\" WHERE \"MessageEntry\" = ?",
-                    { omnisphere::types::MakeSQLParam(messageEntry) });
+                if (!conn->RunPrepared("DELETE FROM \"CustomButtons\" WHERE \"MessageEntry\" = ?",
+                    { omnisphere::types::MakeSQLParam(messageEntry) }))
+                {
+                    conn->RollbackTransaction();
+                    return false;
+                }
             }
             if (!messageCode.empty())
             {
-                conn->RunPrepared("DELETE FROM \"CustomButtons\" WHERE \"MessageCode\" = ?",
-                    { omnisphere::types::MakeSQLParam(messageCode) });
+                if (!conn->RunPrepared("DELETE FROM \"CustomButtons\" WHERE \"MessageCode\" = ?",
+                    { omnisphere::types::MakeSQLParam(messageCode) }))
+                {
+                    conn->RollbackTransaction();
+                    return false;
+                }
             }
 
             int sortOrder = 1;
@@ -690,12 +760,18 @@ namespace omnisphere::repositories
                     omnisphere::types::MakeSQLParam(btn.sortOrder > 0 ? btn.sortOrder : sortOrder++),
                     omnisphere::types::MakeSQLParam(!btn.createdBy.empty() ? btn.createdBy : std::string("SYSTEM"))
                 };
-                conn->RunPrepared(sql, params);
+                if (!conn->RunPrepared(sql, params))
+                {
+                    conn->RollbackTransaction();
+                    return false;
+                }
             }
+            conn->CommitTransaction();
             return true;
         }
         catch (const std::exception& ex)
         {
+            conn->RollbackTransaction();
             std::cerr << "[WhatsAppRepository::SaveButtonsForMessage Exception] " << ex.what() << std::endl;
             return false;
         }

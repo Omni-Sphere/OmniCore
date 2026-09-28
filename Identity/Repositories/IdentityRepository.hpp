@@ -19,6 +19,8 @@ namespace omnisphere::repositories
         ~IdentityRepository() = default;
 
         bool Create(const omnisphere::dtos::CreateIdentityInput& input) const;
+        std::string GetNextCode(omnisphere::data::IDatabase* conn, const std::string& domain, const std::string& defaultPrefix = "", int prefixIndex = 1) const;
+        std::string GetNextCode(omnisphere::data::DatabasePool::Handle& conn, const std::string& domain, const std::string& defaultPrefix = "", int prefixIndex = 1) const;
         std::string GetNextCode(const std::string& domain, const std::string& defaultPrefix = "", int prefixIndex = 1) const;
         omnisphere::types::DataTable ReadAll(const std::vector<std::string>& fields = {}) const;
         omnisphere::types::DataTable GetByDomain(const std::string& domain, const std::vector<std::string>& fields = {}) const;

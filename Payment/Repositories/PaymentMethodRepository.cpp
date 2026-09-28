@@ -18,29 +18,44 @@ namespace omnisphere::repositories
         {
             throw std::runtime_error("No se permiten detalles de transferencia para formas de pago que usan integración");
         }
+        auto conn = m_dbPool->Acquire();
         try
         {
-            auto conn = m_dbPool->Acquire();
+            conn->BeginTransaction();
 
             omnisphere::dtos::CreatePaymentMethodInput tempInput = input;
             IdentityRepository identityRepo(m_dbPool);
-            tempInput.Code = identityRepo.GetNextCode("PaymentMethod", "PMT");
+            tempInput.Code = identityRepo.GetNextCode(conn, "PaymentMethod", "PMT");
             const_cast<omnisphere::dtos::CreatePaymentMethodInput&>(input).Code = tempInput.Code;
 
             auto insertResult = omnisphere::types::BuildInsertQuery("\"PaymentMethods\"", 0, tempInput, mutationFields);
             bool ok = conn->RunPrepared(insertResult.Query, insertResult.Parameters);
-            if (ok && !input.UsesIntegration && input.Details.has_value())
+            if (!ok)
             {
-                SaveDetail(tempInput.Code, *input.Details, input.CreatedBy);
+                conn->RollbackTransaction();
+                return false;
             }
-            return ok;
+
+            if (!input.UsesIntegration && input.Details.has_value())
+            {
+                if (!SaveDetail(tempInput.Code, *input.Details, input.CreatedBy))
+                {
+                    conn->RollbackTransaction();
+                    return false;
+                }
+            }
+
+            conn->CommitTransaction();
+            return true;
         }
         catch (const std::runtime_error&)
         {
+            conn->RollbackTransaction();
             throw;
         }
         catch (const std::exception& ex)
         {
+            conn->RollbackTransaction();
             std::cerr << "[PaymentMethodRepository::Create Exception] " << ex.what() << std::endl;
             return false;
         }
@@ -53,9 +68,10 @@ namespace omnisphere::repositories
         {
             throw std::runtime_error("No se permiten detalles de transferencia para formas de pago que usan integración");
         }
+        auto conn = m_dbPool->Acquire();
         try
         {
-            auto conn = m_dbPool->Acquire();
+            conn->BeginTransaction();
 
             std::string code;
             bool currentUsesIntegration = false;
@@ -74,6 +90,7 @@ namespace omnisphere::repositories
             bool effectivelyUsesIntegration = input.UsesIntegration.value_or(currentUsesIntegration);
             if (effectivelyUsesIntegration && input.Details.has_value())
             {
+                conn->RollbackTransaction();
                 throw std::runtime_error("No se permiten detalles de transferencia para formas de pago que usan integración");
             }
 
@@ -87,6 +104,7 @@ namespace omnisphere::repositories
                 );
                 if (!conn->RunPrepared(updateResult.Query, updateResult.Parameters))
                 {
+                    conn->RollbackTransaction();
                     return false;
                 }
             }
@@ -103,14 +121,17 @@ namespace omnisphere::repositories
                 }
             }
 
+            conn->CommitTransaction();
             return true;
         }
         catch (const std::runtime_error&)
         {
+            conn->RollbackTransaction();
             throw;
         }
         catch (const std::exception& ex)
         {
+            conn->RollbackTransaction();
             std::cerr << "[PaymentMethodRepository::Update Exception] " << ex.what() << std::endl;
             return false;
         }
@@ -119,19 +140,27 @@ namespace omnisphere::repositories
     bool PaymentMethodRepository::Delete(int entry) const
     {
         if (!m_dbPool || entry <= 0) return false;
+        auto conn = m_dbPool->Acquire();
         try
         {
-            auto conn = m_dbPool->Acquire();
+            conn->BeginTransaction();
             std::vector<omnisphere::types::ColumnValue> updateCols = {
                 {"\"IsActive\"", omnisphere::types::MakeSQLParam(false)}
             };
             auto updateResult = omnisphere::types::BuildUpdateQuery(
                 "\"PaymentMethods\"", updateCols, "\"Entry\"", omnisphere::types::MakeSQLParam(entry)
             );
-            return conn->RunPrepared(updateResult.Query, updateResult.Parameters);
+            if (!conn->RunPrepared(updateResult.Query, updateResult.Parameters))
+            {
+                conn->RollbackTransaction();
+                return false;
+            }
+            conn->CommitTransaction();
+            return true;
         }
         catch (const std::exception& ex)
         {
+            conn->RollbackTransaction();
             std::cerr << "[PaymentMethodRepository::Delete Exception] " << ex.what() << std::endl;
             return false;
         }

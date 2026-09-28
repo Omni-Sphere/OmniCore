@@ -144,11 +144,12 @@ namespace omnisphere::repositories
     bool StripeRepository::SaveSession(const omnisphere::models::StripeSession& session) const
     {
         if (!m_dbPool) return false;
+        auto conn = m_dbPool->Acquire();
         try
         {
-            auto conn = m_dbPool->Acquire();
+            conn->BeginTransaction();
             omnisphere::repositories::IdentityRepository identityRepo(m_dbPool);
-            std::string codeVal = session.code.empty() ? identityRepo.GetNextCode("StripeSession", "STS") : session.code;
+            std::string codeVal = session.code.empty() ? identityRepo.GetNextCode(conn, "StripeSession", "STS") : session.code;
             if (codeVal.empty()) codeVal = "STS1";
             std::vector<std::string> cols = {
                 "\"Code\"", "\"ReservationCode\"", "\"StripeSessionId\"", "\"PaymentIntentId\"",
@@ -168,10 +169,17 @@ namespace omnisphere::repositories
                 omnisphere::types::MakeSQLParam(session.createdBy)
             };
 
-            return conn->RunPrepared(sql, params);
+            if (!conn->RunPrepared(sql, params))
+            {
+                conn->RollbackTransaction();
+                return false;
+            }
+            conn->CommitTransaction();
+            return true;
         }
         catch (const std::exception& ex)
         {
+            conn->RollbackTransaction();
             std::cerr << "[StripeRepository::SaveSession Exception] " << ex.what() << std::endl;
             return false;
         }
@@ -258,11 +266,12 @@ namespace omnisphere::repositories
     bool StripeRepository::SaveTransaction(const omnisphere::models::StripeTransaction& tx) const
     {
         if (!m_dbPool) return false;
+        auto conn = m_dbPool->Acquire();
         try
         {
-            auto conn = m_dbPool->Acquire();
+            conn->BeginTransaction();
             omnisphere::repositories::IdentityRepository identityRepo(m_dbPool);
-            std::string codeVal = tx.code.empty() ? identityRepo.GetNextCode("StripeTransaction", "STX") : tx.code;
+            std::string codeVal = tx.code.empty() ? identityRepo.GetNextCode(conn, "StripeTransaction", "STX") : tx.code;
             if (codeVal.empty()) codeVal = "STX1";
 
             std::vector<std::string> cols = {
@@ -297,10 +306,17 @@ namespace omnisphere::repositories
                 omnisphere::types::MakeSQLParam(tx.createdBy)
             };
 
-            return conn->RunPrepared(sql, params);
+            if (!conn->RunPrepared(sql, params))
+            {
+                conn->RollbackTransaction();
+                return false;
+            }
+            conn->CommitTransaction();
+            return true;
         }
         catch (const std::exception& ex)
         {
+            conn->RollbackTransaction();
             std::cerr << "[StripeRepository::SaveTransaction Exception] " << ex.what() << std::endl;
             return false;
         }

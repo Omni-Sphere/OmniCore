@@ -50,12 +50,11 @@ namespace omnisphere::repositories
         return defaultVal;
     }
 
-    std::string IdentityRepository::GetNextCode(const std::string& domain, const std::string& defaultPrefix, int prefixIndex) const
+    std::string IdentityRepository::GetNextCode(omnisphere::data::IDatabase* conn, const std::string& domain, const std::string& defaultPrefix, int prefixIndex) const
     {
-        if (!m_dbPool) return "";
+        if (!conn) return "";
         try
         {
-            auto conn = m_dbPool->Acquire();
             std::string sqlUpdate = "UPDATE \"Identities\" SET \"CurrentSequence\" = \"CurrentSequence\" + 1, \"UpdateDate\" = NOW() "
                                     "WHERE \"Domain\" = ? RETURNING \"Prefix1\", \"Prefix2\", \"Prefix3\", \"CurrentSequence\"";
             std::vector<omnisphere::types::SQLParam> params = { omnisphere::types::MakeSQLParam(domain) };
@@ -107,6 +106,26 @@ namespace omnisphere::repositories
         catch (const std::exception& ex)
         {
             std::cerr << "[IdentityRepository::GetNextCode Exception] " << ex.what() << std::endl;
+        }
+        return "";
+    }
+
+    std::string IdentityRepository::GetNextCode(omnisphere::data::DatabasePool::Handle& conn, const std::string& domain, const std::string& defaultPrefix, int prefixIndex) const
+    {
+        return GetNextCode(conn.operator->(), domain, defaultPrefix, prefixIndex);
+    }
+
+    std::string IdentityRepository::GetNextCode(const std::string& domain, const std::string& defaultPrefix, int prefixIndex) const
+    {
+        if (!m_dbPool) return "";
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            return GetNextCode(conn.operator->(), domain, defaultPrefix, prefixIndex);
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[IdentityRepository::GetNextCode Acquire Exception] " << ex.what() << std::endl;
         }
         return "";
     }
