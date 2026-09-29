@@ -484,6 +484,10 @@ CREATE TABLE IF NOT EXISTS "Reservations" (
 
 ALTER TABLE "Reservations" ADD COLUMN IF NOT EXISTS "ExpiresAt" TIMESTAMPTZ;
 
+-- Migrar "PaymentMethod" de ENUM a VARCHAR para soportar códigos del catálogo (e.g., "PMT2")
+ALTER TABLE "Reservations" ALTER COLUMN "PaymentMethod" TYPE VARCHAR(50) USING "PaymentMethod"::text;
+
+
 CREATE INDEX IF NOT EXISTS "IDX_Reservations_EventCode_Active" ON "Reservations" ("EventCode") WHERE "IsActive" = true;
 CREATE INDEX IF NOT EXISTS "IDX_Reservations_RouteCode_Active" ON "Reservations" ("RouteCode") WHERE "IsActive" = true;
 CREATE INDEX IF NOT EXISTS "IDX_Reservations_Phone_Active" ON "Reservations" ("Phone") WHERE "IsActive" = true;
