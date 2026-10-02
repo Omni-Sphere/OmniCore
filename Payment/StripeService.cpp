@@ -454,6 +454,7 @@ namespace omnisphere::services
                 tcp::resolver resolver(ioc);
                 auto const results = resolver.resolve(host, port);
                 boost::asio::connect(stream->next_layer(), results.begin(), results.end());
+                stream->next_layer().set_option(tcp::no_delay(true));
                 stream->handshake(ssl::stream_base::client);
             };
 
