@@ -48,19 +48,22 @@ namespace omnisphere::services
 
         std::optional<omnisphere::models::Payment> GetByCode(
             const omnisphere::models::SecurityContext& ctx,
-            const std::string& code
+            const std::string& code,
+            const std::vector<std::string>& requestedFields = {}
         ) const;
 
         std::optional<omnisphere::models::Payment> GetByEntity(
             const omnisphere::models::SecurityContext& ctx,
             const std::string& entityType,
-            const std::string& entityCode
+            const std::string& entityCode,
+            const std::vector<std::string>& requestedFields = {}
         ) const;
 
         std::vector<omnisphere::models::Payment> GetAll(
             const omnisphere::models::SecurityContext& ctx,
             const std::optional<std::string>& entityType = std::nullopt,
-            const std::optional<std::string>& entityCode = std::nullopt
+            const std::optional<std::string>& entityCode = std::nullopt,
+            const std::vector<std::string>& requestedFields = {}
         ) const;
     };
 } // namespace omnisphere::services

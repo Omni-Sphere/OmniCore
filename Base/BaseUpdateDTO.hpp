@@ -12,6 +12,12 @@ struct BaseUpdateDTO {
         LastUpdatedBy(std::move(_LastUpdatedBy)), UpdateDate(std::move(_UpdateDate)) {
     Validate();
   }
+  BaseUpdateDTO(std::string _Code, std::optional<std::string> _Name,
+                int _LastUpdatedBy, std::string _UpdateDate)
+      : Code(std::move(_Code)), Name(std::move(_Name)),
+        LastUpdatedBy(std::to_string(_LastUpdatedBy)), UpdateDate(std::move(_UpdateDate)) {
+    Validate();
+  }
 
   const std::string Code;
   const std::optional<std::string> Name;

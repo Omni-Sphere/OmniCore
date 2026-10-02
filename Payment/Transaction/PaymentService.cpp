@@ -53,30 +53,33 @@ namespace omnisphere::services
 
     std::optional<omnisphere::models::Payment> PaymentService::GetByCode(
         const omnisphere::models::SecurityContext& /*ctx*/,
-        const std::string& code
+        const std::string& code,
+        const std::vector<std::string>& requestedFields
     ) const
     {
         if (!m_repository) return std::nullopt;
-        return m_repository->GetByCode(code);
+        return m_repository->GetByCode(code, requestedFields);
     }
 
     std::optional<omnisphere::models::Payment> PaymentService::GetByEntity(
         const omnisphere::models::SecurityContext& /*ctx*/,
         const std::string& entityType,
-        const std::string& entityCode
+        const std::string& entityCode,
+        const std::vector<std::string>& requestedFields
     ) const
     {
         if (!m_repository) return std::nullopt;
-        return m_repository->GetByEntity(entityType, entityCode);
+        return m_repository->GetByEntity(entityType, entityCode, requestedFields);
     }
 
     std::vector<omnisphere::models::Payment> PaymentService::GetAll(
         const omnisphere::models::SecurityContext& /*ctx*/,
         const std::optional<std::string>& entityType,
-        const std::optional<std::string>& entityCode
+        const std::optional<std::string>& entityCode,
+        const std::vector<std::string>& requestedFields
     ) const
     {
         if (!m_repository) return {};
-        return m_repository->GetAll(entityType, entityCode);
+        return m_repository->GetAll(entityType, entityCode, requestedFields);
     }
 } // namespace omnisphere::services

@@ -18,6 +18,14 @@ public:
         LastUpdatedBy(std::move(_LastUpdatedBy)), UpdateDate(std::move(_UpdateDate)) {
     Validate();
   }
+  BaseModel(int _Entry, std::string _Code, std::string _Name, int _CreatedBy,
+            std::string _CreateDate, std::optional<int> _LastUpdatedBy,
+            std::optional<std::string> _UpdateDate)
+      : Entry(_Entry), Code(std::move(_Code)), Name(std::move(_Name)),
+        CreatedBy(std::to_string(_CreatedBy)), CreateDate(std::move(_CreateDate)),
+        LastUpdatedBy(_LastUpdatedBy.has_value() ? std::optional<std::string>(std::to_string(*_LastUpdatedBy)) : std::nullopt), UpdateDate(std::move(_UpdateDate)) {
+    Validate();
+  }
 
   int Entry;
   std::string Code;

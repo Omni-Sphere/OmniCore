@@ -325,21 +325,30 @@ namespace omnisphere::repositories
         }
     }
 
-    std::optional<omnisphere::models::Payment> PaymentRepository::GetByCode(const std::string& code) const
+    std::optional<omnisphere::models::Payment> PaymentRepository::GetByCode(const std::string& code, const std::vector<std::string>& requestedFields) const
     {
         if (!m_dbPool || code.empty()) return std::nullopt;
         try
         {
             auto conn = m_dbPool->Acquire();
-            std::vector<omnisphere::types::SQLParam> params = { omnisphere::types::MakeSQLParam(code) };
+            auto fields = omnisphere::types::FilterModelFields<omnisphere::models::Payment>(requestedFields);
+            std::vector<omnisphere::types::Condition> conds = {
+                {"", "\"Code\"", "=", "?"},
+                {"", "\"IsActive\"", "=", "?"}
+            };
+            auto qp = omnisphere::types::BuildQueryParts(fields, conds);
+            std::vector<omnisphere::types::SQLParam> params = {
+                omnisphere::types::MakeSQLParam(code),
+                omnisphere::types::MakeSQLParam(true)
+            };
 
-            auto dt = conn->FetchPrepared("SELECT * FROM \"TransferTransactions\" WHERE \"Code\" = ? AND \"IsActive\" = true LIMIT 1", params);
+            auto dt = conn->FetchPrepared("SELECT " + qp.SelectClause + " FROM \"TransferTransactions\" WHERE " + qp.WhereClause + " LIMIT 1", params);
             if (!dt.IsEmpty()) return MapTransferRow(dt[0]);
 
-            dt = conn->FetchPrepared("SELECT * FROM \"CashTransactions\" WHERE \"Code\" = ? AND \"IsActive\" = true LIMIT 1", params);
+            dt = conn->FetchPrepared("SELECT " + qp.SelectClause + " FROM \"CashTransactions\" WHERE " + qp.WhereClause + " LIMIT 1", params);
             if (!dt.IsEmpty()) return MapCashRow(dt[0]);
 
-            dt = conn->FetchPrepared("SELECT * FROM \"CardTransactions\" WHERE \"Code\" = ? AND \"IsActive\" = true LIMIT 1", params);
+            dt = conn->FetchPrepared("SELECT " + qp.SelectClause + " FROM \"CardTransactions\" WHERE " + qp.WhereClause + " LIMIT 1", params);
             if (!dt.IsEmpty()) return MapCardRow(dt[0]);
 
             return std::nullopt;
@@ -351,24 +360,53 @@ namespace omnisphere::repositories
         }
     }
 
-    std::optional<omnisphere::models::Payment> PaymentRepository::GetByEntity(const std::string& entityType, const std::string& entityCode) const
+    std::optional<omnisphere::models::Payment> PaymentRepository::GetByEntity(const std::string& entityType, const std::string& entityCode, const std::vector<std::string>& requestedFields) const
     {
         if (!m_dbPool || entityCode.empty()) return std::nullopt;
         try
         {
             auto conn = m_dbPool->Acquire();
-            std::vector<omnisphere::types::SQLParam> params = {
-                omnisphere::types::MakeSQLParam(entityType),
-                omnisphere::types::MakeSQLParam(entityCode)
-            };
+            auto fields = omnisphere::types::FilterModelFields<omnisphere::models::Payment>(requestedFields);
 
-            auto dt = conn->FetchPrepared("SELECT * FROM \"TransferTransactions\" WHERE \"EntityType\" = ? AND \"EntityCode\" = ? AND \"IsActive\" = true ORDER BY \"Entry\" DESC LIMIT 1", params);
+            std::string whereClause;
+            std::vector<omnisphere::types::SQLParam> params;
+
+            if (entityType == "ROUTE_RESERVATION" || entityType == "RESERVATION")
+            {
+                whereClause = "\"EntityType\" IN ('ROUTE_RESERVATION', 'RESERVATION') AND \"EntityCode\" = ? AND \"IsActive\" = ?";
+                params = {
+                    omnisphere::types::MakeSQLParam(entityCode),
+                    omnisphere::types::MakeSQLParam(true)
+                };
+            }
+            else if (!entityType.empty())
+            {
+                whereClause = "\"EntityType\" = ? AND \"EntityCode\" = ? AND \"IsActive\" = ?";
+                params = {
+                    omnisphere::types::MakeSQLParam(entityType),
+                    omnisphere::types::MakeSQLParam(entityCode),
+                    omnisphere::types::MakeSQLParam(true)
+                };
+            }
+            else
+            {
+                whereClause = "\"EntityCode\" = ? AND \"IsActive\" = ?";
+                params = {
+                    omnisphere::types::MakeSQLParam(entityCode),
+                    omnisphere::types::MakeSQLParam(true)
+                };
+            }
+
+            std::vector<omnisphere::types::Condition> dummyConds;
+            auto qp = omnisphere::types::BuildQueryParts(fields, dummyConds);
+
+            auto dt = conn->FetchPrepared("SELECT " + qp.SelectClause + " FROM \"TransferTransactions\" WHERE " + whereClause + " ORDER BY \"Entry\" DESC LIMIT 1", params);
             if (!dt.IsEmpty()) return MapTransferRow(dt[0]);
 
-            dt = conn->FetchPrepared("SELECT * FROM \"CashTransactions\" WHERE \"EntityType\" = ? AND \"EntityCode\" = ? AND \"IsActive\" = true ORDER BY \"Entry\" DESC LIMIT 1", params);
+            dt = conn->FetchPrepared("SELECT " + qp.SelectClause + " FROM \"CashTransactions\" WHERE " + whereClause + " ORDER BY " + "\"Entry\" DESC LIMIT 1", params);
             if (!dt.IsEmpty()) return MapCashRow(dt[0]);
 
-            dt = conn->FetchPrepared("SELECT * FROM \"CardTransactions\" WHERE \"EntityType\" = ? AND \"EntityCode\" = ? AND \"IsActive\" = true ORDER BY \"Entry\" DESC LIMIT 1", params);
+            dt = conn->FetchPrepared("SELECT " + qp.SelectClause + " FROM \"CardTransactions\" WHERE " + whereClause + " ORDER BY " + "\"Entry\" DESC LIMIT 1", params);
             if (!dt.IsEmpty()) return MapCardRow(dt[0]);
 
             return std::nullopt;
@@ -380,20 +418,31 @@ namespace omnisphere::repositories
         }
     }
 
-    std::vector<omnisphere::models::Payment> PaymentRepository::GetAll(const std::optional<std::string>& entityType, const std::optional<std::string>& entityCode) const
+    std::vector<omnisphere::models::Payment> PaymentRepository::GetAll(const std::optional<std::string>& entityType, const std::optional<std::string>& entityCode, const std::vector<std::string>& requestedFields) const
     {
         std::vector<omnisphere::models::Payment> results;
         if (!m_dbPool) return results;
         try
         {
             auto conn = m_dbPool->Acquire();
-            std::string where = " WHERE \"IsActive\" = true";
-            std::vector<omnisphere::types::SQLParam> params;
+            auto fields = omnisphere::types::FilterModelFields<omnisphere::models::Payment>(requestedFields);
+            std::vector<omnisphere::types::Condition> dummyConds;
+            auto qp = omnisphere::types::BuildQueryParts(fields, dummyConds);
+
+            std::string where = " WHERE \"IsActive\" = ?";
+            std::vector<omnisphere::types::SQLParam> params = { omnisphere::types::MakeSQLParam(true) };
 
             if (entityType && !entityType->empty())
             {
-                where += " AND \"EntityType\" = ?";
-                params.push_back(omnisphere::types::MakeSQLParam(*entityType));
+                if (*entityType == "ROUTE_RESERVATION" || *entityType == "RESERVATION")
+                {
+                    where += " AND \"EntityType\" IN ('ROUTE_RESERVATION', 'RESERVATION')";
+                }
+                else
+                {
+                    where += " AND \"EntityType\" = ?";
+                    params.push_back(omnisphere::types::MakeSQLParam(*entityType));
+                }
             }
             if (entityCode && !entityCode->empty())
             {
@@ -401,13 +450,13 @@ namespace omnisphere::repositories
                 params.push_back(omnisphere::types::MakeSQLParam(*entityCode));
             }
 
-            auto dt1 = conn->FetchPrepared("SELECT * FROM \"TransferTransactions\"" + where + " ORDER BY \"Entry\" DESC", params);
+            auto dt1 = conn->FetchPrepared("SELECT " + qp.SelectClause + " FROM \"TransferTransactions\"" + where + " ORDER BY \"Entry\" DESC", params);
             for (auto& row : dt1) results.push_back(MapTransferRow(row));
 
-            auto dt2 = conn->FetchPrepared("SELECT * FROM \"CashTransactions\"" + where + " ORDER BY \"Entry\" DESC", params);
+            auto dt2 = conn->FetchPrepared("SELECT " + qp.SelectClause + " FROM \"CashTransactions\"" + where + " ORDER BY \"Entry\" DESC", params);
             for (auto& row : dt2) results.push_back(MapCashRow(row));
 
-            auto dt3 = conn->FetchPrepared("SELECT * FROM \"CardTransactions\"" + where + " ORDER BY \"Entry\" DESC", params);
+            auto dt3 = conn->FetchPrepared("SELECT " + qp.SelectClause + " FROM \"CardTransactions\"" + where + " ORDER BY \"Entry\" DESC", params);
             for (auto& row : dt3) results.push_back(MapCardRow(row));
 
             return results;

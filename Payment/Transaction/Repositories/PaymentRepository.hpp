@@ -31,8 +31,8 @@ namespace omnisphere::repositories
         bool Update(const omnisphere::dtos::UpdatePaymentInput& input, const std::string& type) const;
         bool Delete(const std::string& code, const std::string& type) const;
 
-        std::optional<omnisphere::models::Payment> GetByCode(const std::string& code) const;
-        std::optional<omnisphere::models::Payment> GetByEntity(const std::string& entityType, const std::string& entityCode) const;
-        std::vector<omnisphere::models::Payment> GetAll(const std::optional<std::string>& entityType = std::nullopt, const std::optional<std::string>& entityCode = std::nullopt) const;
+        std::optional<omnisphere::models::Payment> GetByCode(const std::string& code, const std::vector<std::string>& requestedFields = {}) const;
+        std::optional<omnisphere::models::Payment> GetByEntity(const std::string& entityType, const std::string& entityCode, const std::vector<std::string>& requestedFields = {}) const;
+        std::vector<omnisphere::models::Payment> GetAll(const std::optional<std::string>& entityType = std::nullopt, const std::optional<std::string>& entityCode = std::nullopt, const std::vector<std::string>& requestedFields = {}) const;
     };
 } // namespace omnisphere::repositories
