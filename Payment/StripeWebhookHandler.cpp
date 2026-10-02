@@ -160,6 +160,7 @@ namespace omnisphere::services
                     std::string paymentIntentId = "";
                     double amount = 0.0;
                     std::string currency = "mxn";
+                    std::string detectedMethod = "CARD";
 
                     if (obj.contains("data") && obj.at("data").is_object())
                     {
@@ -195,6 +196,22 @@ namespace omnisphere::services
                                 if (pd.contains("order_reference") && pd.at("order_reference").is_string())
                                 {
                                     sessionId = std::string(pd.at("order_reference").as_string());
+                                }
+                            }
+
+                            if (sessObj.contains("payment_method_types") && sessObj.at("payment_method_types").is_array())
+                            {
+                                for (const auto& pmt : sessObj.at("payment_method_types").as_array())
+                                {
+                                    if (pmt.is_string())
+                                    {
+                                        std::string t = std::string(pmt.as_string());
+                                        if (t == "customer_balance" || t == "spei" || t == "bank_transfer")
+                                        {
+                                            detectedMethod = "TRANSFER";
+                                            break;
+                                        }
+                                    }
                                 }
                             }
 
@@ -252,29 +269,12 @@ namespace omnisphere::services
                         }
                     }
 
-                    std::string detectedMethod = "CARD";
-                    if (sessObj.contains("payment_method_types") && sessObj.at("payment_method_types").is_array())
-                    {
-                        for (const auto& pmt : sessObj.at("payment_method_types").as_array())
-                        {
-                            if (pmt.is_string())
-                            {
-                                std::string t = std::string(pmt.as_string());
-                                if (t == "customer_balance" || t == "spei" || t == "bank_transfer")
-                                {
-                                    detectedMethod = "TRANSFER";
-                                    break;
-                                }
-                            }
-                        }
-                    }
-
                     if (m_repo && !paymentIntentId.empty())
                     {
                         auto txOpt = m_repo->GetTransactionByPaymentIntent(paymentIntentId);
-                        if (txOpt.has_value() && !txOpt->paymentMethodType.empty())
+                        if (txOpt.has_value() && txOpt->paymentMethodType.has_value() && !txOpt->paymentMethodType->empty())
                         {
-                            if (txOpt->paymentMethodType == "spei" || txOpt->paymentMethodType == "customer_balance")
+                            if (*txOpt->paymentMethodType == "spei" || *txOpt->paymentMethodType == "customer_balance")
                                 detectedMethod = "TRANSFER";
                             else
                                 detectedMethod = "CARD";
