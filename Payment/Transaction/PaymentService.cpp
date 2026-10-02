@@ -65,11 +65,12 @@ namespace omnisphere::services
         const omnisphere::models::SecurityContext& /*ctx*/,
         const std::string& entityType,
         const std::string& entityCode,
+        const std::optional<std::string>& paymentTypeHint,
         const std::vector<std::string>& requestedFields
     ) const
     {
         if (!m_repository) return std::nullopt;
-        return m_repository->GetByEntity(entityType, entityCode, requestedFields);
+        return m_repository->GetByEntity(entityType, entityCode, paymentTypeHint, requestedFields);
     }
 
     std::vector<omnisphere::models::Payment> PaymentService::GetAll(

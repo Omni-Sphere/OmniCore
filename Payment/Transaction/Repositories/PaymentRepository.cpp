@@ -360,7 +360,12 @@ namespace omnisphere::repositories
         }
     }
 
-    std::optional<omnisphere::models::Payment> PaymentRepository::GetByEntity(const std::string& entityType, const std::string& entityCode, const std::vector<std::string>& requestedFields) const
+    std::optional<omnisphere::models::Payment> PaymentRepository::GetByEntity(
+        const std::string& entityType,
+        const std::string& entityCode,
+        const std::optional<std::string>& paymentTypeHint,
+        const std::vector<std::string>& requestedFields
+    ) const
     {
         if (!m_dbPool || entityCode.empty()) return std::nullopt;
         try
@@ -400,14 +405,37 @@ namespace omnisphere::repositories
             std::vector<omnisphere::types::Condition> dummyConds;
             auto qp = omnisphere::types::BuildQueryParts(fields, dummyConds);
 
-            auto dt = conn->FetchPrepared("SELECT " + qp.SelectClause + " FROM \"TransferTransactions\" WHERE " + whereClause + " ORDER BY \"Entry\" DESC LIMIT 1", params);
-            if (!dt.IsEmpty()) return MapTransferRow(dt[0]);
+            std::string normType = paymentTypeHint.value_or("");
+            std::transform(normType.begin(), normType.end(), normType.begin(), ::toupper);
 
-            dt = conn->FetchPrepared("SELECT " + qp.SelectClause + " FROM \"CashTransactions\" WHERE " + whereClause + " ORDER BY " + "\"Entry\" DESC LIMIT 1", params);
-            if (!dt.IsEmpty()) return MapCashRow(dt[0]);
+            bool checkTransfer = normType.empty() || normType == "TRANSFER" || normType == "SPEI";
+            bool checkCash     = normType.empty() || normType == "CASH";
+            bool checkCard     = normType.empty() || normType == "CARD" || normType == "STRIPE";
 
-            dt = conn->FetchPrepared("SELECT " + qp.SelectClause + " FROM \"CardTransactions\" WHERE " + whereClause + " ORDER BY " + "\"Entry\" DESC LIMIT 1", params);
-            if (!dt.IsEmpty()) return MapCardRow(dt[0]);
+            if (!checkTransfer && !checkCash && !checkCard)
+            {
+                checkTransfer = true;
+                checkCash = true;
+                checkCard = true;
+            }
+
+            if (checkTransfer)
+            {
+                auto dt = conn->FetchPrepared("SELECT " + qp.SelectClause + " FROM \"TransferTransactions\" WHERE " + whereClause + " ORDER BY \"Entry\" DESC LIMIT 1", params);
+                if (!dt.IsEmpty()) return MapTransferRow(dt[0]);
+            }
+
+            if (checkCash)
+            {
+                auto dt = conn->FetchPrepared("SELECT " + qp.SelectClause + " FROM \"CashTransactions\" WHERE " + whereClause + " ORDER BY \"Entry\" DESC LIMIT 1", params);
+                if (!dt.IsEmpty()) return MapCashRow(dt[0]);
+            }
+
+            if (checkCard)
+            {
+                auto dt = conn->FetchPrepared("SELECT " + qp.SelectClause + " FROM \"CardTransactions\" WHERE " + whereClause + " ORDER BY \"Entry\" DESC LIMIT 1", params);
+                if (!dt.IsEmpty()) return MapCardRow(dt[0]);
+            }
 
             return std::nullopt;
         }

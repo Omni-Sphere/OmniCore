@@ -56,6 +56,7 @@ namespace omnisphere::services
             const omnisphere::models::SecurityContext& ctx,
             const std::string& entityType,
             const std::string& entityCode,
+            const std::optional<std::string>& paymentTypeHint = std::nullopt,
             const std::vector<std::string>& requestedFields = {}
         ) const;
 
