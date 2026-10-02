@@ -378,6 +378,82 @@ namespace omnisphere::services
                     if (!res.clientSecret.empty())
                     {
                         res.success = true;
+
+                        if (m_repository) {
+                            omnisphere::models::StripeTransaction tx;
+                            tx.code = "TX-CARD-" + (res.paymentIntentId.length() > 12 ? res.paymentIntentId.substr(0, 12) : res.paymentIntentId);
+                            tx.reservationCode = reservationCode;
+                            tx.paymentIntentId = res.paymentIntentId;
+                            tx.amount = amount;
+                            tx.currency = curr;
+                            tx.status = "requires_payment_method";
+                            tx.paymentMethodType = "card";
+                            std::string creator = !ctx.userCode.empty() ? ctx.userCode : "system";
+                            tx.createdBy = creator;
+
+                            if (!m_repository->SaveTransaction(tx)) {
+                                omnisphere::utils::Logger::LogError("StripeService", "[Card] Failed to persist StripeTransaction for [" + reservationCode + "]");
+                            }
+                        }
+
+                        if (m_dbPool && !reservationCode.empty()) {
+                            std::string paymentMethodCode = "";
+                            try {
+                                auto conn = m_dbPool->Acquire();
+                                auto dtRes = conn->FetchPrepared(
+                                    "SELECT \"PaymentMethod\" FROM \"Reservations\" WHERE \"Code\" = ?",
+                                    { omnisphere::types::MakeSQLParam(reservationCode) }
+                                );
+                                if (dtRes.RowsCount() > 0 && dtRes[0].HasColumn("PaymentMethod") && !dtRes[0]["PaymentMethod"].IsNull()) {
+                                    paymentMethodCode = (std::string)dtRes[0]["PaymentMethod"];
+                                }
+                            } catch (...) {}
+
+                            if (paymentMethodCode.empty() || paymentMethodCode == "NOT_APPLICABLE" || paymentMethodCode == "CASH" || paymentMethodCode == "TRANSFER") {
+                                try {
+                                    auto conn = m_dbPool->Acquire();
+                                    auto dtPm = conn->FetchResults(
+                                        "SELECT \"Code\" FROM \"PaymentMethods\" WHERE \"Type\" IN ('CARD', 'STRIPE') AND \"IsActive\" = true ORDER BY \"Entry\" ASC LIMIT 1"
+                                    );
+                                    if (dtPm.RowsCount() > 0 && dtPm[0].HasColumn("Code") && !dtPm[0]["Code"].IsNull()) {
+                                        paymentMethodCode = (std::string)dtPm[0]["Code"];
+                                    }
+                                } catch (...) {}
+                            }
+                            if (paymentMethodCode.empty()) {
+                                paymentMethodCode = "PMT3";
+                            }
+
+                            try {
+                                auto conn = m_dbPool->Acquire();
+                                std::string updateSql = "UPDATE \"Reservations\" SET \"PaymentReference\" = ?, \"PaymentMethod\" = ? WHERE \"Code\" = ?";
+                                std::vector<omnisphere::types::SQLParam> updateParams = {
+                                    omnisphere::types::MakeSQLParam(res.paymentIntentId),
+                                    omnisphere::types::MakeSQLParam(paymentMethodCode),
+                                    omnisphere::types::MakeSQLParam(reservationCode)
+                                };
+                                conn->RunPrepared(updateSql, updateParams);
+                            } catch (...) {}
+
+                            try {
+                                omnisphere::repositories::PaymentRepository paymentRepo(m_dbPool);
+                                omnisphere::dtos::CreatePaymentInput pInput;
+                                pInput.PaymentCode = paymentMethodCode;
+                                pInput.Type = "CARD";
+                                pInput.EntityType = "ROUTE_RESERVATION";
+                                pInput.EntityCode = reservationCode;
+                                pInput.Amount = amount;
+                                pInput.Currency = curr;
+                                pInput.Status = "PENDING";
+                                pInput.PaymentIntentId = res.paymentIntentId;
+                                pInput.Provider = "STRIPE";
+                                std::string creator = !ctx.userCode.empty() ? ctx.userCode : "system";
+                                pInput.CreatedBy = creator;
+                                paymentRepo.Create(pInput);
+                            } catch (const std::exception& exRepo) {
+                                omnisphere::utils::Logger::LogError("StripeService", "[Card] Error creating CardTransactions row: " + std::string(exRepo.what()));
+                            }
+                        }
                     }
                 }
             }

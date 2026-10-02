@@ -252,6 +252,35 @@ namespace omnisphere::services
                         }
                     }
 
+                    std::string detectedMethod = "CARD";
+                    if (sessObj.contains("payment_method_types") && sessObj.at("payment_method_types").is_array())
+                    {
+                        for (const auto& pmt : sessObj.at("payment_method_types").as_array())
+                        {
+                            if (pmt.is_string())
+                            {
+                                std::string t = std::string(pmt.as_string());
+                                if (t == "customer_balance" || t == "spei" || t == "bank_transfer")
+                                {
+                                    detectedMethod = "TRANSFER";
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (m_repo && !paymentIntentId.empty())
+                    {
+                        auto txOpt = m_repo->GetTransactionByPaymentIntent(paymentIntentId);
+                        if (txOpt.has_value() && !txOpt->paymentMethodType.empty())
+                        {
+                            if (txOpt->paymentMethodType == "spei" || txOpt->paymentMethodType == "customer_balance")
+                                detectedMethod = "TRANSFER";
+                            else
+                                detectedMethod = "CARD";
+                        }
+                    }
+
                     omnisphere::payment::PaymentEvent hookEvent;
                     hookEvent.eventId = eventId;
                     hookEvent.entityType = "ROUTE_RESERVATION";
@@ -259,6 +288,7 @@ namespace omnisphere::services
                     hookEvent.paymentIntentId = paymentIntentId;
                     hookEvent.sessionId = sessionId;
                     hookEvent.provider = "STRIPE";
+                    hookEvent.paymentMethod = detectedMethod;
                     hookEvent.amount = amount;
                     hookEvent.currency = currency;
 
