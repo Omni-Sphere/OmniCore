@@ -303,7 +303,7 @@ namespace omnisphere::repositories
                 omnisphere::types::MakeSQLParam(tx.hostedInstructionsUrl.value_or("")),
                 omnisphere::types::MakeSQLParam(tx.clientIp.value_or("")),
                 omnisphere::types::MakeSQLParam(tx.isActive),
-                omnisphere::types::MakeSQLParam(tx.createdBy)
+                omnisphere::types::MakeSQLParam(tx.createdBy.empty() ? std::string("system") : tx.createdBy)
             };
 
             if (!conn->RunPrepared(sql, params))

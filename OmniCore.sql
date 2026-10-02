@@ -247,6 +247,10 @@ INSERT INTO "Identities" ("Domain", "Prefix1", "CurrentSequence") VALUES
 ('PaymentTransaction', 'TXN', 0),
 ('StripeSession', 'STS', 0),
 ('StripeTransaction', 'STX', 0),
+('StripeTransactions', 'STX', 0),
+('TransferTransactions', 'TRF', 0),
+('CashTransactions', 'CSH', 0),
+('CardTransactions', 'CRD', 0),
 ('User', 'USR', 0)
 ON CONFLICT ("Domain") DO NOTHING;
 
@@ -727,6 +731,8 @@ ALTER TABLE "StripeTransactions" ADD COLUMN IF NOT EXISTS "PaymentMethodType" VA
 ALTER TABLE "StripeTransactions" ADD COLUMN IF NOT EXISTS "Clabe" VARCHAR(50);
 ALTER TABLE "StripeTransactions" ADD COLUMN IF NOT EXISTS "BankName" VARCHAR(100);
 ALTER TABLE "StripeTransactions" ADD COLUMN IF NOT EXISTS "HostedInstructionsUrl" TEXT;
+ALTER TABLE "StripeTransactions" ALTER COLUMN "CreatedBy" TYPE VARCHAR(50) USING "CreatedBy"::VARCHAR;
+ALTER TABLE "StripeTransactions" ALTER COLUMN "LastUpdatedBy" TYPE VARCHAR(50) USING "LastUpdatedBy"::VARCHAR;
 
 CREATE INDEX IF NOT EXISTS "IDX_StripeTransactions_ReservationCode" ON "StripeTransactions" ("ReservationCode");
 CREATE INDEX IF NOT EXISTS "IDX_StripeTransactions_PaymentIntentId" ON "StripeTransactions" ("PaymentIntentId");

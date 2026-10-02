@@ -23,12 +23,17 @@ namespace omnisphere::services
     }
 
     std::optional<omnisphere::models::Payment> PaymentService::Create(
-        const omnisphere::models::SecurityContext& /*ctx*/,
+        const omnisphere::models::SecurityContext& ctx,
         const omnisphere::dtos::CreatePaymentInput& input
     ) const
     {
         if (!m_repository) return std::nullopt;
-        return m_repository->Create(input);
+        auto mutableInput = input;
+        if (!ctx.userCode.empty() && (mutableInput.CreatedBy.empty() || mutableInput.CreatedBy == "system"))
+        {
+            mutableInput.CreatedBy = ctx.userCode;
+        }
+        return m_repository->Create(mutableInput);
     }
 
     bool PaymentService::Update(

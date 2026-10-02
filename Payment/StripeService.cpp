@@ -1,4 +1,5 @@
 #include "Payment/StripeService.hpp"
+#include "Payment/Transaction/Repositories/PaymentRepository.hpp"
 #include <OmniUtils/Base64.hpp>
 #include <OmniUtils/Logger.hpp>
 #include <boost/asio/connect.hpp>
@@ -246,8 +247,8 @@ namespace omnisphere::services
                         dbSession.checkoutUrl = res.checkoutUrl;
                         dbSession.amount = amount;
                         dbSession.currency = curr;
-                        dbSession.status = "open";
-                        dbSession.createdBy = "SYSTEM";
+                        std::string creator = !ctx.userCode.empty() ? ctx.userCode : "system";
+                        dbSession.createdBy = creator;
 
                         if (m_repository)
                         {
@@ -567,7 +568,8 @@ namespace omnisphere::services
                             tx.clabe = res.clabe;
                             tx.bankName = res.bankName;
                             tx.hostedInstructionsUrl = res.hostedInstructionsUrl;
-                            tx.createdBy = "SYSTEM";
+                            std::string creator = !ctx.userCode.empty() ? ctx.userCode : "system";
+                            tx.createdBy = creator;
 
                             m_repository->SaveTransaction(tx);
                         }
@@ -582,6 +584,28 @@ namespace omnisphere::services
                                 };
                                 conn->RunPrepared(updateSql, updateParams);
                             } catch (...) {}
+
+                            try {
+                                omnisphere::repositories::PaymentRepository paymentRepo(m_dbPool);
+                                omnisphere::dtos::CreatePaymentInput pInput;
+                                pInput.PaymentCode = reservationCode;
+                                pInput.Type = "TRANSFER";
+                                pInput.EntityType = "ROUTE_RESERVATION";
+                                pInput.EntityCode = reservationCode;
+                                pInput.Amount = amount;
+                                pInput.Currency = "mxn";
+                                pInput.Status = "PENDING";
+                                pInput.BankName = res.bankName;
+                                pInput.Clabe = res.clabe;
+                                pInput.PaymentReference = res.paymentIntentId;
+                                pInput.ReceiptUrl = res.hostedInstructionsUrl;
+                                std::string creator = !ctx.userCode.empty() ? ctx.userCode : "system";
+                                pInput.CreatedBy = creator;
+
+                                paymentRepo.Create(pInput);
+                            } catch (const std::exception& ex) {
+                                omnisphere::utils::Logger::LogWarning("StripeService", "[BankTransfer] Could not save to TransferTransactions: " + std::string(ex.what()));
+                            }
                         }
                     }
                 }

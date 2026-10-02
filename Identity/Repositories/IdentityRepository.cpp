@@ -85,7 +85,7 @@ namespace omnisphere::repositories
                 [](unsigned char c) { return !std::isalnum(c); }), pref.end());
 
             std::string sqlInsert = "INSERT INTO \"Identities\" (\"Domain\", \"Prefix1\", \"CurrentSequence\", \"CreatedBy\", \"CreateDate\") "
-                                    "VALUES (?, ?, 1, 0, NOW()) RETURNING \"Prefix1\", \"CurrentSequence\"";
+                                    "VALUES (?, ?, 1, 'system', NOW()) RETURNING \"Prefix1\", \"CurrentSequence\"";
             std::vector<omnisphere::types::SQLParam> insertParams = {
                 omnisphere::types::MakeSQLParam(domain),
                 omnisphere::types::MakeSQLParam(pref)
