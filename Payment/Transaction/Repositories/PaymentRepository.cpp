@@ -371,7 +371,13 @@ namespace omnisphere::repositories
         try
         {
             auto conn = m_dbPool->Acquire();
-            auto fields = omnisphere::types::FilterModelFields<omnisphere::models::Payment>(requestedFields);
+            auto rawFields = omnisphere::types::FilterModelFields<omnisphere::models::Payment>(requestedFields);
+            std::vector<std::string> fields;
+            for (const auto& f : rawFields) {
+                if (f != "Type" && f != "\"Type\"" && f != "PaymentCode" && f != "\"PaymentCode\"") {
+                    fields.push_back(f);
+                }
+            }
 
             std::string whereClause;
             std::vector<omnisphere::types::SQLParam> params;
