@@ -571,7 +571,12 @@ namespace omnisphere::services
                             std::string creator = !ctx.userCode.empty() ? ctx.userCode : "system";
                             tx.createdBy = creator;
 
-                            m_repository->SaveTransaction(tx);
+                            if (!m_repository->SaveTransaction(tx)) {
+                                res.success = false;
+                                res.errorMessage = "Error guardando registro en StripeTransactions.";
+                                omnisphere::utils::Logger::LogError("StripeService", "[BankTransfer] Failed to persist StripeTransaction for [" + reservationCode + "]");
+                                return res;
+                            }
                         }
 
                         if (m_dbPool && !reservationCode.empty()) {
@@ -602,9 +607,18 @@ namespace omnisphere::services
                                 std::string creator = !ctx.userCode.empty() ? ctx.userCode : "system";
                                 pInput.CreatedBy = creator;
 
-                                paymentRepo.Create(pInput);
+                                auto createdPay = paymentRepo.Create(pInput);
+                                if (!createdPay.has_value()) {
+                                    res.success = false;
+                                    res.errorMessage = "Error guardando registro en TransferTransactions.";
+                                    omnisphere::utils::Logger::LogError("StripeService", "[BankTransfer] Failed to persist TransferTransaction for [" + reservationCode + "]");
+                                    return res;
+                                }
                             } catch (const std::exception& ex) {
-                                omnisphere::utils::Logger::LogWarning("StripeService", "[BankTransfer] Could not save to TransferTransactions: " + std::string(ex.what()));
+                                res.success = false;
+                                res.errorMessage = "Error al registrar transferencia bancaria: " + std::string(ex.what());
+                                omnisphere::utils::Logger::LogError("StripeService", "[BankTransfer] Exception saving to TransferTransactions: " + std::string(ex.what()));
+                                return res;
                             }
                         }
                     }
