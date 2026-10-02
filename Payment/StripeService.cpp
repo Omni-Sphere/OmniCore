@@ -441,37 +441,50 @@ namespace omnisphere::services
                 return escaped.str();
             };
 
-            auto sendStripePost = [&](const std::string& target, const std::string& body) -> std::pair<int, std::string> {
-                boost::asio::io_context ioc;
-                ssl::context sslCtx(ssl::context::tlsv12_client);
-                sslCtx.set_default_verify_paths();
+            std::unique_ptr<ssl::stream<tcp::socket>> stream;
+            boost::asio::io_context ioc;
+            ssl::context sslCtx(ssl::context::tlsv12_client);
+            sslCtx.set_default_verify_paths();
 
-                tcp::resolver resolver(ioc);
-                ssl::stream<tcp::socket> stream(ioc, sslCtx);
-
-                if (!SSL_set_tlsext_host_name(stream.native_handle(), host.c_str())) {
+            auto connectStream = [&]() {
+                stream = std::make_unique<ssl::stream<tcp::socket>>(ioc, sslCtx);
+                if (!SSL_set_tlsext_host_name(stream->native_handle(), host.c_str())) {
                     throw std::runtime_error("Error al configurar SNI SSL para Stripe.");
                 }
-
+                tcp::resolver resolver(ioc);
                 auto const results = resolver.resolve(host, port);
-                boost::asio::connect(stream.next_layer(), results.begin(), results.end());
-                stream.handshake(ssl::stream_base::client);
+                boost::asio::connect(stream->next_layer(), results.begin(), results.end());
+                stream->handshake(ssl::stream_base::client);
+            };
 
-                http::request<http::string_body> req{http::verb::post, target, 11};
-                req.set(http::field::host, host);
-                req.set(http::field::user_agent, "OmniSphere-C++/1.0");
-                req.set(http::field::content_type, "application/x-www-form-urlencoded");
-                req.set(http::field::authorization, "Bearer " + settings.secretKey);
-                req.body() = body;
-                req.prepare_payload();
+            auto sendStripePost = [&](const std::string& target, const std::string& body) -> std::pair<int, std::string> {
+                for (int attempt = 0; attempt < 2; ++attempt) {
+                    try {
+                        if (!stream) {
+                            connectStream();
+                        }
+                        http::request<http::string_body> req{http::verb::post, target, 11};
+                        req.set(http::field::host, host);
+                        req.set(http::field::user_agent, "OmniSphere-C++/1.0");
+                        req.set(http::field::content_type, "application/x-www-form-urlencoded");
+                        req.set(http::field::authorization, "Bearer " + settings.secretKey);
+                        req.keep_alive(true);
+                        req.body() = body;
+                        req.prepare_payload();
 
-                http::write(stream, req);
+                        http::write(*stream, req);
 
-                beast::flat_buffer buffer;
-                http::response<http::dynamic_body> response;
-                http::read(stream, buffer, response);
+                        beast::flat_buffer buffer;
+                        http::response<http::dynamic_body> response;
+                        http::read(*stream, buffer, response);
 
-                return { static_cast<int>(response.result_int()), beast::buffers_to_string(response.body().data()) };
+                        return { static_cast<int>(response.result_int()), beast::buffers_to_string(response.body().data()) };
+                    } catch (...) {
+                        stream.reset();
+                        if (attempt == 1) throw;
+                    }
+                }
+                return { 500, "{}" };
             };
 
             // Paso 1: Crear o vincular Customer en Stripe para recibir transferencia SPEI (customer_balance)
@@ -580,11 +593,39 @@ namespace omnisphere::services
                         }
 
                         if (m_dbPool && !reservationCode.empty()) {
+                            std::string paymentMethodCode = "";
                             try {
                                 auto conn = m_dbPool->Acquire();
-                                std::string updateSql = "UPDATE \"Reservations\" SET \"PaymentReference\" = ? WHERE \"Code\" = ?";
+                                auto dtRes = conn->FetchPrepared(
+                                    "SELECT \"PaymentMethod\" FROM \"Reservations\" WHERE \"Code\" = ?",
+                                    { omnisphere::types::MakeSQLParam(reservationCode) }
+                                );
+                                if (dtRes.RowsCount() > 0 && dtRes[0].HasColumn("PaymentMethod") && !dtRes[0]["PaymentMethod"].IsNull()) {
+                                    paymentMethodCode = (std::string)dtRes[0]["PaymentMethod"];
+                                }
+                            } catch (...) {}
+
+                            if (paymentMethodCode.empty() || paymentMethodCode == "NOT_APPLICABLE" || paymentMethodCode == "TRANSFER" || paymentMethodCode == "SPEI") {
+                                try {
+                                    auto conn = m_dbPool->Acquire();
+                                    auto dtPm = conn->FetchResults(
+                                        "SELECT \"Code\" FROM \"PaymentMethods\" WHERE \"Type\" IN ('TRANSFER', 'SPEI') AND \"IsActive\" = true ORDER BY \"Entry\" ASC LIMIT 1"
+                                    );
+                                    if (dtPm.RowsCount() > 0 && dtPm[0].HasColumn("Code") && !dtPm[0]["Code"].IsNull()) {
+                                        paymentMethodCode = (std::string)dtPm[0]["Code"];
+                                    }
+                                } catch (...) {}
+                            }
+                            if (paymentMethodCode.empty()) {
+                                paymentMethodCode = "PMT2";
+                            }
+
+                            try {
+                                auto conn = m_dbPool->Acquire();
+                                std::string updateSql = "UPDATE \"Reservations\" SET \"PaymentReference\" = ?, \"PaymentMethod\" = ? WHERE \"Code\" = ?";
                                 std::vector<omnisphere::types::SQLParam> updateParams = {
                                     omnisphere::types::MakeSQLParam(res.paymentIntentId),
+                                    omnisphere::types::MakeSQLParam(paymentMethodCode),
                                     omnisphere::types::MakeSQLParam(reservationCode)
                                 };
                                 conn->RunPrepared(updateSql, updateParams);
@@ -593,7 +634,7 @@ namespace omnisphere::services
                             try {
                                 omnisphere::repositories::PaymentRepository paymentRepo(m_dbPool);
                                 omnisphere::dtos::CreatePaymentInput pInput;
-                                pInput.PaymentCode = reservationCode;
+                                pInput.PaymentCode = paymentMethodCode;
                                 pInput.Type = "TRANSFER";
                                 pInput.EntityType = "ROUTE_RESERVATION";
                                 pInput.EntityCode = reservationCode;
