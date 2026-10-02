@@ -69,6 +69,8 @@ add_library(OmniCore SHARED
     Payment/StripeWebhookRouter.cpp
     Payment/PaymentMethodService.cpp
     Payment/Repositories/PaymentMethodRepository.cpp
+    Payment/Transaction/Repositories/PaymentRepository.cpp
+    Payment/Transaction/PaymentService.cpp
     Payment/Providers/PaymentProviderRegistry.cpp
     Payment/Providers/StripePaymentProvider.cpp
     Payment/Providers/OpenPayPaymentProvider.cpp
@@ -207,6 +209,10 @@ set(
     Payment/DTOs
     Payment/Models
     Payment/Repositories
+    Payment/Transaction
+    Payment/Transaction/DTOs
+    Payment/Transaction/Models
+    Payment/Transaction/Repositories
     Payment/Providers
     Payment/Hooks
     Identity
