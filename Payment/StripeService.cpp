@@ -13,6 +13,8 @@
 #include <boost/json.hpp>
 #include <iostream>
 #include <sstream>
+#include <mutex>
+#include <chrono>
 
 namespace beast = boost::beast;
 namespace http = beast::http;
@@ -446,14 +448,29 @@ namespace omnisphere::services
             ssl::context sslCtx(ssl::context::tlsv12_client);
             sslCtx.set_default_verify_paths();
 
+            static std::mutex s_stripeDnsMutex;
+            static tcp::resolver::results_type s_stripeCachedEndpoints;
+            static std::chrono::steady_clock::time_point s_stripeLastDns;
+
             auto connectStream = [&]() {
                 stream = std::make_unique<ssl::stream<tcp::socket>>(ioc, sslCtx);
                 if (!SSL_set_tlsext_host_name(stream->native_handle(), host.c_str())) {
                     throw std::runtime_error("Error al configurar SNI SSL para Stripe.");
                 }
-                tcp::resolver resolver(ioc);
-                auto const results = resolver.resolve(host, port);
-                boost::asio::connect(stream->next_layer(), results.begin(), results.end());
+
+                tcp::resolver::results_type endpoints;
+                {
+                    std::lock_guard<std::mutex> lock(s_stripeDnsMutex);
+                    auto now = std::chrono::steady_clock::now();
+                    if (s_stripeCachedEndpoints.empty() || (now - s_stripeLastDns) > std::chrono::minutes(10)) {
+                        tcp::resolver resolver(ioc);
+                        s_stripeCachedEndpoints = resolver.resolve(host, port);
+                        s_stripeLastDns = now;
+                    }
+                    endpoints = s_stripeCachedEndpoints;
+                }
+
+                boost::asio::connect(stream->next_layer(), endpoints.begin(), endpoints.end());
                 stream->next_layer().set_option(tcp::no_delay(true));
                 stream->handshake(ssl::stream_base::client);
             };
