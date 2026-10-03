@@ -9,6 +9,57 @@ namespace omnisphere::repositories
     Authorization::Authorization(std::shared_ptr<omnisphere::data::DatabasePool> dbPool)
         : m_dbPool(std::move(dbPool)) {}
 
+    bool Authorization::CheckModule(const std::string& userCode, omnisphere::enums::ModuleType module) const
+    {
+        if (!m_dbPool) return true;
+        if (userCode.empty()) return false;
+        if (userCode == "system") return true;
+
+        std::string modStr = omnisphere::enums::ModuleTypeToString(module);
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            auto userDt = conn->FetchPrepared(
+                "SELECT \"SuperUser\", \"RoleCode\", \"PermissionMode\" FROM \"Users\" WHERE \"Code\" = ? AND \"IsActive\" = true AND \"IsCanceled\" = false",
+                { omnisphere::types::MakeSQLParam(userCode) }
+            );
+
+            if (userDt.IsEmpty()) return false;
+            const auto& userRow = userDt[0];
+            if (userRow["SuperUser"].GetOptional<bool>().value_or(false)) return true;
+
+            std::string roleCode = userRow["RoleCode"].GetOptional<std::string>().value_or("");
+            if (roleCode == "ADMIN" || roleCode == "SUPERADMIN" || roleCode == "ROL_ADMIN") return true;
+
+            std::string permMode = userRow["PermissionMode"].GetOptional<std::string>().value_or("P");
+            if (permMode == "R")
+            {
+                if (roleCode.empty()) return false;
+                auto dt = conn->FetchPrepared(
+                    "SELECT COUNT(1) AS \"Allowed\" FROM \"RoleModules\" WHERE \"RoleCode\" = ? AND \"ModuleCode\" = ? AND \"IsAllowed\" = true AND \"IsActive\" = true",
+                    { omnisphere::types::MakeSQLParam(roleCode), omnisphere::types::MakeSQLParam(modStr) }
+                );
+                return !dt.IsEmpty() && dt[0]["Allowed"].GetOptional<int>().value_or(0) > 0;
+            }
+
+            auto dt = conn->FetchPrepared(
+                "SELECT COUNT(1) AS \"Allowed\" FROM \"UserModules\" WHERE \"UserCode\" = ? AND \"ModuleCode\" = ? AND \"IsAllowed\" = true AND \"IsActive\" = true",
+                { omnisphere::types::MakeSQLParam(userCode), omnisphere::types::MakeSQLParam(modStr) }
+            );
+            return !dt.IsEmpty() && dt[0]["Allowed"].GetOptional<int>().value_or(0) > 0;
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[CheckModule SQL Error] " << ex.what() << std::endl;
+        }
+        return false;
+    }
+
+    bool Authorization::CheckAction(const std::string& userCode, omnisphere::enums::PermissionType permission) const
+    {
+        return CheckPermission(userCode, omnisphere::enums::PermissionTypeToString(permission));
+    }
+
     bool Authorization::CheckPermission(const std::string& userCode, const std::string& permission) const
     {
         if (!m_dbPool) return true;
@@ -588,30 +639,29 @@ namespace omnisphere::repositories
             std::string updateModeSql = "UPDATE \"Users\" SET \"PermissionMode\" = 'P', \"UpdateDate\" = CURRENT_TIMESTAMP WHERE \"Code\" = ?";
             conn->RunPrepared(updateModeSql, { omnisphere::types::MakeSQLParam(input.userCode) });
 
-            // Permisos pasados en input.permissions (soporta directos o con prefijo OVERRIDE:)
-            for (const auto& rawPerm : input.permissions)
+            // Permisos pasados en input.permissions
+            for (auto permEnum : input.permissions)
             {
-                bool isOverride = (rawPerm.rfind("OVERRIDE:", 0) == 0);
-                std::string perm = isOverride ? rawPerm.substr(9) : rawPerm;
-                bool isAllowed = !isOverride;
-                bool allowOverride = isOverride;
+                std::string perm = omnisphere::enums::PermissionTypeToString(permEnum);
+                if (perm == "UNKNOWN") continue;
 
                 std::string insSql = "INSERT INTO \"UserPermissions\" (\"UserCode\", \"PermissionCode\", \"ModuleCode\", \"IsAllowed\", \"AllowOverride\", \"GrantedByCode\", \"IsActive\", \"UpdateDate\") "
-                                     "VALUES (?, ?, COALESCE((SELECT \"ModuleCode\" FROM \"Permissions\" WHERE \"Code\" = ? LIMIT 1), ''), ?, ?, ?, true, CURRENT_TIMESTAMP) "
-                                     "ON CONFLICT (\"UserCode\", \"PermissionCode\") DO UPDATE SET \"IsAllowed\" = EXCLUDED.\"IsAllowed\", \"AllowOverride\" = EXCLUDED.\"AllowOverride\", \"IsActive\" = true, \"GrantedByCode\" = EXCLUDED.\"GrantedByCode\", \"UpdateDate\" = CURRENT_TIMESTAMP";
+                                     "VALUES (?, ?, COALESCE((SELECT \"ModuleCode\" FROM \"Permissions\" WHERE \"Code\" = ? LIMIT 1), ''), true, false, ?, true, CURRENT_TIMESTAMP) "
+                                     "ON CONFLICT (\"UserCode\", \"PermissionCode\") DO UPDATE SET \"IsAllowed\" = true, \"AllowOverride\" = false, \"IsActive\" = true, \"GrantedByCode\" = EXCLUDED.\"GrantedByCode\", \"UpdateDate\" = CURRENT_TIMESTAMP";
                 conn->RunPrepared(insSql, {
                     omnisphere::types::MakeSQLParam(input.userCode),
                     omnisphere::types::MakeSQLParam(perm),
                     omnisphere::types::MakeSQLParam(perm),
-                    omnisphere::types::MakeSQLParam(isAllowed),
-                    omnisphere::types::MakeSQLParam(allowOverride),
                     omnisphere::types::MakeSQLParam(input.grantedByCode)
                 });
             }
 
             // Permisos pasados explícitamente en input.overridePermissions
-            for (const auto& perm : input.overridePermissions)
+            for (auto permEnum : input.overridePermissions)
             {
+                std::string perm = omnisphere::enums::PermissionTypeToString(permEnum);
+                if (perm == "UNKNOWN") continue;
+
                 std::string insSql = "INSERT INTO \"UserPermissions\" (\"UserCode\", \"PermissionCode\", \"ModuleCode\", \"IsAllowed\", \"AllowOverride\", \"GrantedByCode\", \"IsActive\", \"UpdateDate\") "
                                      "VALUES (?, ?, COALESCE((SELECT \"ModuleCode\" FROM \"Permissions\" WHERE \"Code\" = ? LIMIT 1), ''), false, true, ?, true, CURRENT_TIMESTAMP) "
                                      "ON CONFLICT (\"UserCode\", \"PermissionCode\") DO UPDATE SET \"IsAllowed\" = false, \"AllowOverride\" = true, \"IsActive\" = true, \"GrantedByCode\" = EXCLUDED.\"GrantedByCode\", \"UpdateDate\" = CURRENT_TIMESTAMP";
@@ -644,36 +694,35 @@ namespace omnisphere::repositories
             std::string deactSql = "UPDATE \"RolePermissions\" SET \"IsActive\" = false, \"IsAllowed\" = false, \"AllowOverride\" = false, \"UpdateDate\" = CURRENT_TIMESTAMP WHERE \"RoleCode\" = ?";
             conn->RunPrepared(deactSql, { omnisphere::types::MakeSQLParam(input.roleCode) });
 
-            // Permisos pasados en input.permissions (soporta directos o con prefijo OVERRIDE:)
-            for (const auto& rawPerm : input.permissions)
+            // Permisos permitidos
+            for (const auto& perm : input.permissions)
             {
-                bool isOverride = (rawPerm.rfind("OVERRIDE:", 0) == 0);
-                std::string perm = isOverride ? rawPerm.substr(9) : rawPerm;
-                bool isAllowed = !isOverride;
-                bool allowOverride = isOverride;
+                std::string permStr = omnisphere::enums::PermissionTypeToString(perm);
+                if (permStr.empty() || perm == omnisphere::enums::PermissionType::UNKNOWN) continue;
 
                 std::string insSql = "INSERT INTO \"RolePermissions\" (\"RoleCode\", \"PermissionCode\", \"ModuleCode\", \"IsAllowed\", \"AllowOverride\", \"IsActive\", \"UpdateDate\") "
-                                     "VALUES (?, ?, COALESCE((SELECT \"ModuleCode\" FROM \"Permissions\" WHERE \"Code\" = ? LIMIT 1), ''), ?, ?, true, CURRENT_TIMESTAMP) "
-                                     "ON CONFLICT (\"RoleCode\", \"PermissionCode\") DO UPDATE SET \"IsAllowed\" = EXCLUDED.\"IsAllowed\", \"AllowOverride\" = EXCLUDED.\"AllowOverride\", \"IsActive\" = true, \"UpdateDate\" = CURRENT_TIMESTAMP";
+                                     "VALUES (?, ?, COALESCE((SELECT \"ModuleCode\" FROM \"Permissions\" WHERE \"Code\" = ? LIMIT 1), ''), true, false, true, CURRENT_TIMESTAMP) "
+                                     "ON CONFLICT (\"RoleCode\", \"PermissionCode\") DO UPDATE SET \"IsAllowed\" = true, \"AllowOverride\" = false, \"IsActive\" = true, \"UpdateDate\" = CURRENT_TIMESTAMP";
                 conn->RunPrepared(insSql, {
                     omnisphere::types::MakeSQLParam(input.roleCode),
-                    omnisphere::types::MakeSQLParam(perm),
-                    omnisphere::types::MakeSQLParam(perm),
-                    omnisphere::types::MakeSQLParam(isAllowed),
-                    omnisphere::types::MakeSQLParam(allowOverride)
+                    omnisphere::types::MakeSQLParam(permStr),
+                    omnisphere::types::MakeSQLParam(permStr)
                 });
             }
 
-            // Permisos pasados explícitamente en input.overridePermissions
+            // Permisos de sobreescritura (override)
             for (const auto& perm : input.overridePermissions)
             {
+                std::string permStr = omnisphere::enums::PermissionTypeToString(perm);
+                if (permStr.empty() || perm == omnisphere::enums::PermissionType::UNKNOWN) continue;
+
                 std::string insSql = "INSERT INTO \"RolePermissions\" (\"RoleCode\", \"PermissionCode\", \"ModuleCode\", \"IsAllowed\", \"AllowOverride\", \"IsActive\", \"UpdateDate\") "
                                      "VALUES (?, ?, COALESCE((SELECT \"ModuleCode\" FROM \"Permissions\" WHERE \"Code\" = ? LIMIT 1), ''), false, true, true, CURRENT_TIMESTAMP) "
                                      "ON CONFLICT (\"RoleCode\", \"PermissionCode\") DO UPDATE SET \"IsAllowed\" = false, \"AllowOverride\" = true, \"IsActive\" = true, \"UpdateDate\" = CURRENT_TIMESTAMP";
                 conn->RunPrepared(insSql, {
                     omnisphere::types::MakeSQLParam(input.roleCode),
-                    omnisphere::types::MakeSQLParam(perm),
-                    omnisphere::types::MakeSQLParam(perm)
+                    omnisphere::types::MakeSQLParam(permStr),
+                    omnisphere::types::MakeSQLParam(permStr)
                 });
             }
 
@@ -685,6 +734,176 @@ namespace omnisphere::repositories
         }
 
         return false;
+    }
+
+    bool Authorization::SetUserModules(const omnisphere::dtos::SetUserModulesInput& input) const
+    {
+        if (!m_dbPool) return false;
+
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            std::string deactSql = "UPDATE \"UserModules\" SET \"IsActive\" = false, \"IsAllowed\" = false, \"AllowOverride\" = false, \"UpdateDate\" = CURRENT_TIMESTAMP WHERE \"UserCode\" = ?";
+            conn->RunPrepared(deactSql, { omnisphere::types::MakeSQLParam(input.userCode) });
+
+            for (const auto& mod : input.modules)
+            {
+                std::string modStr = omnisphere::enums::ModuleTypeToString(mod);
+                if (modStr.empty() || mod == omnisphere::enums::ModuleType::UNKNOWN) continue;
+
+                std::string insSql = "INSERT INTO \"UserModules\" (\"UserCode\", \"ModuleCode\", \"IsAllowed\", \"AllowOverride\", \"IsActive\", \"GrantedByCode\", \"UpdateDate\") "
+                                     "VALUES (?, ?, true, false, true, ?, CURRENT_TIMESTAMP) "
+                                     "ON CONFLICT (\"UserCode\", \"ModuleCode\") DO UPDATE SET \"IsAllowed\" = true, \"AllowOverride\" = false, \"IsActive\" = true, \"GrantedByCode\" = EXCLUDED.\"GrantedByCode\", \"UpdateDate\" = CURRENT_TIMESTAMP";
+                conn->RunPrepared(insSql, {
+                    omnisphere::types::MakeSQLParam(input.userCode),
+                    omnisphere::types::MakeSQLParam(modStr),
+                    omnisphere::types::MakeSQLParam(input.grantedByCode)
+                });
+            }
+
+            for (const auto& mod : input.overrideModules)
+            {
+                std::string modStr = omnisphere::enums::ModuleTypeToString(mod);
+                if (modStr.empty() || mod == omnisphere::enums::ModuleType::UNKNOWN) continue;
+
+                std::string insSql = "INSERT INTO \"UserModules\" (\"UserCode\", \"ModuleCode\", \"IsAllowed\", \"AllowOverride\", \"IsActive\", \"GrantedByCode\", \"UpdateDate\") "
+                                     "VALUES (?, ?, false, true, true, ?, CURRENT_TIMESTAMP) "
+                                     "ON CONFLICT (\"UserCode\", \"ModuleCode\") DO UPDATE SET \"IsAllowed\" = false, \"AllowOverride\" = true, \"IsActive\" = true, \"GrantedByCode\" = EXCLUDED.\"GrantedByCode\", \"UpdateDate\" = CURRENT_TIMESTAMP";
+                conn->RunPrepared(insSql, {
+                    omnisphere::types::MakeSQLParam(input.userCode),
+                    omnisphere::types::MakeSQLParam(modStr),
+                    omnisphere::types::MakeSQLParam(input.grantedByCode)
+                });
+            }
+
+            return true;
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[SetUserModules SQL Error] " << ex.what() << std::endl;
+        }
+
+        return false;
+    }
+
+    bool Authorization::SetRoleModules(const omnisphere::dtos::SetRoleModulesInput& input) const
+    {
+        if (!m_dbPool) return false;
+
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            std::string deactSql = "UPDATE \"RoleModules\" SET \"IsActive\" = false, \"IsAllowed\" = false, \"AllowOverride\" = false, \"UpdateDate\" = CURRENT_TIMESTAMP WHERE \"RoleCode\" = ?";
+            conn->RunPrepared(deactSql, { omnisphere::types::MakeSQLParam(input.roleCode) });
+
+            for (const auto& mod : input.modules)
+            {
+                std::string modStr = omnisphere::enums::ModuleTypeToString(mod);
+                if (modStr.empty() || mod == omnisphere::enums::ModuleType::UNKNOWN) continue;
+
+                std::string insSql = "INSERT INTO \"RoleModules\" (\"RoleCode\", \"ModuleCode\", \"IsAllowed\", \"AllowOverride\", \"IsActive\", \"UpdateDate\") "
+                                     "VALUES (?, ?, true, false, true, CURRENT_TIMESTAMP) "
+                                     "ON CONFLICT (\"RoleCode\", \"ModuleCode\") DO UPDATE SET \"IsAllowed\" = true, \"AllowOverride\" = false, \"IsActive\" = true, \"UpdateDate\" = CURRENT_TIMESTAMP";
+                conn->RunPrepared(insSql, {
+                    omnisphere::types::MakeSQLParam(input.roleCode),
+                    omnisphere::types::MakeSQLParam(modStr)
+                });
+            }
+
+            for (const auto& mod : input.overrideModules)
+            {
+                std::string modStr = omnisphere::enums::ModuleTypeToString(mod);
+                if (modStr.empty() || mod == omnisphere::enums::ModuleType::UNKNOWN) continue;
+
+                std::string insSql = "INSERT INTO \"RoleModules\" (\"RoleCode\", \"ModuleCode\", \"IsAllowed\", \"AllowOverride\", \"IsActive\", \"UpdateDate\") "
+                                     "VALUES (?, ?, false, true, true, CURRENT_TIMESTAMP) "
+                                     "ON CONFLICT (\"RoleCode\", \"ModuleCode\") DO UPDATE SET \"IsAllowed\" = false, \"AllowOverride\" = true, \"IsActive\" = true, \"UpdateDate\" = CURRENT_TIMESTAMP";
+                conn->RunPrepared(insSql, {
+                    omnisphere::types::MakeSQLParam(input.roleCode),
+                    omnisphere::types::MakeSQLParam(modStr)
+                });
+            }
+
+            return true;
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[SetRoleModules SQL Error] " << ex.what() << std::endl;
+        }
+
+        return false;
+    }
+
+    std::vector<std::string> Authorization::GetUserModules(const std::string& userCode) const
+    {
+        std::vector<std::string> modules;
+        if (!m_dbPool || userCode.empty()) return modules;
+
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            std::string sql = 
+                "SELECT DISTINCT m.\"ModuleCode\" "
+                "FROM ( "
+                "    SELECT \"ModuleCode\", \"IsAllowed\" FROM \"UserModules\" WHERE \"UserCode\" = ? AND \"IsActive\" = true "
+                "    UNION ALL "
+                "    SELECT rm.\"ModuleCode\", rm.\"IsAllowed\" "
+                "    FROM \"RoleModules\" rm "
+                "    JOIN \"Users\" u ON u.\"RoleCode\" = rm.\"RoleCode\" "
+                "    WHERE u.\"Code\" = ? AND rm.\"IsActive\" = true "
+                "    AND rm.\"ModuleCode\" NOT IN (SELECT \"ModuleCode\" FROM \"UserModules\" WHERE \"UserCode\" = ? AND \"IsActive\" = true) "
+                ") m "
+                "WHERE m.\"IsAllowed\" = true";
+
+            auto dt = conn->FetchPrepared(sql, {
+                omnisphere::types::MakeSQLParam(userCode),
+                omnisphere::types::MakeSQLParam(userCode),
+                omnisphere::types::MakeSQLParam(userCode)
+            });
+
+            for (const auto& row : dt)
+            {
+                auto code = row["ModuleCode"].GetOptional<std::string>();
+                if (code.has_value() && !code->empty())
+                {
+                    modules.push_back(*code);
+                }
+            }
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[GetUserModules SQL Error] " << ex.what() << std::endl;
+        }
+
+        return modules;
+    }
+
+    std::vector<std::string> Authorization::GetRoleModules(const std::string& roleCode) const
+    {
+        std::vector<std::string> modules;
+        if (!m_dbPool || roleCode.empty()) return modules;
+
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            std::string sql = "SELECT \"ModuleCode\" FROM \"RoleModules\" WHERE \"RoleCode\" = ? AND \"IsAllowed\" = true AND \"IsActive\" = true";
+            auto dt = conn->FetchPrepared(sql, { omnisphere::types::MakeSQLParam(roleCode) });
+
+            for (const auto& row : dt)
+            {
+                auto code = row["ModuleCode"].GetOptional<std::string>();
+                if (code.has_value() && !code->empty())
+                {
+                    modules.push_back(*code);
+                }
+            }
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[GetRoleModules SQL Error] " << ex.what() << std::endl;
+        }
+
+        return modules;
     }
 
     bool Authorization::CreateRole(const omnisphere::models::Role& role) const
@@ -763,67 +982,186 @@ namespace omnisphere::repositories
 
     bool Authorization::GrantUserPermission(const omnisphere::dtos::GrantPermissionInput& input) const
     {
-        if (!m_dbPool) return true;
+        if (!m_dbPool) return false;
 
-        auto conn = m_dbPool->Acquire();
-        std::vector<std::string> cols = {
-            "\"UserCode\"", "\"ModuleCode\"", "\"PermissionCode\"", "\"IsAllowed\"", "\"GrantedByCode\""
-        };
-        std::string baseInsert = omnisphere::types::BuildInsertQuery("\"UserPermissions\"", cols);
-        std::string sql = baseInsert + " ON CONFLICT (\"UserCode\", \"PermissionCode\") DO UPDATE SET \"IsAllowed\" = true, \"IsActive\" = true";
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            std::string permStr = omnisphere::enums::PermissionTypeToString(input.permission);
+            std::string sql = "INSERT INTO \"UserPermissions\" (\"UserCode\", \"ModuleCode\", \"PermissionCode\", \"IsAllowed\", \"IsActive\", \"GrantedByCode\", \"UpdateDate\") "
+                              "VALUES (?, COALESCE((SELECT \"ModuleCode\" FROM \"Permissions\" WHERE \"Code\" = ? LIMIT 1), ''), ?, true, true, ?, CURRENT_TIMESTAMP) "
+                              "ON CONFLICT (\"UserCode\", \"PermissionCode\") DO UPDATE SET \"IsAllowed\" = true, \"IsActive\" = true, \"GrantedByCode\" = EXCLUDED.\"GrantedByCode\", \"UpdateDate\" = CURRENT_TIMESTAMP";
 
-        std::vector<omnisphere::types::SQLParam> params = {
-            omnisphere::types::MakeSQLParam(input.userCode),
-            omnisphere::types::MakeSQLParam(input.module),
-            omnisphere::types::MakeSQLParam(input.permission),
-            omnisphere::types::MakeSQLParam(true),
-            omnisphere::types::MakeSQLParam(input.grantedByCode)
-        };
-        return conn->RunPrepared(sql, params);
+            return conn->RunPrepared(sql, {
+                omnisphere::types::MakeSQLParam(input.userCode),
+                omnisphere::types::MakeSQLParam(permStr),
+                omnisphere::types::MakeSQLParam(permStr),
+                omnisphere::types::MakeSQLParam(input.grantedByCode)
+            });
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[GrantUserPermission SQL Error] " << ex.what() << std::endl;
+        }
+        return false;
     }
 
     bool Authorization::RevokeUserPermission(const omnisphere::dtos::RevokePermissionInput& input) const
     {
-        if (!m_dbPool) return true;
+        if (!m_dbPool) return false;
 
-        auto conn = m_dbPool->Acquire();
-        std::string sql = "UPDATE \"UserPermissions\" SET \"IsActive\" = false, \"IsAllowed\" = false, \"UpdateDate\" = CURRENT_TIMESTAMP WHERE \"UserCode\" = ? AND \"PermissionCode\" = ?";
-        return conn->RunPrepared(sql, {
-            omnisphere::types::MakeSQLParam(input.userCode),
-            omnisphere::types::MakeSQLParam(input.permission)
-        });
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            std::string permStr = omnisphere::enums::PermissionTypeToString(input.permission);
+            std::string sql = "UPDATE \"UserPermissions\" SET \"IsActive\" = false, \"IsAllowed\" = false, \"UpdateDate\" = CURRENT_TIMESTAMP WHERE \"UserCode\" = ? AND \"PermissionCode\" = ?";
+            return conn->RunPrepared(sql, {
+                omnisphere::types::MakeSQLParam(input.userCode),
+                omnisphere::types::MakeSQLParam(permStr)
+            });
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[RevokeUserPermission SQL Error] " << ex.what() << std::endl;
+        }
+        return false;
     }
 
     bool Authorization::GrantRolePermission(const omnisphere::dtos::GrantRolePermissionInput& input) const
     {
-        if (!m_dbPool) return true;
+        if (!m_dbPool) return false;
 
-        auto conn = m_dbPool->Acquire();
-        std::vector<std::string> cols = {
-            "\"RoleCode\"", "\"ModuleCode\"", "\"PermissionCode\"", "\"IsAllowed\""
-        };
-        std::string baseInsert = omnisphere::types::BuildInsertQuery("\"RolePermissions\"", cols);
-        std::string sql = baseInsert + " ON CONFLICT (\"RoleCode\", \"PermissionCode\") DO UPDATE SET \"IsAllowed\" = true, \"IsActive\" = true, \"UpdateDate\" = CURRENT_TIMESTAMP";
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            std::string permStr = omnisphere::enums::PermissionTypeToString(input.permission);
+            std::string sql = "INSERT INTO \"RolePermissions\" (\"RoleCode\", \"ModuleCode\", \"PermissionCode\", \"IsAllowed\", \"IsActive\", \"UpdateDate\") "
+                              "VALUES (?, COALESCE((SELECT \"ModuleCode\" FROM \"Permissions\" WHERE \"Code\" = ? LIMIT 1), ''), ?, true, true, CURRENT_TIMESTAMP) "
+                              "ON CONFLICT (\"RoleCode\", \"PermissionCode\") DO UPDATE SET \"IsAllowed\" = true, \"IsActive\" = true, \"UpdateDate\" = CURRENT_TIMESTAMP";
 
-        std::vector<omnisphere::types::SQLParam> params = {
-            omnisphere::types::MakeSQLParam(input.roleCode),
-            omnisphere::types::MakeSQLParam(input.module),
-            omnisphere::types::MakeSQLParam(input.permission),
-            omnisphere::types::MakeSQLParam(true)
-        };
-        return conn->RunPrepared(sql, params);
+            return conn->RunPrepared(sql, {
+                omnisphere::types::MakeSQLParam(input.roleCode),
+                omnisphere::types::MakeSQLParam(permStr),
+                omnisphere::types::MakeSQLParam(permStr)
+            });
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[GrantRolePermission SQL Error] " << ex.what() << std::endl;
+        }
+        return false;
     }
 
     bool Authorization::RevokeRolePermission(const omnisphere::dtos::RevokeRolePermissionInput& input) const
     {
-        if (!m_dbPool) return true;
+        if (!m_dbPool) return false;
 
-        auto conn = m_dbPool->Acquire();
-        std::string sql = "UPDATE \"RolePermissions\" SET \"IsActive\" = false, \"IsAllowed\" = false, \"UpdateDate\" = CURRENT_TIMESTAMP WHERE \"RoleCode\" = ? AND \"PermissionCode\" = ?";
-        return conn->RunPrepared(sql, {
-            omnisphere::types::MakeSQLParam(input.roleCode),
-            omnisphere::types::MakeSQLParam(input.permission)
-        });
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            std::string permStr = omnisphere::enums::PermissionTypeToString(input.permission);
+            std::string sql = "UPDATE \"RolePermissions\" SET \"IsActive\" = false, \"IsAllowed\" = false, \"UpdateDate\" = CURRENT_TIMESTAMP WHERE \"RoleCode\" = ? AND \"PermissionCode\" = ?";
+            return conn->RunPrepared(sql, {
+                omnisphere::types::MakeSQLParam(input.roleCode),
+                omnisphere::types::MakeSQLParam(permStr)
+            });
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[RevokeRolePermission SQL Error] " << ex.what() << std::endl;
+        }
+        return false;
+    }
+
+    bool Authorization::GrantUserModule(const omnisphere::dtos::GrantUserModuleInput& input) const
+    {
+        if (!m_dbPool) return false;
+
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            std::string modStr = omnisphere::enums::ModuleTypeToString(input.module);
+            std::string sql = "INSERT INTO \"UserModules\" (\"UserCode\", \"ModuleCode\", \"IsAllowed\", \"IsActive\", \"GrantedByCode\", \"UpdateDate\") "
+                              "VALUES (?, ?, true, true, ?, CURRENT_TIMESTAMP) "
+                              "ON CONFLICT (\"UserCode\", \"ModuleCode\") DO UPDATE SET \"IsAllowed\" = true, \"IsActive\" = true, \"GrantedByCode\" = EXCLUDED.\"GrantedByCode\", \"UpdateDate\" = CURRENT_TIMESTAMP";
+
+            return conn->RunPrepared(sql, {
+                omnisphere::types::MakeSQLParam(input.userCode),
+                omnisphere::types::MakeSQLParam(modStr),
+                omnisphere::types::MakeSQLParam(input.grantedByCode)
+            });
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[GrantUserModule SQL Error] " << ex.what() << std::endl;
+        }
+        return false;
+    }
+
+    bool Authorization::RevokeUserModule(const omnisphere::dtos::RevokeUserModuleInput& input) const
+    {
+        if (!m_dbPool) return false;
+
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            std::string modStr = omnisphere::enums::ModuleTypeToString(input.module);
+            std::string sql = "UPDATE \"UserModules\" SET \"IsActive\" = false, \"IsAllowed\" = false, \"UpdateDate\" = CURRENT_TIMESTAMP WHERE \"UserCode\" = ? AND \"ModuleCode\" = ?";
+            return conn->RunPrepared(sql, {
+                omnisphere::types::MakeSQLParam(input.userCode),
+                omnisphere::types::MakeSQLParam(modStr)
+            });
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[RevokeUserModule SQL Error] " << ex.what() << std::endl;
+        }
+        return false;
+    }
+
+    bool Authorization::GrantRoleModule(const omnisphere::dtos::GrantRoleModuleInput& input) const
+    {
+        if (!m_dbPool) return false;
+
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            std::string modStr = omnisphere::enums::ModuleTypeToString(input.module);
+            std::string sql = "INSERT INTO \"RoleModules\" (\"RoleCode\", \"ModuleCode\", \"IsAllowed\", \"IsActive\", \"UpdateDate\") "
+                              "VALUES (?, ?, true, true, CURRENT_TIMESTAMP) "
+                              "ON CONFLICT (\"RoleCode\", \"ModuleCode\") DO UPDATE SET \"IsAllowed\" = true, \"IsActive\" = true, \"UpdateDate\" = CURRENT_TIMESTAMP";
+
+            return conn->RunPrepared(sql, {
+                omnisphere::types::MakeSQLParam(input.roleCode),
+                omnisphere::types::MakeSQLParam(modStr)
+            });
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[GrantRoleModule SQL Error] " << ex.what() << std::endl;
+        }
+        return false;
+    }
+
+    bool Authorization::RevokeRoleModule(const omnisphere::dtos::RevokeRoleModuleInput& input) const
+    {
+        if (!m_dbPool) return false;
+
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            std::string modStr = omnisphere::enums::ModuleTypeToString(input.module);
+            std::string sql = "UPDATE \"RoleModules\" SET \"IsActive\" = false, \"IsAllowed\" = false, \"UpdateDate\" = CURRENT_TIMESTAMP WHERE \"RoleCode\" = ? AND \"ModuleCode\" = ?";
+            return conn->RunPrepared(sql, {
+                omnisphere::types::MakeSQLParam(input.roleCode),
+                omnisphere::types::MakeSQLParam(modStr)
+            });
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[RevokeRoleModule SQL Error] " << ex.what() << std::endl;
+        }
+        return false;
     }
 } // namespace omnisphere::repositories
 

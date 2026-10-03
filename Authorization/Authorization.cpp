@@ -19,6 +19,42 @@ namespace omnisphere::services
         }
     }
 
+    void Authorization::AuthorizeModule(const omnisphere::models::SecurityContext& ctx, omnisphere::enums::ModuleType module) const
+    {
+        RequireAuthenticated(ctx);
+        if (!HasModule(ctx, module))
+        {
+            throw AccessDeniedException("No se tiene acceso al módulo solicitado: " + omnisphere::enums::ModuleTypeToString(module));
+        }
+    }
+
+    void Authorization::AuthorizeAction(const omnisphere::models::SecurityContext& ctx, omnisphere::enums::PermissionType permission) const
+    {
+        RequireAuthenticated(ctx);
+        if (!HasAction(ctx, permission))
+        {
+            if (!ctx.grantedByCode.empty() && m_repository && m_repository->CheckAction(ctx.grantedByCode, permission))
+            {
+                return;
+            }
+            throw AccessDeniedException("No se tienen los permisos necesarios para ejecutar la acción: " + omnisphere::enums::PermissionTypeToString(permission));
+        }
+    }
+
+    bool Authorization::HasModule(const omnisphere::models::SecurityContext& ctx, omnisphere::enums::ModuleType module) const
+    {
+        if (!ctx.isAuthenticated()) return false;
+        if (!m_repository) return true;
+        return m_repository->CheckModule(ctx.userCode, module);
+    }
+
+    bool Authorization::HasAction(const omnisphere::models::SecurityContext& ctx, omnisphere::enums::PermissionType permission) const
+    {
+        if (!ctx.isAuthenticated()) return false;
+        if (!m_repository) return true;
+        return m_repository->CheckAction(ctx.userCode, permission);
+    }
+
     bool Authorization::HasPermission(const omnisphere::models::SecurityContext& ctx, const std::string& permission) const
     {
         if (!ctx.isAuthenticated()) return false;
@@ -76,72 +112,81 @@ namespace omnisphere::services
 
     omnisphere::models::AuthorizationResult Authorization::GrantUserPermission(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::GrantPermissionInput& input) const
     {
-        Authorize(ctx, "PERMISSION_GRANT");
+        AuthorizeAction(ctx, omnisphere::enums::PermissionType::CORE_PERM_MANAGE);
 
+        bool ok = false;
         if (m_repository)
         {
-            m_repository->GrantUserPermission(input);
+            omnisphere::dtos::GrantPermissionInput finalInput = input;
+            if (finalInput.grantedByCode.empty())
+            {
+                finalInput.grantedByCode = ctx.userCode;
+            }
+            ok = m_repository->GrantUserPermission(finalInput);
         }
 
         omnisphere::models::AuthorizationResult result;
-        result.success = true;
-        result.message = "Permission '" + input.permission + "' successfully granted to user '" + input.userCode + "'";
+        result.success = ok;
+        result.message = ok ? "Permiso otorgado correctamente al usuario" : "Error al otorgar permiso al usuario";
         result.userCode = input.userCode;
-        result.permission = input.permission;
+        result.permission = omnisphere::enums::PermissionTypeToString(input.permission);
 
         return result;
     }
 
     omnisphere::models::AuthorizationResult Authorization::RevokeUserPermission(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::RevokePermissionInput& input) const
     {
-        Authorize(ctx, "PERMISSION_REVOKE");
+        AuthorizeAction(ctx, omnisphere::enums::PermissionType::CORE_PERM_MANAGE);
 
+        bool ok = false;
         if (m_repository)
         {
-            m_repository->RevokeUserPermission(input);
+            ok = m_repository->RevokeUserPermission(input);
         }
 
         omnisphere::models::AuthorizationResult result;
-        result.success = true;
-        result.message = "Permission '" + input.permission + "' successfully revoked from user '" + input.userCode + "'";
+        result.success = ok;
+        result.message = ok ? "Permiso revocado correctamente del usuario" : "Error al revocar permiso del usuario";
         result.userCode = input.userCode;
-        result.permission = input.permission;
+        result.permission = omnisphere::enums::PermissionTypeToString(input.permission);
 
         return result;
     }
 
     omnisphere::models::AuthorizationResult Authorization::GrantRolePermission(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::GrantRolePermissionInput& input) const
     {
-        Authorize(ctx, "ROLE_PERMISSION_GRANT");
+        AuthorizeAction(ctx, omnisphere::enums::PermissionType::CORE_ROLE_MANAGE);
 
+        bool ok = false;
         if (m_repository)
         {
-            m_repository->GrantRolePermission(input);
+            ok = m_repository->GrantRolePermission(input);
         }
 
         omnisphere::models::AuthorizationResult result;
-        result.success = true;
-        result.message = "Permission '" + input.permission + "' successfully granted to role '" + input.roleCode + "'";
+        result.success = ok;
+        result.message = ok ? "Permiso otorgado correctamente al rol" : "Error al otorgar permiso al rol";
         result.userCode = input.roleCode;
-        result.permission = input.permission;
+        result.permission = omnisphere::enums::PermissionTypeToString(input.permission);
 
         return result;
     }
 
     omnisphere::models::AuthorizationResult Authorization::RevokeRolePermission(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::RevokeRolePermissionInput& input) const
     {
-        Authorize(ctx, "ROLE_PERMISSION_REVOKE");
+        AuthorizeAction(ctx, omnisphere::enums::PermissionType::CORE_ROLE_MANAGE);
 
+        bool ok = false;
         if (m_repository)
         {
-            m_repository->RevokeRolePermission(input);
+            ok = m_repository->RevokeRolePermission(input);
         }
 
         omnisphere::models::AuthorizationResult result;
-        result.success = true;
-        result.message = "Permission '" + input.permission + "' successfully revoked from role '" + input.roleCode + "'";
+        result.success = ok;
+        result.message = ok ? "Permiso revocado correctamente del rol" : "Error al revocar permiso del rol";
         result.userCode = input.roleCode;
-        result.permission = input.permission;
+        result.permission = omnisphere::enums::PermissionTypeToString(input.permission);
 
         return result;
     }
@@ -210,9 +255,143 @@ namespace omnisphere::services
         return {};
     }
 
+    omnisphere::models::AuthorizationResult Authorization::GrantUserModule(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::GrantUserModuleInput& input) const
+    {
+        AuthorizeAction(ctx, omnisphere::enums::PermissionType::CORE_PERM_MANAGE);
+
+        bool ok = false;
+        if (m_repository)
+        {
+            omnisphere::dtos::GrantUserModuleInput finalInput = input;
+            if (finalInput.grantedByCode.empty())
+            {
+                finalInput.grantedByCode = ctx.userCode;
+            }
+            ok = m_repository->GrantUserModule(finalInput);
+        }
+
+        omnisphere::models::AuthorizationResult result;
+        result.success = ok;
+        result.message = ok ? "Módulo otorgado correctamente al usuario" : "Error al otorgar módulo al usuario";
+        result.userCode = input.userCode;
+        result.permission = omnisphere::enums::ModuleTypeToString(input.module);
+        return result;
+    }
+
+    omnisphere::models::AuthorizationResult Authorization::RevokeUserModule(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::RevokeUserModuleInput& input) const
+    {
+        AuthorizeAction(ctx, omnisphere::enums::PermissionType::CORE_PERM_MANAGE);
+
+        bool ok = false;
+        if (m_repository)
+        {
+            ok = m_repository->RevokeUserModule(input);
+        }
+
+        omnisphere::models::AuthorizationResult result;
+        result.success = ok;
+        result.message = ok ? "Módulo revocado correctamente del usuario" : "Error al revocar módulo del usuario";
+        result.userCode = input.userCode;
+        result.permission = omnisphere::enums::ModuleTypeToString(input.module);
+        return result;
+    }
+
+    omnisphere::models::AuthorizationResult Authorization::GrantRoleModule(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::GrantRoleModuleInput& input) const
+    {
+        AuthorizeAction(ctx, omnisphere::enums::PermissionType::CORE_ROLE_MANAGE);
+
+        bool ok = false;
+        if (m_repository)
+        {
+            ok = m_repository->GrantRoleModule(input);
+        }
+
+        omnisphere::models::AuthorizationResult result;
+        result.success = ok;
+        result.message = ok ? "Módulo otorgado correctamente al rol" : "Error al otorgar módulo al rol";
+        result.userCode = input.roleCode;
+        result.permission = omnisphere::enums::ModuleTypeToString(input.module);
+        return result;
+    }
+
+    omnisphere::models::AuthorizationResult Authorization::RevokeRoleModule(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::RevokeRoleModuleInput& input) const
+    {
+        AuthorizeAction(ctx, omnisphere::enums::PermissionType::CORE_ROLE_MANAGE);
+
+        bool ok = false;
+        if (m_repository)
+        {
+            ok = m_repository->RevokeRoleModule(input);
+        }
+
+        omnisphere::models::AuthorizationResult result;
+        result.success = ok;
+        result.message = ok ? "Módulo revocado correctamente del rol" : "Error al revocar módulo del rol";
+        result.userCode = input.roleCode;
+        result.permission = omnisphere::enums::ModuleTypeToString(input.module);
+        return result;
+    }
+
+    omnisphere::models::AuthorizationResult Authorization::SetUserModules(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::SetUserModulesInput& input) const
+    {
+        AuthorizeAction(ctx, omnisphere::enums::PermissionType::CORE_PERM_MANAGE);
+
+        bool ok = false;
+        if (m_repository)
+        {
+            omnisphere::dtos::SetUserModulesInput finalInput = input;
+            if (finalInput.grantedByCode.empty())
+            {
+                finalInput.grantedByCode = ctx.userCode;
+            }
+            ok = m_repository->SetUserModules(finalInput);
+        }
+
+        omnisphere::models::AuthorizationResult result;
+        result.success = ok;
+        result.message = ok ? "Módulos de usuario actualizados correctamente" : "Error al actualizar módulos de usuario";
+        result.userCode = input.userCode;
+        return result;
+    }
+
+    omnisphere::models::AuthorizationResult Authorization::SetRoleModules(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::SetRoleModulesInput& input) const
+    {
+        AuthorizeAction(ctx, omnisphere::enums::PermissionType::CORE_ROLE_MANAGE);
+
+        bool ok = false;
+        if (m_repository)
+        {
+            ok = m_repository->SetRoleModules(input);
+        }
+
+        omnisphere::models::AuthorizationResult result;
+        result.success = ok;
+        result.message = ok ? "Módulos de rol actualizados correctamente" : "Error al actualizar módulos de rol";
+        result.userCode = input.roleCode;
+        return result;
+    }
+
+    std::vector<std::string> Authorization::GetUserModules(const std::string& userCode) const
+    {
+        if (m_repository)
+        {
+            return m_repository->GetUserModules(userCode);
+        }
+        return {};
+    }
+
+    std::vector<std::string> Authorization::GetRoleModules(const std::string& roleCode) const
+    {
+        if (m_repository)
+        {
+            return m_repository->GetRoleModules(roleCode);
+        }
+        return {};
+    }
+
     omnisphere::models::AuthorizationResult Authorization::SetUserPermissions(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::SetUserPermissionsInput& input) const
     {
-        Authorize(ctx, "CORE_PERM_MANAGE");
+        AuthorizeAction(ctx, omnisphere::enums::PermissionType::CORE_PERM_MANAGE);
 
         bool ok = false;
         if (m_repository)
@@ -234,7 +413,7 @@ namespace omnisphere::services
 
     omnisphere::models::AuthorizationResult Authorization::SetRolePermissions(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::SetRolePermissionsInput& input) const
     {
-        Authorize(ctx, "CORE_ROLE_MANAGE");
+        AuthorizeAction(ctx, omnisphere::enums::PermissionType::CORE_ROLE_MANAGE);
 
         bool ok = false;
         if (m_repository)
@@ -251,7 +430,7 @@ namespace omnisphere::services
 
     bool Authorization::CreateRole(const omnisphere::models::SecurityContext& ctx, const omnisphere::models::Role& role) const
     {
-        Authorize(ctx, "CORE_ROLE_MANAGE");
+        AuthorizeAction(ctx, omnisphere::enums::PermissionType::CORE_ROLE_MANAGE);
         if (m_repository)
         {
             return m_repository->CreateRole(role);
@@ -261,7 +440,7 @@ namespace omnisphere::services
 
     bool Authorization::UpdateRole(const omnisphere::models::SecurityContext& ctx, const omnisphere::models::Role& role) const
     {
-        Authorize(ctx, "CORE_ROLE_MANAGE");
+        AuthorizeAction(ctx, omnisphere::enums::PermissionType::CORE_ROLE_MANAGE);
         if (m_repository)
         {
             return m_repository->UpdateRole(role);
@@ -271,7 +450,7 @@ namespace omnisphere::services
 
     bool Authorization::DeleteRole(const omnisphere::models::SecurityContext& ctx, const std::string& roleCode) const
     {
-        Authorize(ctx, "CORE_ROLE_MANAGE");
+        AuthorizeAction(ctx, omnisphere::enums::PermissionType::CORE_ROLE_MANAGE);
         if (m_repository)
         {
             return m_repository->DeleteRole(roleCode);

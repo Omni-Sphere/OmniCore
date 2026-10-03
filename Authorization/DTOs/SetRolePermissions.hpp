@@ -2,14 +2,15 @@
 #include <string>
 #include <vector>
 #include <boost/describe.hpp>
+#include "Authorization/Enums/PermissionType.hpp"
 
 namespace omnisphere::dtos
 {
     struct SetRolePermissionsInput
     {
         std::string roleCode;
-        std::vector<std::string> permissions;
-        std::vector<std::string> overridePermissions;
+        std::vector<omnisphere::enums::PermissionType> permissions;
+        std::vector<omnisphere::enums::PermissionType> overridePermissions;
     };
     BOOST_DESCRIBE_STRUCT(SetRolePermissionsInput, (), (roleCode, permissions, overridePermissions))
 } // namespace omnisphere::dtos

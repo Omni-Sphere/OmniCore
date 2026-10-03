@@ -99,9 +99,9 @@ CREATE TABLE IF NOT EXISTS "Users" (
     "Password" BYTEA,
     "ChangePasswordNextLogin" BOOLEAN NOT NULL DEFAULT false,
     "PasswordNeverExpires" BOOLEAN NOT NULL DEFAULT false,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
+    "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP,
     "EmployeeCode" VARCHAR(50)
 );
@@ -128,9 +128,9 @@ CREATE TABLE IF NOT EXISTS "Employees" (
     "Comments" TEXT,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
     "IsCanceled" BOOLEAN NOT NULL DEFAULT false,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
+    "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS "IDX_Employees_Code_Active" ON "Employees" ("Code") WHERE "IsCanceled" = false;
@@ -174,21 +174,7 @@ CREATE TABLE IF NOT EXISTS "Sessions" (
 CREATE INDEX IF NOT EXISTS "IDX_Sessions_SessionUUID" ON "Sessions" ("SessionUUID");
 CREATE INDEX IF NOT EXISTS "IDX_Sessions_UserCode_IsActive" ON "Sessions" ("UserCode", "IsActive");
 
--- 4. GlobalConfiguration
-CREATE TABLE IF NOT EXISTS "GlobalConfiguration" (
-    "Entry" SERIAL PRIMARY KEY,
-    "Code" VARCHAR(50) NOT NULL UNIQUE DEFAULT 'DEFAULT',
-    "Name" VARCHAR(100) NOT NULL,
-    "Value" TEXT,
-    "IsEncrypted" BOOLEAN NOT NULL DEFAULT false,
-    "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
-    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
-    "UpdateDate" TIMESTAMP
-);
-
--- 5. SystemConfigs
+-- 4. SystemConfigs
 CREATE TABLE IF NOT EXISTS "SystemConfigs" (
     "Entry" SERIAL PRIMARY KEY,
     "Code" VARCHAR(50) NOT NULL DEFAULT 'DEFAULT' UNIQUE,
@@ -200,9 +186,9 @@ CREATE TABLE IF NOT EXISTS "SystemConfigs" (
     "EnableWhatsappNotifications" BOOLEAN NOT NULL DEFAULT true,
     "AllowPartialPayments" BOOLEAN NOT NULL DEFAULT false,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
+    "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP
 );
 
@@ -215,9 +201,9 @@ CREATE TABLE IF NOT EXISTS "Identities" (
     "Prefix3" VARCHAR(3),
     "CurrentSequence" INT NOT NULL DEFAULT 0,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
+    "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "CHK_Identities_IsActive" CHECK ("IsActive" IN (true, false)),
     CONSTRAINT "CHK_Identities_CurrentSequence" CHECK ("CurrentSequence" >= 0),
@@ -245,13 +231,13 @@ INSERT INTO "Identities" ("Domain", "Prefix1", "CurrentSequence") VALUES
 ('CustomButton', 'BTN', 0),
 ('CustomAttachment', 'ATT', 0),
 ('PaymentTransaction', 'TXN', 0),
-('StripeSession', 'STS', 0),
 ('StripeTransaction', 'STX', 0),
-('StripeTransactions', 'STX', 0),
 ('TransferTransactions', 'TRF', 0),
 ('CashTransactions', 'CSH', 0),
 ('CardTransactions', 'CRD', 0),
-('User', 'USR', 0)
+('User', 'USR', 1),
+('Employee', 'EMP', 0),
+('Role', 'ROL', 1)
 ON CONFLICT ("Domain") DO NOTHING;
 
 -- 7. Venues
@@ -262,9 +248,9 @@ CREATE TABLE IF NOT EXISTS "Venues" (
     "City" VARCHAR(3) NOT NULL,
     "Address" TEXT NOT NULL,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
+    "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "CHK_Venues_IsActive" CHECK ("IsActive" IN (true, false))
 );
@@ -285,9 +271,9 @@ CREATE TABLE IF NOT EXISTS "Events" (
     "IsUpcoming" BOOLEAN NOT NULL DEFAULT true,
     "CommingSoon" BOOLEAN NOT NULL DEFAULT false,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
+    "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "CHK_Events_IsPromoted" CHECK ("IsPromoted" IN (true, false)),
     CONSTRAINT "CHK_Events_IsUpcoming" CHECK ("IsUpcoming" IN (true, false)),
@@ -309,9 +295,9 @@ CREATE TABLE IF NOT EXISTS "DeparturePoints" (
     "Address" TEXT NOT NULL,
     "PointType" "DeparturePointType" NOT NULL,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
+    "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "CHK_DeparturePoints_IsActive" CHECK ("IsActive" IN (true, false))
 );
@@ -328,9 +314,9 @@ CREATE TABLE IF NOT EXISTS "Routes" (
     "DestinationVenueCode" VARCHAR(50) NOT NULL,
     "BasePrice" NUMERIC(10, 2) NOT NULL,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
+    "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "CHK_Routes_BasePrice" CHECK ("BasePrice" >= 0),
     CONSTRAINT "CHK_Routes_IsActive" CHECK ("IsActive" IN (true, false))
@@ -349,9 +335,9 @@ CREATE TABLE IF NOT EXISTS "RouteStops" (
     "BasePrice" NUMERIC(10, 2) NOT NULL,
     "ArrivalTime" VARCHAR(50),
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
+    "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "CHK_RouteStops_BasePrice" CHECK ("BasePrice" >= 0),
     CONSTRAINT "CHK_RouteStops_IsActive" CHECK ("IsActive" IN (true, false))
@@ -379,9 +365,9 @@ CREATE TABLE IF NOT EXISTS "Schedules" (
     "AvailableSeats" INT NOT NULL,
     "Price" NUMERIC(10, 2) NOT NULL,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
+    "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "CHK_Schedules_Capacity" CHECK ("Capacity" >= 0),
     CONSTRAINT "CHK_Schedules_AvailableSeats" CHECK ("AvailableSeats" >= 0),
@@ -402,9 +388,9 @@ CREATE TABLE IF NOT EXISTS "Tickets" (
     "Phone" VARCHAR(50) NOT NULL,
     "Quantity" INT NOT NULL DEFAULT 1,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
+    "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "CHK_Tickets_Phone" CHECK (LENGTH(TRIM("Phone")) >= 7),
     CONSTRAINT "CHK_Tickets_Quantity" CHECK ("Quantity" > 0),
@@ -421,9 +407,9 @@ CREATE TABLE IF NOT EXISTS "NotificationContacts" (
     "Phone" VARCHAR(50) NOT NULL,
     "Role" VARCHAR(100) NOT NULL,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
+    "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "CHK_NotificationContacts_Phone" CHECK (LENGTH(TRIM("Phone")) >= 7),
     CONSTRAINT "CHK_NotificationContacts_IsActive" CHECK ("IsActive" IN (true, false))
@@ -437,9 +423,9 @@ CREATE TABLE IF NOT EXISTS "NotificationSettings" (
     "Code" VARCHAR(50) NOT NULL DEFAULT 'DEFAULT' UNIQUE,
     "Name" VARCHAR(255) NOT NULL DEFAULT 'Notification Settings',
     "OwnerWhatsapp" VARCHAR(50) NOT NULL,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
+    "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "CHK_NotificationSettings_Code" CHECK (LENGTH(TRIM("Code")) > 0),
     CONSTRAINT "CHK_NotificationSettings_OwnerWhatsapp" CHECK (LENGTH(TRIM("OwnerWhatsapp")) >= 7)
@@ -473,9 +459,9 @@ CREATE TABLE IF NOT EXISTS "Reservations" (
     "Status" "ReservationStatusType" NOT NULL DEFAULT 'UNCONFIRMED',
     "ExpiresAt" TIMESTAMPTZ,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
+    "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "CHK_Reservations_FirstName1" CHECK (LENGTH(TRIM("FirstName1")) > 0),
     CONSTRAINT "CHK_Reservations_LastName1" CHECK (LENGTH(TRIM("LastName1")) > 0),
@@ -512,9 +498,9 @@ CREATE TABLE IF NOT EXISTS "PaymentMethods" (
     "IntegrationProvider" VARCHAR(50),
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
     "IsCanceled" BOOLEAN NOT NULL DEFAULT false,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
+    "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "CHK_PaymentMethods_IsActive" CHECK ("IsActive" IN (true, false))
 );
@@ -542,9 +528,9 @@ CREATE TABLE IF NOT EXISTS "PaymentMethodDetails" (
     "AccountHolder"    VARCHAR(255) NOT NULL,
     "PaymentReference" VARCHAR(255),
     "IsActive"         BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate"       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy"    VARCHAR(20),
+    "LastUpdatedBy" VARCHAR(50),
     "UpdateDate"       TIMESTAMP,
     CONSTRAINT "CHK_PaymentMethodDetails_IsActive" CHECK ("IsActive" IN (true, false))
 );
@@ -554,42 +540,13 @@ CREATE INDEX IF NOT EXISTS "IDX_PMDetails_Code"
 CREATE INDEX IF NOT EXISTS "IDX_PMDetails_Active" 
     ON "PaymentMethodDetails" ("Code", "IsActive") WHERE "IsActive" = true;
 
--- 18. PaymentGateways (Configuración Dinámica Centralizada Multi-Pasarela)
-CREATE TABLE IF NOT EXISTS "PaymentGateways" (
-    "Entry" SERIAL PRIMARY KEY,
-    "Code" VARCHAR(50) NOT NULL UNIQUE,
-    "Name" VARCHAR(255) NOT NULL,
-    "Provider" VARCHAR(50) NOT NULL, -- 'STRIPE', 'OPENPAY', 'MERCADOPAGO', 'PAYPAL'
-    "MerchantId" VARCHAR(255),
-    "PublicKey" TEXT,
-    "PrivateKey" TEXT,
-    "WebhookSecret" TEXT,
-    "ApiBaseUrl" VARCHAR(255),
-    "Currency" VARCHAR(10) NOT NULL DEFAULT 'mxn',
-    "IsTestMode" BOOLEAN NOT NULL DEFAULT true,
-    "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
-    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
-    "UpdateDate" TIMESTAMP,
-    CONSTRAINT "CHK_PaymentGateways_IsActive" CHECK ("IsActive" IN (true, false))
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS "UQ_PaymentGateways_Provider_Active" ON "PaymentGateways" ("Provider") WHERE "IsActive" = true;
-
-INSERT INTO "PaymentGateways" ("Code", "Name", "Provider", "IsTestMode", "IsActive", "CreatedBy") VALUES
-('GW_STRIPE', 'Stripe Gateway', 'STRIPE', true, true, 'system'),
-('GW_OPENPAY', 'OpenPay México', 'OPENPAY', true, false, 'system'),
-('GW_MERCADOPAGO', 'Mercado Pago Checkout Pro', 'MERCADOPAGO', true, false, 'system')
-ON CONFLICT ("Code") DO NOTHING;
-
--- 19. PaymentTransactions (Auditoría Universal de Transacciones de Cobro)
+-- 18. PaymentTransactions (Auditoría Universal de Transacciones de Cobro)
 CREATE TABLE IF NOT EXISTS "PaymentTransactions" (
     "Entry" SERIAL PRIMARY KEY,
     "Code" VARCHAR(50) NOT NULL UNIQUE,
     "EntityType" VARCHAR(50) NOT NULL DEFAULT 'ROUTE_RESERVATION',
     "EntityCode" VARCHAR(50) NOT NULL,
-    "Provider" VARCHAR(50) NOT NULL, -- 'STRIPE', 'OPENPAY', 'MERCADOPAGO'
+    "Provider" VARCHAR(50) NOT NULL DEFAULT 'STRIPE',
     "PaymentMethod" VARCHAR(50) NOT NULL DEFAULT 'CARD',
     "Amount" NUMERIC(10, 2) NOT NULL,
     "Currency" VARCHAR(10) NOT NULL DEFAULT 'mxn',
@@ -603,9 +560,9 @@ CREATE TABLE IF NOT EXISTS "PaymentTransactions" (
     "RawPayload" TEXT,
     "ExpiresAt" TIMESTAMPTZ,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
+    "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP
 );
 
@@ -615,50 +572,7 @@ CREATE INDEX IF NOT EXISTS "IDX_PaymentTransactions_ExpiresAt_Pending" ON "Payme
 CREATE INDEX IF NOT EXISTS "IDX_PaymentTransactions_PaymentIntentId" ON "PaymentTransactions" ("PaymentIntentId");
 CREATE INDEX IF NOT EXISTS "IDX_PaymentTransactions_Clabe" ON "PaymentTransactions" ("Clabe");
 
--- 20. OpenPaySettings
-CREATE TABLE IF NOT EXISTS "OpenPaySettings" (
-    "Entry" SERIAL PRIMARY KEY,
-    "Code" VARCHAR(50) NOT NULL DEFAULT 'DEFAULT' UNIQUE,
-    "Name" VARCHAR(255) NOT NULL DEFAULT 'OpenPay Settings',
-    "MerchantId" VARCHAR(255),
-    "PublicKey" TEXT,
-    "PrivateKey" TEXT,
-    "WebhookSecretKey" TEXT,
-    "ApiBaseUrl" VARCHAR(255) NOT NULL DEFAULT 'https://sandbox-api.openpay.mx/v1',
-    "IsTestMode" BOOLEAN NOT NULL DEFAULT true,
-    "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
-    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
-    "UpdateDate" TIMESTAMP
-);
-
-INSERT INTO "OpenPaySettings" ("Code", "Name", "IsTestMode", "IsActive", "CreatedBy") VALUES
-('DEFAULT', 'OpenPay Settings', true, true, 'system')
-ON CONFLICT ("Code") DO NOTHING;
-
--- 21. MercadoPagoSettings
-CREATE TABLE IF NOT EXISTS "MercadoPagoSettings" (
-    "Entry" SERIAL PRIMARY KEY,
-    "Code" VARCHAR(50) NOT NULL DEFAULT 'DEFAULT' UNIQUE,
-    "Name" VARCHAR(255) NOT NULL DEFAULT 'Mercado Pago Settings',
-    "PublicKey" TEXT,
-    "AccessToken" TEXT,
-    "WebhookSecretKey" TEXT,
-    "ApiBaseUrl" VARCHAR(255) NOT NULL DEFAULT 'https://api.mercadopago.com',
-    "IsTestMode" BOOLEAN NOT NULL DEFAULT true,
-    "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
-    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
-    "UpdateDate" TIMESTAMP
-);
-
-INSERT INTO "MercadoPagoSettings" ("Code", "Name", "IsTestMode", "IsActive", "CreatedBy") VALUES
-('DEFAULT', 'Mercado Pago Settings', true, true, 'system')
-ON CONFLICT ("Code") DO NOTHING;
-
--- 22. StripeSettings
+-- 19. StripeSettings
 CREATE TABLE IF NOT EXISTS "StripeSettings" (
     "Entry" SERIAL PRIMARY KEY,
     "Code" VARCHAR(50) NOT NULL DEFAULT 'DEFAULT' UNIQUE,
@@ -672,32 +586,11 @@ CREATE TABLE IF NOT EXISTS "StripeSettings" (
     "Currency" VARCHAR(10) NOT NULL DEFAULT 'mxn',
     "IsTestMode" BOOLEAN NOT NULL DEFAULT true,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
+    "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP
 );
-
--- 23. StripeSessions (Checkout Session Tracking)
-CREATE TABLE IF NOT EXISTS "StripeSessions" (
-    "Entry" SERIAL PRIMARY KEY,
-    "Code" VARCHAR(50) NOT NULL UNIQUE,
-    "ReservationCode" VARCHAR(50) NOT NULL,
-    "StripeSessionId" VARCHAR(255) NOT NULL,
-    "PaymentIntentId" VARCHAR(255),
-    "CheckoutUrl" TEXT NOT NULL,
-    "Amount" NUMERIC(10, 2) NOT NULL,
-    "Currency" VARCHAR(10) NOT NULL DEFAULT 'mxn',
-    "Status" VARCHAR(50) NOT NULL DEFAULT 'open',
-    "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
-    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
-    "UpdateDate" TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS "IDX_StripeSessions_ReservationCode" ON "StripeSessions" ("ReservationCode");
-CREATE INDEX IF NOT EXISTS "IDX_StripeSessions_StripeSessionId" ON "StripeSessions" ("StripeSessionId");
 
 -- 24. StripeTransactions (Detailed Stripe Auditing)
 CREATE TABLE IF NOT EXISTS "StripeTransactions" (
@@ -721,9 +614,9 @@ CREATE TABLE IF NOT EXISTS "StripeTransactions" (
     "HostedInstructionsUrl" TEXT,
     "ClientIp" VARCHAR(50),
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
+    "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP
 );
 
@@ -749,9 +642,9 @@ CREATE TABLE IF NOT EXISTS "WhatsAppSettings" (
     "WebhookVerifyToken" TEXT,
     "ApiVersion" VARCHAR(50) NOT NULL DEFAULT 'v24.0',
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
+    "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP
 );
 
@@ -770,9 +663,9 @@ CREATE TABLE IF NOT EXISTS "WhatsAppConversations" (
     "UnreadCount" INT NOT NULL DEFAULT 0,
     "Status" VARCHAR(50) NOT NULL DEFAULT 'OPEN',
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
+    "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP
 );
 
@@ -815,9 +708,9 @@ CREATE TABLE IF NOT EXISTS "WhatsAppTemplates" (
     "ButtonsJson" TEXT,
     "Status" VARCHAR(50) NOT NULL DEFAULT 'APPROVED',
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
+    "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP
 );
 
@@ -838,9 +731,9 @@ CREATE TABLE IF NOT EXISTS "CustomMessages" (
     "MetaCategory" VARCHAR(50) DEFAULT 'UTILITY',
     "MetaRejectReason" TEXT,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
+    "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP
 );
 
@@ -862,7 +755,7 @@ CREATE TABLE IF NOT EXISTS "CustomMessageParameters" (
     "IsRequired" BOOLEAN NOT NULL DEFAULT true,
     "Description" TEXT,
     "SortOrder" INT NOT NULL DEFAULT 1,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "FK_MsgParams_MessageCode" FOREIGN KEY ("MessageCode") REFERENCES "CustomMessages"("Code") ON DELETE CASCADE,
     CONSTRAINT "UQ_MsgParams_Key" UNIQUE ("MessageCode", "ParamKey")
@@ -879,7 +772,7 @@ CREATE TABLE IF NOT EXISTS "CustomButtons" (
     "ActionType" VARCHAR(50) NOT NULL DEFAULT 'TRIGGER_MESSAGE',
     "ActionPayload" TEXT,
     "SortOrder" INT NOT NULL DEFAULT 1,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -890,7 +783,7 @@ CREATE TABLE IF NOT EXISTS "CustomAttachments" (
     "MessageEntry" INT NOT NULL REFERENCES "CustomMessages"("Entry") ON DELETE CASCADE,
     "MediaType" VARCHAR(50) NOT NULL,
     "MediaUrl" TEXT NOT NULL,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -1292,7 +1185,7 @@ CREATE TABLE IF NOT EXISTS "SystemLicenses" (
     "ExpiresAt"   DATE NOT NULL,
     "Modules"     TEXT NOT NULL DEFAULT '[]',
     "IsActive"    BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate"  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "UpdateDate"  TIMESTAMP
 );
@@ -1328,9 +1221,9 @@ CREATE TABLE IF NOT EXISTS "Modules" (
     "Icon" VARCHAR(50) NOT NULL DEFAULT 'folder',
     "SortOrder" INT NOT NULL DEFAULT 1,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
+    "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP
 );
 
@@ -1342,9 +1235,9 @@ CREATE TABLE IF NOT EXISTS "Permissions" (
     "Description" TEXT,
     "ModuleCode" VARCHAR(50) NOT NULL,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
+    "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS "IDX_Permissions_ModuleCode" ON "Permissions" ("ModuleCode");
@@ -1357,13 +1250,30 @@ CREATE TABLE IF NOT EXISTS "Roles" (
     "Description" TEXT,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
     "IsCanceled" BOOLEAN NOT NULL DEFAULT false,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
+    "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP
 );
 
--- D. RolePermissions
+-- D1. RoleModules
+CREATE TABLE IF NOT EXISTS "RoleModules" (
+    "Entry" SERIAL PRIMARY KEY,
+    "RoleCode" VARCHAR(50) NOT NULL,
+    "ModuleCode" VARCHAR(50) NOT NULL,
+    "IsAllowed" BOOLEAN NOT NULL DEFAULT true,
+    "AllowOverride" BOOLEAN NOT NULL DEFAULT false,
+    "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" VARCHAR(50),
+    "UpdateDate" TIMESTAMP,
+    CONSTRAINT "UQ_RoleModules" UNIQUE ("RoleCode", "ModuleCode")
+);
+CREATE INDEX IF NOT EXISTS "IDX_RoleModules_RoleCode" ON "RoleModules" ("RoleCode");
+CREATE INDEX IF NOT EXISTS "IDX_RoleModules_ModuleCode" ON "RoleModules" ("ModuleCode");
+
+-- D2. RolePermissions
 CREATE TABLE IF NOT EXISTS "RolePermissions" (
     "Entry" SERIAL PRIMARY KEY,
     "RoleCode" VARCHAR(50) NOT NULL,
@@ -1372,16 +1282,34 @@ CREATE TABLE IF NOT EXISTS "RolePermissions" (
     "IsAllowed" BOOLEAN NOT NULL DEFAULT true,
     "AllowOverride" BOOLEAN NOT NULL DEFAULT false,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
+    "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "UQ_RolePermissions" UNIQUE ("RoleCode", "PermissionCode")
 );
 ALTER TABLE "RolePermissions" ADD COLUMN IF NOT EXISTS "AllowOverride" BOOLEAN NOT NULL DEFAULT false;
 CREATE INDEX IF NOT EXISTS "IDX_RolePermissions_RoleCode" ON "RolePermissions" ("RoleCode");
 
--- E. UserPermissions
+-- E1. UserModules
+CREATE TABLE IF NOT EXISTS "UserModules" (
+    "Entry" SERIAL PRIMARY KEY,
+    "UserCode" VARCHAR(50) NOT NULL,
+    "ModuleCode" VARCHAR(50) NOT NULL,
+    "IsAllowed" BOOLEAN NOT NULL DEFAULT true,
+    "AllowOverride" BOOLEAN NOT NULL DEFAULT false,
+    "GrantedByCode" VARCHAR(50),
+    "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" VARCHAR(50),
+    "UpdateDate" TIMESTAMP,
+    CONSTRAINT "UQ_UserModules" UNIQUE ("UserCode", "ModuleCode")
+);
+CREATE INDEX IF NOT EXISTS "IDX_UserModules_UserCode" ON "UserModules" ("UserCode");
+CREATE INDEX IF NOT EXISTS "IDX_UserModules_ModuleCode" ON "UserModules" ("ModuleCode");
+
+-- E2. UserPermissions
 CREATE TABLE IF NOT EXISTS "UserPermissions" (
     "Entry" SERIAL PRIMARY KEY,
     "UserCode" VARCHAR(50) NOT NULL,
@@ -1391,9 +1319,9 @@ CREATE TABLE IF NOT EXISTS "UserPermissions" (
     "AllowOverride" BOOLEAN NOT NULL DEFAULT false,
     "GrantedByCode" VARCHAR(50),
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(20) NOT NULL DEFAULT 'system',
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(20),
+    "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "UQ_UserPermissions" UNIQUE ("UserCode", "PermissionCode")
 );
@@ -1415,108 +1343,116 @@ CREATE TABLE IF NOT EXISTS "AuthorizationAuditLog" (
 CREATE INDEX IF NOT EXISTS "IDX_AuthAudit_UserCode" ON "AuthorizationAuditLog" ("UserCode");
 CREATE INDEX IF NOT EXISTS "IDX_AuthAudit_CreateDate" ON "AuthorizationAuditLog" ("CreateDate");
 
--- Seed Modules
-INSERT INTO "Modules" ("Code", "Name", "Description", "Icon", "SortOrder") VALUES
-('MOD_OVERVIEW', 'Panel Analítico', 'Métricas y estadísticas globales', 'dashboard', 1),
-('MOD_RESERVATIONS', 'Reservaciones', 'Control de boletos y pasajeros', 'confirmation_number', 2),
-('MOD_SCHEDULES', 'Horarios y Salidas', 'Programación de corridas y viajes', 'schedule', 3),
-('MOD_EVENTS', 'Eventos', 'Conciertos, festivales y eventos', 'event', 4),
-('MOD_VENUES', 'Destinos', 'Recintos, estadios y destinos finales', 'flag', 5),
-('MOD_POINTS', 'Orígenes y Paradas', 'Puntos de abordaje y paradas intermedias', 'place', 6),
-('MOD_ROUTES', 'Rutas de Viaje', 'Trazado de rutas y tarifas base', 'alt_route', 7),
-('MOD_PAYMENTS', 'Formas de Pago', 'Métodos de pago y cuentas bancarias', 'payments', 8),
-('MOD_INTEGRATIONS', 'Integraciones', 'WhatsApp Cloud API y Stripe', 'hub', 9),
-('MOD_SETTINGS', 'Configuración General', 'Parámetros del sistema y licencias', 'settings', 10),
-('MOD_USERS', 'Personal y Accesos', 'Gestión de colaboradores, roles y permisos', 'badge', 11)
-ON CONFLICT ("Code") DO NOTHING;
+-- Seed Modules (11 Modules)
+INSERT INTO "Modules" ("Code", "Name", "Description", "Icon", "SortOrder", "IsActive", "CreatedBy") VALUES
+('MOD_OVERVIEW', 'Panel Analítico', 'Métricas, KPIs y estadísticas globales', 'dashboard', 1, true, 'system'),
+('MOD_RESERVATIONS', 'Reservaciones', 'Gestión de boletos, pasajeros y cobros', 'confirmation_number', 2, true, 'system'),
+('MOD_SCHEDULES', 'Horarios y Salidas', 'Programación de corridas y viajes', 'schedule', 3, true, 'system'),
+('MOD_EVENTS', 'Eventos', 'Conciertos, festivales y eventos', 'event', 4, true, 'system'),
+('MOD_ROUTES', 'Rutas de Viaje', 'Trazado de rutas y tarifas base', 'alt_route', 5, true, 'system'),
+('MOD_CATALOGS', 'Catálogos Base', 'Recintos, paradas y puntos de abordaje', 'folder', 6, true, 'system'),
+('MOD_EMPLOYEES', 'Personal', 'Registro de empleados y operadores', 'badge', 7, true, 'system'),
+('MOD_CUSTOMERS', 'Clientes', 'Padrón de pasajeros y viajeros frecuentes', 'groups', 8, true, 'system'),
+('MOD_USERS', 'Usuarios y Accesos', 'Cuentas de usuario y seguridad', 'manage_accounts', 9, true, 'system'),
+('MOD_ROLES', 'Roles y Perfiles', 'Perfiles y asignación de permisos', 'security', 10, true, 'system'),
+('MOD_SETTINGS', 'Configuración General', 'Parámetros del sistema e integraciones', 'settings', 11, true, 'system')
+ON CONFLICT ("Code") DO UPDATE SET
+    "Name" = EXCLUDED."Name",
+    "Description" = EXCLUDED."Description",
+    "Icon" = EXCLUDED."Icon",
+    "SortOrder" = EXCLUDED."SortOrder",
+    "IsActive" = true;
 
--- Seed Permissions in Spanish
-INSERT INTO "Permissions" ("Code", "Name", "Description", "ModuleCode") VALUES
--- 01. Panel Analítico
-('MODULE_OVERVIEW_ACCESS', 'Acceso a Estadísticas', 'Permite visualizar el panel de control y métricas globales', 'MOD_OVERVIEW'),
-('ROUTE_OVERVIEW_EXPORT', 'Exportar Informes', 'Permite descargar reportes ejecutivos en formato Excel/PDF', 'MOD_OVERVIEW'),
+-- Seed Permissions (34 Atomic Operational Permissions)
+INSERT INTO "Permissions" ("Code", "Name", "Description", "ModuleCode", "IsActive", "CreatedBy") VALUES
+-- 01. Overview
+('ROUTE_OVERVIEW_EXPORT', 'Exportar Métricas', 'Permite exportar resúmenes ejecutivos en Excel o PDF', 'MOD_OVERVIEW', true, 'system'),
 
 -- 02. Reservaciones
-('MODULE_RESERVATIONS_ACCESS', 'Acceso a Reservaciones', 'Permite ingresar a la lista de reservaciones y boletos', 'MOD_RESERVATIONS'),
-('ROUTE_RESERVATION_CREATE', 'Registrar Reservación', 'Permite crear nuevas reservaciones manuales en taquilla', 'MOD_RESERVATIONS'),
-('ROUTE_RESERVATION_UPDATE', 'Modificar Reservación', 'Permite cambiar datos de pasajeros, asientos o paradas', 'MOD_RESERVATIONS'),
-('ROUTE_RESERVATION_STATUS', 'Actualizar Estatus', 'Permite cambiar el estado (Confirmar, Completar, etc.)', 'MOD_RESERVATIONS'),
-('ROUTE_RESERVATION_PAY', 'Procesar Cobros', 'Permite registrar pagos en efectivo, tarjeta o validar transferencias', 'MOD_RESERVATIONS'),
-('ROUTE_RESERVATION_CANCEL', 'Cancelar Reservación', 'Permite anular una reservación liberando los asientos ocupados', 'MOD_RESERVATIONS'),
-('ROUTE_RESERVATION_DELETE', 'Eliminar Registro', 'Permite dar de baja lógica la reservación del sistema', 'MOD_RESERVATIONS'),
+('ROUTE_RESERVATION_CREATE', 'Crear Reservación', 'Permite registrar nuevas reservaciones en el sistema', 'MOD_RESERVATIONS', true, 'system'),
+('ROUTE_RESERVATION_UPDATE', 'Editar Reservación', 'Permite modificar datos del pasajero o viaje', 'MOD_RESERVATIONS', true, 'system'),
+('ROUTE_RESERVATION_STATUS', 'Cambiar Estatus', 'Permite cambiar estado de reservación (Confirmar, etc.)', 'MOD_RESERVATIONS', true, 'system'),
+('ROUTE_RESERVATION_PAY', 'Procesar Pagos', 'Permite validar o registrar cobros de reservaciones', 'MOD_RESERVATIONS', true, 'system'),
+('ROUTE_RESERVATION_CANCEL', 'Cancelar Reservación', 'Permite anular reservaciones y liberar asientos', 'MOD_RESERVATIONS', true, 'system'),
+('ROUTE_RESERVATION_DELETE', 'Eliminar Registro', 'Permite borrado lógico de reservaciones', 'MOD_RESERVATIONS', true, 'system'),
 
--- 03. Horarios y Salidas
-('MODULE_SCHEDULES_ACCESS', 'Acceso a Horarios', 'Permite visualizar los horarios y salidas programadas', 'MOD_SCHEDULES'),
-('ROUTE_SCHEDULE_CREATE', 'Programar Salida', 'Permite dar de alta una nueva corrida o salida programada', 'MOD_SCHEDULES'),
-('ROUTE_SCHEDULE_UPDATE', 'Editar Salida', 'Permite modificar horas de salida, capacidad y precios', 'MOD_SCHEDULES'),
-('ROUTE_SCHEDULE_DELETE', 'Cancelar/Eliminar Salida', 'Permite anular o eliminar corridas programadas', 'MOD_SCHEDULES'),
+-- 03. Horarios
+('ROUTE_SCHEDULE_CREATE', 'Crear Horario', 'Permite programar nuevas corridas y viajes', 'MOD_SCHEDULES', true, 'system'),
+('ROUTE_SCHEDULE_UPDATE', 'Editar Horario', 'Permite modificar horas, capacidad o tarifas de viaje', 'MOD_SCHEDULES', true, 'system'),
+('ROUTE_SCHEDULE_DELETE', 'Eliminar Horario', 'Permite dar de baja una corrida programada', 'MOD_SCHEDULES', true, 'system'),
 
 -- 04. Eventos
-('MODULE_EVENTS_ACCESS', 'Acceso a Eventos', 'Permite consultar el catálogo de conciertos y eventos', 'MOD_EVENTS'),
-('ROUTE_EVENT_CREATE', 'Crear Evento', 'Permite registrar nuevos eventos con fecha y recinto', 'MOD_EVENTS'),
-('ROUTE_EVENT_UPDATE', 'Editar Evento', 'Permite modificar la información, imagen o categoría del evento', 'MOD_EVENTS'),
-('ROUTE_EVENT_DELETE', 'Eliminar Evento', 'Permite dar de baja un evento del sistema', 'MOD_EVENTS'),
+('ROUTE_EVENT_CREATE', 'Crear Evento', 'Permite dar de alta nuevos conciertos o festivales', 'MOD_EVENTS', true, 'system'),
+('ROUTE_EVENT_UPDATE', 'Editar Evento', 'Permite actualizar datos, fecha o imagen del evento', 'MOD_EVENTS', true, 'system'),
+('ROUTE_EVENT_DELETE', 'Eliminar Evento', 'Permite retirar eventos del sistema', 'MOD_EVENTS', true, 'system'),
 
--- 05. Destinos (Venues)
-('MODULE_VENUES_ACCESS', 'Acceso a Destinos', 'Permite consultar recintos, estadios y destinos', 'MOD_VENUES'),
-('ROUTE_VENUE_CREATE', 'Registrar Destino', 'Permite dar de alta nuevos destinos y ubicaciones', 'MOD_VENUES'),
-('ROUTE_VENUE_UPDATE', 'Modificar Destino', 'Permite editar dirección, ciudad y nombre del destino', 'MOD_VENUES'),
-('ROUTE_VENUE_DELETE', 'Eliminar Destino', 'Permite eliminar destinos registrados', 'MOD_VENUES'),
+-- 05. Rutas
+('ROUTE_ROUTE_CREATE', 'Trazar Ruta', 'Permite crear itinerarios y rutas de viaje', 'MOD_ROUTES', true, 'system'),
+('ROUTE_ROUTE_UPDATE', 'Editar Ruta', 'Permite modificar paradas o precios de la ruta', 'MOD_ROUTES', true, 'system'),
+('ROUTE_ROUTE_DELETE', 'Eliminar Ruta', 'Permite anular rutas existentes', 'MOD_ROUTES', true, 'system'),
 
--- 06. Orígenes y Paradas
-('MODULE_POINTS_ACCESS', 'Acceso a Paradas', 'Permite consultar orígenes, puntos de abordaje y paradas', 'MOD_POINTS'),
-('ROUTE_POINT_CREATE', 'Crear Punto de Abordaje', 'Permite dar de alta nuevas paradas y terminales', 'MOD_POINTS'),
-('ROUTE_POINT_UPDATE', 'Editar Parada', 'Permite modificar dirección y tipo de punto de abordaje', 'MOD_POINTS'),
-('ROUTE_POINT_DELETE', 'Eliminar Parada', 'Permite retirar paradas del catálogo', 'MOD_POINTS'),
+-- 06. Catálogos Base (Recintos y Paradas)
+('ROUTE_CATALOG_CREATE', 'Crear Catálogo', 'Permite agregar recintos o puntos de abordaje', 'MOD_CATALOGS', true, 'system'),
+('ROUTE_CATALOG_UPDATE', 'Editar Catálogo', 'Permite actualizar información de recintos o paradas', 'MOD_CATALOGS', true, 'system'),
+('ROUTE_CATALOG_DELETE', 'Eliminar Catálogo', 'Permite dar de baja recintos o puntos de abordaje', 'MOD_CATALOGS', true, 'system'),
 
--- 07. Rutas de Viaje
-('MODULE_ROUTES_ACCESS', 'Acceso a Rutas', 'Permite ver las rutas trazadas entre origen y destino', 'MOD_ROUTES'),
-('ROUTE_ROUTE_CREATE', 'Trazar Nueva Ruta', 'Permite vincular origen y destino con precio base', 'MOD_ROUTES'),
-('ROUTE_ROUTE_UPDATE', 'Modificar Ruta', 'Permite cambiar itinerarios, paradas intermedias y tarifas', 'MOD_ROUTES'),
-('ROUTE_ROUTE_DELETE', 'Eliminar Ruta', 'Permite dar de baja rutas de viaje', 'MOD_ROUTES'),
+-- 07. Personal (Employees)
+('ROUTE_EMPLOYEE_CREATE', 'Crear Empleado', 'Permite registrar personal y operadores', 'MOD_EMPLOYEES', true, 'system'),
+('ROUTE_EMPLOYEE_UPDATE', 'Editar Empleado', 'Permite actualizar datos del colaborador', 'MOD_EMPLOYEES', true, 'system'),
+('ROUTE_EMPLOYEE_DELETE', 'Eliminar Empleado', 'Permite dar de baja colaboradores', 'MOD_EMPLOYEES', true, 'system'),
 
--- 08. Formas de Pago
-('MODULE_PAYMENTS_ACCESS', 'Acceso a Métodos de Pago', 'Permite ver las opciones y cuentas bancarias configuradas', 'MOD_PAYMENTS'),
-('PAYMENTS_METHOD_CREATE', 'Crear Método de Pago', 'Permite habilitar nuevas formas de pago en el checkout', 'MOD_PAYMENTS'),
-('PAYMENTS_METHOD_UPDATE', 'Editar Configuración de Pago', 'Permite modificar comisiones y pasarelas vinculadas', 'MOD_PAYMENTS'),
-('PAYMENTS_BANK_MANAGE', 'Administrar Cuentas Bancarias', 'Permite editar CLABEs, bancos y beneficiarios de transferencia', 'MOD_PAYMENTS'),
-('PAYMENTS_METHOD_DELETE', 'Eliminar Método de Pago', 'Permite desactivar o eliminar opciones de pago', 'MOD_PAYMENTS'),
+-- 08. Clientes (Customers)
+('ROUTE_CUSTOMER_CREATE', 'Registrar Cliente', 'Permite registrar nuevos pasajeros', 'MOD_CUSTOMERS', true, 'system'),
+('ROUTE_CUSTOMER_UPDATE', 'Editar Cliente', 'Permite actualizar información del cliente', 'MOD_CUSTOMERS', true, 'system'),
+('ROUTE_CUSTOMER_DELETE', 'Eliminar Cliente', 'Permite dar de baja registros de clientes', 'MOD_CUSTOMERS', true, 'system'),
 
--- 09. Integraciones
-('MODULE_INTEGRATIONS_ACCESS', 'Acceso a Integraciones', 'Permite ver el estado de WhatsApp y pasarelas externas', 'MOD_INTEGRATIONS'),
-('INTEGRATION_STRIPE_MANAGE', 'Configurar Stripe', 'Permite editar claves de API y webhooks de Stripe', 'MOD_INTEGRATIONS'),
-('INTEGRATION_WHATSAPP_MANAGE', 'Configurar WhatsApp API', 'Permite vincular tokens de Meta Cloud y plantillas', 'MOD_INTEGRATIONS'),
-('INTEGRATION_TEST', 'Pruebas de Diagnóstico', 'Permite enviar mensajes y cobros de prueba', 'MOD_INTEGRATIONS'),
-('NOTIF_STAFF_MANAGE', 'Notificaciones a Personal', 'Permite configurar alertas de salida a choferes y staff', 'MOD_INTEGRATIONS'),
+-- 09. Usuarios
+('ROUTE_USER_CREATE', 'Crear Usuario', 'Permite crear cuentas de acceso al sistema', 'MOD_USERS', true, 'system'),
+('ROUTE_USER_UPDATE', 'Editar Usuario', 'Permite actualizar accesos, correo y credenciales', 'MOD_USERS', true, 'system'),
+('ROUTE_USER_DELETE', 'Eliminar Usuario', 'Permite desactivar cuentas de acceso', 'MOD_USERS', true, 'system'),
 
--- 10. Configuración
-('MODULE_SETTINGS_ACCESS', 'Acceso a Configuración', 'Permite visualizar parámetros globales y sistema', 'MOD_SETTINGS'),
-('ROUTE_CONFIG_UPDATE', 'Modificar Parámetros', 'Permite cambiar datos de la empresa, impuestos y divisas', 'MOD_SETTINGS'),
-('MODULE_LICENSE_ACCESS', 'Acceso a Licenciamiento', 'Permite consultar y activar licencias de OmniSphere', 'MOD_SETTINGS'),
+-- 10. Roles
+('ROUTE_ROLE_CREATE', 'Crear Rol', 'Permite definir nuevos perfiles de usuario', 'MOD_ROLES', true, 'system'),
+('ROUTE_ROLE_UPDATE', 'Editar Rol', 'Permite modificar asignación de permisos y módulos', 'MOD_ROLES', true, 'system'),
+('ROUTE_ROLE_DELETE', 'Eliminar Rol', 'Permite dar de baja perfiles de rol', 'MOD_ROLES', true, 'system'),
 
--- 11. Planes y Membresías
-('MODULE_MEMBERSHIPS_ACCESS', 'Acceso a Planes y Membresías', 'Permite gestionar planes y programas de lealtad', 'MOD_MEMBERSHIPS'),
-('MEMBERSHIPS_MANAGE', 'Administrar Planes', 'Permite crear o modificar beneficios y membresías', 'MOD_MEMBERSHIPS'),
+-- 11. Configuración del Sistema
+('ROUTE_SETTING_UPDATE', 'Actualizar Configuración', 'Permite ajustar parámetros generales y políticas', 'MOD_SETTINGS', true, 'system'),
+('ROUTE_SETTING_PAYMENT_UPDATE', 'Configurar Pagos', 'Permite editar métodos de cobro y Stripe', 'MOD_SETTINGS', true, 'system'),
+('ROUTE_SETTING_WHATSAPP_UPDATE', 'Configurar WhatsApp', 'Permite editar tokens y plantillas de Meta Cloud', 'MOD_SETTINGS', true, 'system')
+ON CONFLICT ("Code") DO UPDATE SET
+    "Name" = EXCLUDED."Name",
+    "Description" = EXCLUDED."Description",
+    "ModuleCode" = EXCLUDED."ModuleCode",
+    "IsActive" = true;
 
--- 12. Personal y Roles
-('MODULE_USERS_ACCESS', 'Acceso a Personal', 'Permite acceder a la administración de usuarios y accesos', 'MOD_USERS'),
-('CORE_USER_CREATE', 'Registrar Empleado/Usuario', 'Permite dar de alta nuevos colaboradores y cuentas de acceso', 'MOD_USERS'),
-('CORE_USER_UPDATE', 'Modificar Usuario', 'Permite editar datos personales, teléfonos y estatus', 'MOD_USERS'),
-('CORE_USER_DELETE', 'Eliminar Usuario', 'Permite dar de baja un usuario del sistema', 'MOD_USERS'),
-('CORE_ROLE_MANAGE', 'Administrar Roles', 'Permite crear o ajustar perfiles de seguridad predefinidos', 'MOD_USERS'),
-('CORE_PERM_MANAGE', 'Modificar Permisos', 'Permite otorgar o revocar permisos específicos a usuarios', 'MOD_USERS')
-ON CONFLICT ("Code") DO NOTHING;
+-- Seed Default Role: ROL_ADMIN
+INSERT INTO "Roles" ("Code", "Name", "Description", "IsActive", "IsCanceled", "CreatedBy")
+VALUES ('ROL_ADMIN', 'Administrador General', 'Control total de la plataforma y módulos', true, false, 'system')
+ON CONFLICT ("Code") DO UPDATE SET "IsActive" = true, "IsCanceled" = false;
 
--- Migration: Ensure all CreatedBy and LastUpdatedBy columns are VARCHAR(20) on existing databases
+-- Grant all 11 modules to ROL_ADMIN
+INSERT INTO "RoleModules" ("RoleCode", "ModuleCode", "IsAllowed", "AllowOverride", "IsActive", "CreatedBy")
+SELECT 'ROL_ADMIN', "Code", true, true, true, 'system'
+FROM "Modules"
+ON CONFLICT ("RoleCode", "ModuleCode") DO UPDATE SET "IsAllowed" = true, "AllowOverride" = true, "IsActive" = true;
+
+-- Grant all 34 operational permissions to ROL_ADMIN
+INSERT INTO "RolePermissions" ("RoleCode", "PermissionCode", "ModuleCode", "IsAllowed", "AllowOverride", "IsActive", "CreatedBy")
+SELECT 'ROL_ADMIN', "Code", "ModuleCode", true, true, true, 'system'
+FROM "Permissions"
+ON CONFLICT ("RoleCode", "PermissionCode") DO UPDATE SET "IsAllowed" = true, "AllowOverride" = true, "IsActive" = true;
+
+-- Migration: Ensure all CreatedBy and LastUpdatedBy columns are VARCHAR(50) on existing databases
 DO $$
 DECLARE
     tbl text;
     tables text[] := ARRAY[
         'Users', 'Employees', 'Identities', 'Roles', 'Permissions', 'RolePermissions', 'UserPermissions',
-        'Departments', 'AuthorizationTemplates', 'AuthorizationStages', 'AuthorizationRules', 
+        'RoleModules', 'UserModules', 'Departments', 'AuthorizationTemplates', 'AuthorizationStages', 'AuthorizationRules', 
         'AuthorizationRuleUsers', 'AuthorizationRequests', 'AuthorizationDecisions',
-        'PaymentMethods', 'PaymentMethodDetails', 'PaymentGateways', 'PaymentTransactions',
-        'StripeSettings', 'OpenPaySettings', 'MercadoPagoSettings', 'EmailSettings', 'SystemConfigs',
+        'PaymentMethods', 'PaymentMethodDetails', 'PaymentTransactions',
+        'StripeSettings', 'EmailSettings', 'SystemConfigs',
         'WhatsAppSettings', 'TwilioSettings', 'CustomMessages', 'CustomButtons',
         'Branches', 'TaxRates', 'UnitOfMeasures', 'Currencies', 'ExchangeRates', 'Series'
     ];
@@ -1529,7 +1465,7 @@ BEGIN
                     EXECUTE format('ALTER TABLE %I ALTER COLUMN "CreatedBy" DROP DEFAULT', tbl);
                 EXCEPTION WHEN OTHERS THEN NULL;
                 END;
-                EXECUTE format('ALTER TABLE %I ALTER COLUMN "CreatedBy" TYPE VARCHAR(20) USING CASE WHEN "CreatedBy"::TEXT IN (''0'', ''1'', '''', ''SYSTEM'') THEN ''system'' WHEN "CreatedBy" IS NULL THEN ''system'' ELSE LOWER("CreatedBy"::TEXT) END', tbl);
+                EXECUTE format('ALTER TABLE %I ALTER COLUMN "CreatedBy" TYPE VARCHAR(50) USING CASE WHEN "CreatedBy"::TEXT IN (''0'', ''1'', '''', ''SYSTEM'') THEN ''system'' WHEN "CreatedBy" IS NULL THEN ''system'' ELSE LOWER("CreatedBy"::TEXT) END', tbl);
                 EXECUTE format('ALTER TABLE %I ALTER COLUMN "CreatedBy" SET DEFAULT ''system''', tbl);
                 EXECUTE format('ALTER TABLE %I ALTER COLUMN "CreatedBy" SET NOT NULL', tbl);
             END IF;
@@ -1539,7 +1475,7 @@ BEGIN
                     EXECUTE format('ALTER TABLE %I ALTER COLUMN "LastUpdatedBy" DROP DEFAULT', tbl);
                 EXCEPTION WHEN OTHERS THEN NULL;
                 END;
-                EXECUTE format('ALTER TABLE %I ALTER COLUMN "LastUpdatedBy" TYPE VARCHAR(20) USING CASE WHEN "LastUpdatedBy" IS NULL OR "LastUpdatedBy"::TEXT IN (''0'', '''') THEN NULL WHEN "LastUpdatedBy"::TEXT IN (''1'', ''SYSTEM'') THEN ''system'' ELSE LOWER("LastUpdatedBy"::TEXT) END', tbl);
+                EXECUTE format('ALTER TABLE %I ALTER COLUMN "LastUpdatedBy" TYPE VARCHAR(50) USING CASE WHEN "LastUpdatedBy" IS NULL OR "LastUpdatedBy"::TEXT IN (''0'', '''') THEN NULL WHEN "LastUpdatedBy"::TEXT IN (''1'', ''SYSTEM'') THEN ''system'' ELSE LOWER("LastUpdatedBy"::TEXT) END', tbl);
             END IF;
 
             BEGIN

@@ -1,14 +1,14 @@
 #pragma once
 
 #include <string>
+#include "Authorization/Enums/PermissionType.hpp"
 
 namespace omnisphere::dtos
 {
     struct GrantPermissionInput
     {
         std::string userCode;
-        std::string module;
-        std::string permission;
+        omnisphere::enums::PermissionType permission = omnisphere::enums::PermissionType::UNKNOWN;
         std::string grantedByCode;
     };
 } // namespace omnisphere::dtos

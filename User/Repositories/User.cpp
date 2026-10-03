@@ -1,6 +1,7 @@
 #include <OmniUtils/Hasher.hpp>
 #include "User/Enums/PermissionMode.hpp"
 #include "User/Repositories/User.hpp"
+#include "Identity/Repositories/IdentityRepository.hpp"
 #include <OmniData/QueryBuilder.hpp>
 #include <functional>
 #include <algorithm>
@@ -45,14 +46,9 @@ bool User::Create(const omnisphere::dtos::CreateUser &user, const std::vector<st
 }
 
 bool User::UpdateUserSequence() const {
-  auto conn = database->Acquire();
   try {
-    const std::string sQuery =
-        "UPDATE Sequences SET UserSequence = COALESCE(UserSequence,0) + 1";
-
-    if (!conn->RunStatement(sQuery))
-      return false;
-
+    omnisphere::repositories::IdentityRepository identityRepo(database);
+    identityRepo.GetNextCode("User", "USR");
     return true;
   } catch (const std::exception &e) {
     throw std::runtime_error(std::string("[UpdateUserSequence Exception] ") +
@@ -61,19 +57,13 @@ bool User::UpdateUserSequence() const {
 }
 
 int User::GetCurrentSequence() const {
-  auto conn = database->Acquire();
   try {
-    const std::string sQuery = "SELECT COALESCE(UserSequence, 0) + 1 "
-                               "UserSequence FROM Sequences WHERE Entry = 1";
-
-    omnisphere::types::DataTable data = conn->FetchResults(sQuery);
-
-    if (data.RowsCount() == 1) {
-      const auto& row = data[0];
-      return row["UserSequence"];
+    omnisphere::repositories::IdentityRepository identityRepo(database);
+    auto dt = identityRepo.GetByDomain("User");
+    if (dt.RowsCount() > 0) {
+      return dt[0]["Sequence"].GetOptional<int>().value_or(1);
     }
-    else
-      return 0;
+    return 1;
   } catch (const std::exception &e) {
     throw std::runtime_error(std::string("[GetCurrentSequence Exception] ") +
                              " " + e.what());
