@@ -22,9 +22,10 @@ namespace omnisphere::services
         try
         {
             auto dt = repo->GetSettings();
-            if (dt.RowsCount() > 0 && dt[0].HasColumn("WebhookPath") && !dt[0]["WebhookPath"].IsNull())
+            if (!dt.IsEmpty())
             {
-                std::string dbPath = (std::string)dt[0]["WebhookPath"];
+                const auto& row = dt[0];
+                std::string dbPath = row["WebhookPath"].GetOptional<std::string>().value_or("");
                 if (!dbPath.empty()) configuredPath = dbPath;
             }
         }

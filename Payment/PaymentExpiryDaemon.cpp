@@ -53,13 +53,13 @@ namespace omnisphere::payment
 
                     std::vector<omnisphere::types::SQLParam> emptyParams;
                     auto dt = conn->FetchPrepared(sql, emptyParams);
-                    for (size_t i = 0; i < dt.RowsCount(); ++i)
+                    for (const auto& row : dt)
                     {
-                        int entry = static_cast<int>(dt[i]["Entry"]);
-                        std::string entityType = dt[i].HasColumn("EntityType") && !dt[i]["EntityType"].IsNull() ? (std::string)dt[i]["EntityType"] : "ROUTE_RESERVATION";
-                        std::string entityCode = dt[i].HasColumn("EntityCode") && !dt[i]["EntityCode"].IsNull() ? (std::string)dt[i]["EntityCode"] : "";
-                        std::string provider = dt[i].HasColumn("Provider") && !dt[i]["Provider"].IsNull() ? (std::string)dt[i]["Provider"] : "STRIPE";
-                        double amount = dt[i].HasColumn("Amount") && !dt[i]["Amount"].IsNull() ? (double)dt[i]["Amount"] : 0.0;
+                        int entry = row["Entry"].GetOptional<int>().value_or(0);
+                        std::string entityType = row["EntityType"].GetOptional<std::string>().value_or("ROUTE_RESERVATION");
+                        std::string entityCode = row["EntityCode"].GetOptional<std::string>().value_or("");
+                        std::string provider = row["Provider"].GetOptional<std::string>().value_or("STRIPE");
+                        double amount = row["Amount"].GetOptional<double>().value_or(0.0);
 
                         // Marcar transacción como EXPIRED en BD
                         conn->RunPrepared(

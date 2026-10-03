@@ -1,5 +1,6 @@
 #include "Payment/Transaction/Repositories/PaymentRepository.hpp"
 #include "Identity/Repositories/IdentityRepository.hpp"
+#include <OmniData/DataMapper.hpp>
 #include <OmniUtils/Logger.hpp>
 #include <iostream>
 #include <algorithm>
@@ -9,99 +10,6 @@ namespace omnisphere::repositories
 {
     PaymentRepository::PaymentRepository(std::shared_ptr<omnisphere::data::DatabasePool> dbPool)
         : m_dbPool(std::move(dbPool)) {}
-
-    omnisphere::models::Payment PaymentRepository::MapTransferRow(omnisphere::types::DataTable::Row& row)
-    {
-        omnisphere::models::Payment p;
-        p.entry = static_cast<int>(row["Entry"]);
-        p.code = (std::string)row["Code"];
-        p.paymentCode = (std::string)row["PaymentCode"];
-        p.type = "TRANSFER";
-        p.entityType = row.HasColumn("EntityType") ? (std::string)row["EntityType"] : "ROUTE_RESERVATION";
-        p.entityCode = (std::string)row["EntityCode"];
-        p.amount = row.HasColumn("Amount") ? (double)row["Amount"] : 0.0;
-        p.currency = row.HasColumn("Currency") ? (std::string)row["Currency"] : "mxn";
-        p.status = row.HasColumn("Status") ? (std::string)row["Status"] : "PENDING";
-
-        if (row.HasColumn("BankName") && !row["BankName"].IsNull()) p.bankName = (std::string)row["BankName"];
-        if (row.HasColumn("Clabe") && !row["Clabe"].IsNull()) p.clabe = (std::string)row["Clabe"];
-        if (row.HasColumn("AccountHolder") && !row["AccountHolder"].IsNull()) p.accountHolder = (std::string)row["AccountHolder"];
-        if (row.HasColumn("PaymentReference") && !row["PaymentReference"].IsNull()) p.paymentReference = (std::string)row["PaymentReference"];
-        if (row.HasColumn("ReceiptUrl") && !row["ReceiptUrl"].IsNull()) p.receiptUrl = (std::string)row["ReceiptUrl"];
-
-        if (row.HasColumn("ExpiresAt") && !row["ExpiresAt"].IsNull()) p.expiresAt = (std::string)row["ExpiresAt"];
-        p.isActive = row.HasColumn("IsActive") ? (bool)row["IsActive"] : true;
-        p.createdBy = row.HasColumn("CreatedBy") ? (std::string)row["CreatedBy"] : "system";
-        if (row.HasColumn("CreateDate") && !row["CreateDate"].IsNull()) p.createDate = (std::string)row["CreateDate"];
-        if (row.HasColumn("LastUpdatedBy") && !row["LastUpdatedBy"].IsNull()) p.lastUpdatedBy = (std::string)row["LastUpdatedBy"];
-        if (row.HasColumn("UpdateDate") && !row["UpdateDate"].IsNull()) p.updateDate = (std::string)row["UpdateDate"];
-
-        return p;
-    }
-
-    omnisphere::models::Payment PaymentRepository::MapCashRow(omnisphere::types::DataTable::Row& row)
-    {
-        omnisphere::models::Payment p;
-        p.entry = static_cast<int>(row["Entry"]);
-        p.code = (std::string)row["Code"];
-        p.paymentCode = (std::string)row["PaymentCode"];
-        p.type = "CASH";
-        p.entityType = row.HasColumn("EntityType") ? (std::string)row["EntityType"] : "ROUTE_RESERVATION";
-        p.entityCode = (std::string)row["EntityCode"];
-        p.amount = row.HasColumn("Amount") ? (double)row["Amount"] : 0.0;
-        p.currency = row.HasColumn("Currency") ? (std::string)row["Currency"] : "mxn";
-        p.status = row.HasColumn("Status") ? (std::string)row["Status"] : "PENDING";
-
-        if (row.HasColumn("CashReceived") && !row["CashReceived"].IsNull()) p.cashReceived = (double)row["CashReceived"];
-        if (row.HasColumn("CashChange") && !row["CashChange"].IsNull()) p.cashChange = (double)row["CashChange"];
-        if (row.HasColumn("ReceivedBy") && !row["ReceivedBy"].IsNull()) p.receivedBy = (std::string)row["ReceivedBy"];
-        if (row.HasColumn("Location") && !row["Location"].IsNull()) p.location = (std::string)row["Location"];
-        if (row.HasColumn("ReceiptNumber") && !row["ReceiptNumber"].IsNull()) p.receiptNumber = (std::string)row["ReceiptNumber"];
-        if (row.HasColumn("Notes") && !row["Notes"].IsNull()) p.notes = (std::string)row["Notes"];
-
-        if (row.HasColumn("ExpiresAt") && !row["ExpiresAt"].IsNull()) p.expiresAt = (std::string)row["ExpiresAt"];
-        p.isActive = row.HasColumn("IsActive") ? (bool)row["IsActive"] : true;
-        p.createdBy = row.HasColumn("CreatedBy") ? (std::string)row["CreatedBy"] : "system";
-        if (row.HasColumn("CreateDate") && !row["CreateDate"].IsNull()) p.createDate = (std::string)row["CreateDate"];
-        if (row.HasColumn("LastUpdatedBy") && !row["LastUpdatedBy"].IsNull()) p.lastUpdatedBy = (std::string)row["LastUpdatedBy"];
-        if (row.HasColumn("UpdateDate") && !row["UpdateDate"].IsNull()) p.updateDate = (std::string)row["UpdateDate"];
-
-        return p;
-    }
-
-    omnisphere::models::Payment PaymentRepository::MapCardRow(omnisphere::types::DataTable::Row& row)
-    {
-        omnisphere::models::Payment p;
-        p.entry = static_cast<int>(row["Entry"]);
-        p.code = (std::string)row["Code"];
-        p.paymentCode = (std::string)row["PaymentCode"];
-        p.type = "CARD";
-        p.entityType = row.HasColumn("EntityType") ? (std::string)row["EntityType"] : "ROUTE_RESERVATION";
-        p.entityCode = (std::string)row["EntityCode"];
-        p.amount = row.HasColumn("Amount") ? (double)row["Amount"] : 0.0;
-        p.currency = row.HasColumn("Currency") ? (std::string)row["Currency"] : "mxn";
-        p.status = row.HasColumn("Status") ? (std::string)row["Status"] : "PENDING";
-
-        if (row.HasColumn("Provider") && !row["Provider"].IsNull()) p.provider = (std::string)row["Provider"];
-        if (row.HasColumn("PaymentIntentId") && !row["PaymentIntentId"].IsNull()) p.paymentIntentId = (std::string)row["PaymentIntentId"];
-        if (row.HasColumn("SessionId") && !row["SessionId"].IsNull()) p.sessionId = (std::string)row["SessionId"];
-        if (row.HasColumn("CardLast4") && !row["CardLast4"].IsNull()) p.cardLast4 = (std::string)row["CardLast4"];
-        if (row.HasColumn("CardBrand") && !row["CardBrand"].IsNull()) p.cardBrand = (std::string)row["CardBrand"];
-        if (row.HasColumn("CardHolderName") && !row["CardHolderName"].IsNull()) p.cardHolderName = (std::string)row["CardHolderName"];
-        if (row.HasColumn("AuthorizationCode") && !row["AuthorizationCode"].IsNull()) p.authorizationCode = (std::string)row["AuthorizationCode"];
-        if (row.HasColumn("ReceiptUrl") && !row["ReceiptUrl"].IsNull()) p.receiptUrl = (std::string)row["ReceiptUrl"];
-        if (row.HasColumn("HostedUrl") && !row["HostedUrl"].IsNull()) p.hostedUrl = (std::string)row["HostedUrl"];
-        if (row.HasColumn("RawPayload") && !row["RawPayload"].IsNull()) p.rawPayload = (std::string)row["RawPayload"];
-
-        if (row.HasColumn("ExpiresAt") && !row["ExpiresAt"].IsNull()) p.expiresAt = (std::string)row["ExpiresAt"];
-        p.isActive = row.HasColumn("IsActive") ? (bool)row["IsActive"] : true;
-        p.createdBy = row.HasColumn("CreatedBy") ? (std::string)row["CreatedBy"] : "system";
-        if (row.HasColumn("CreateDate") && !row["CreateDate"].IsNull()) p.createDate = (std::string)row["CreateDate"];
-        if (row.HasColumn("LastUpdatedBy") && !row["LastUpdatedBy"].IsNull()) p.lastUpdatedBy = (std::string)row["LastUpdatedBy"];
-        if (row.HasColumn("UpdateDate") && !row["UpdateDate"].IsNull()) p.updateDate = (std::string)row["UpdateDate"];
-
-        return p;
-    }
 
     std::optional<omnisphere::models::Payment> PaymentRepository::Create(const omnisphere::dtos::CreatePaymentInput& input) const
     {
@@ -348,17 +256,32 @@ namespace omnisphere::repositories
             auto tFields = omnisphere::types::FilterModelFields<omnisphere::models::TransferTransaction>(requestedFields);
             auto qpT = omnisphere::types::BuildQueryParts(tFields, conds);
             auto dt = conn->FetchPrepared("SELECT " + qpT.SelectClause + " FROM \"TransferTransactions\" WHERE " + qpT.WhereClause + " LIMIT 1", params);
-            if (!dt.IsEmpty()) return MapTransferRow(dt[0]);
+            if (!dt.IsEmpty())
+            {
+                auto p = omnisphere::types::FromDataRow<omnisphere::models::Payment>(dt[0]);
+                p.type = "TRANSFER";
+                return p;
+            }
 
             auto cFields = omnisphere::types::FilterModelFields<omnisphere::models::CashTransaction>(requestedFields);
             auto qpC = omnisphere::types::BuildQueryParts(cFields, conds);
             dt = conn->FetchPrepared("SELECT " + qpC.SelectClause + " FROM \"CashTransactions\" WHERE " + qpC.WhereClause + " LIMIT 1", params);
-            if (!dt.IsEmpty()) return MapCashRow(dt[0]);
+            if (!dt.IsEmpty())
+            {
+                auto p = omnisphere::types::FromDataRow<omnisphere::models::Payment>(dt[0]);
+                p.type = "CASH";
+                return p;
+            }
 
             auto cdFields = omnisphere::types::FilterModelFields<omnisphere::models::CardTransaction>(requestedFields);
             auto qpCd = omnisphere::types::BuildQueryParts(cdFields, conds);
             dt = conn->FetchPrepared("SELECT " + qpCd.SelectClause + " FROM \"CardTransactions\" WHERE " + qpCd.WhereClause + " LIMIT 1", params);
-            if (!dt.IsEmpty()) return MapCardRow(dt[0]);
+            if (!dt.IsEmpty())
+            {
+                auto p = omnisphere::types::FromDataRow<omnisphere::models::Payment>(dt[0]);
+                p.type = "CARD";
+                return p;
+            }
 
             return std::nullopt;
         }
@@ -413,9 +336,11 @@ namespace omnisphere::repositories
             std::string normType = paymentTypeHint.value_or("");
             std::transform(normType.begin(), normType.end(), normType.begin(), ::toupper);
 
-            bool checkTransfer = normType.empty() || normType == "TRANSFER" || normType == "SPEI";
-            bool checkCash     = normType.empty() || normType == "CASH";
-            bool checkCard     = normType.empty() || normType == "CARD" || normType == "STRIPE";
+            if (normType == "NOT_APPLICABLE") return std::nullopt;
+
+            bool checkTransfer = normType.empty() || normType == "TRANSFER" || normType == "SPEI" || normType == "PMT2";
+            bool checkCash     = normType.empty() || normType == "CASH" || normType == "PMT1";
+            bool checkCard     = normType.empty() || normType == "CARD" || normType == "STRIPE" || normType == "PMT3";
 
             if (!checkTransfer && !checkCash && !checkCard)
             {
@@ -431,7 +356,12 @@ namespace omnisphere::repositories
                 auto tFields = omnisphere::types::FilterModelFields<omnisphere::models::TransferTransaction>(requestedFields);
                 auto qpT = omnisphere::types::BuildQueryParts(tFields, dummyConds);
                 auto dt = conn->FetchPrepared("SELECT " + qpT.SelectClause + " FROM \"TransferTransactions\" WHERE " + whereClause + " ORDER BY \"Entry\" DESC LIMIT 1", params);
-                if (!dt.IsEmpty()) return MapTransferRow(dt[0]);
+                if (!dt.IsEmpty())
+                {
+                    auto p = omnisphere::types::FromDataRow<omnisphere::models::Payment>(dt[0]);
+                    p.type = "TRANSFER";
+                    return p;
+                }
             }
 
             if (checkCash)
@@ -439,7 +369,12 @@ namespace omnisphere::repositories
                 auto cFields = omnisphere::types::FilterModelFields<omnisphere::models::CashTransaction>(requestedFields);
                 auto qpC = omnisphere::types::BuildQueryParts(cFields, dummyConds);
                 auto dt = conn->FetchPrepared("SELECT " + qpC.SelectClause + " FROM \"CashTransactions\" WHERE " + whereClause + " ORDER BY \"Entry\" DESC LIMIT 1", params);
-                if (!dt.IsEmpty()) return MapCashRow(dt[0]);
+                if (!dt.IsEmpty())
+                {
+                    auto p = omnisphere::types::FromDataRow<omnisphere::models::Payment>(dt[0]);
+                    p.type = "CASH";
+                    return p;
+                }
             }
 
             if (checkCard)
@@ -447,7 +382,12 @@ namespace omnisphere::repositories
                 auto cdFields = omnisphere::types::FilterModelFields<omnisphere::models::CardTransaction>(requestedFields);
                 auto qpCd = omnisphere::types::BuildQueryParts(cdFields, dummyConds);
                 auto dt = conn->FetchPrepared("SELECT " + qpCd.SelectClause + " FROM \"CardTransactions\" WHERE " + whereClause + " ORDER BY \"Entry\" DESC LIMIT 1", params);
-                if (!dt.IsEmpty()) return MapCardRow(dt[0]);
+                if (!dt.IsEmpty())
+                {
+                    auto p = omnisphere::types::FromDataRow<omnisphere::models::Payment>(dt[0]);
+                    p.type = "CARD";
+                    return p;
+                }
             }
 
             return std::nullopt;
@@ -493,17 +433,32 @@ namespace omnisphere::repositories
             auto tFields = omnisphere::types::FilterModelFields<omnisphere::models::TransferTransaction>(requestedFields);
             auto qpT = omnisphere::types::BuildQueryParts(tFields, dummyConds);
             auto dt1 = conn->FetchPrepared("SELECT " + qpT.SelectClause + " FROM \"TransferTransactions\"" + where + " ORDER BY \"Entry\" DESC", params);
-            for (auto& row : dt1) results.push_back(MapTransferRow(row));
+            for (const auto& row : dt1)
+            {
+                auto p = omnisphere::types::FromDataRow<omnisphere::models::Payment>(row);
+                p.type = "TRANSFER";
+                results.push_back(std::move(p));
+            }
 
             auto cFields = omnisphere::types::FilterModelFields<omnisphere::models::CashTransaction>(requestedFields);
             auto qpC = omnisphere::types::BuildQueryParts(cFields, dummyConds);
             auto dt2 = conn->FetchPrepared("SELECT " + qpC.SelectClause + " FROM \"CashTransactions\"" + where + " ORDER BY \"Entry\" DESC", params);
-            for (auto& row : dt2) results.push_back(MapCashRow(row));
+            for (const auto& row : dt2)
+            {
+                auto p = omnisphere::types::FromDataRow<omnisphere::models::Payment>(row);
+                p.type = "CASH";
+                results.push_back(std::move(p));
+            }
 
             auto cdFields = omnisphere::types::FilterModelFields<omnisphere::models::CardTransaction>(requestedFields);
             auto qpCd = omnisphere::types::BuildQueryParts(cdFields, dummyConds);
             auto dt3 = conn->FetchPrepared("SELECT " + qpCd.SelectClause + " FROM \"CardTransactions\"" + where + " ORDER BY \"Entry\" DESC", params);
-            for (auto& row : dt3) results.push_back(MapCardRow(row));
+            for (const auto& row : dt3)
+            {
+                auto p = omnisphere::types::FromDataRow<omnisphere::models::Payment>(row);
+                p.type = "CARD";
+                results.push_back(std::move(p));
+            }
 
             return results;
         }

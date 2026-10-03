@@ -8,11 +8,6 @@ namespace omnisphere::repositories
     Employee::Employee(std::shared_ptr<omnisphere::data::DatabasePool> dbPool)
         : m_dbPool(std::move(dbPool)) {}
 
-    omnisphere::models::Employee Employee::MapRow(omnisphere::types::DataTable::Row& row) const
-    {
-        return omnisphere::types::FromDataRow<omnisphere::models::Employee>(row);
-    }
-
     bool Employee::Create(const omnisphere::dtos::CreateEmployee& emp, const std::vector<std::string>& mutationFields) const
     {
         if (!m_dbPool) return false;
@@ -147,9 +142,9 @@ namespace omnisphere::repositories
                 omnisphere::types::MakeSQLParam(code),
                 omnisphere::types::MakeSQLParam(false)
             });
-            if (dt.RowsCount() > 0)
+            if (!dt.IsEmpty())
             {
-                return MapRow(dt[0]);
+                return omnisphere::types::FromDataRow<omnisphere::models::Employee>(dt[0]);
             }
         }
         catch (const std::exception& ex)
@@ -177,9 +172,9 @@ namespace omnisphere::repositories
                 omnisphere::types::MakeSQLParam(entry),
                 omnisphere::types::MakeSQLParam(false)
             });
-            if (dt.RowsCount() > 0)
+            if (!dt.IsEmpty())
             {
-                return MapRow(dt[0]);
+                return omnisphere::types::FromDataRow<omnisphere::models::Employee>(dt[0]);
             }
         }
         catch (const std::exception& ex)
@@ -204,11 +199,7 @@ namespace omnisphere::repositories
             std::string sql = "SELECT " + qp.SelectClause + " FROM \"Employees\" WHERE " + qp.WhereClause + " ORDER BY \"Entry\" ASC";
 
             auto dt = conn->FetchPrepared(sql, { omnisphere::types::MakeSQLParam(false) });
-            result.reserve(dt.RowsCount());
-            for (size_t i = 0; i < dt.RowsCount(); ++i)
-            {
-                result.push_back(MapRow(dt[i]));
-            }
+            return omnisphere::types::DataTableToModels<omnisphere::models::Employee>(dt);
         }
         catch (const std::exception& ex)
         {
@@ -226,9 +217,10 @@ namespace omnisphere::repositories
         {
             std::string countSql = "SELECT COALESCE(COUNT(*), 0) AS Total FROM \"Employees\" WHERE \"IsCanceled\" = false";
             auto countDt = conn->FetchResults(countSql);
-            if (countDt.RowsCount() > 0)
+            if (!countDt.IsEmpty())
             {
-                page.totalCount = countDt[0]["Total"];
+                const auto& row = countDt[0];
+                page.totalCount = row["Total"].GetOptional<int>().value_or(0);
             }
 
             auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::Employee>(fields);
@@ -265,7 +257,7 @@ namespace omnisphere::repositories
 
             for (size_t i = 0; i < rowLimit; ++i)
             {
-                page.employees.push_back(MapRow(dt[i]));
+                page.employees.push_back(omnisphere::types::FromDataRow<omnisphere::models::Employee>(dt[i]));
             }
 
             if (dt.RowsCount() > static_cast<size_t>(limit))

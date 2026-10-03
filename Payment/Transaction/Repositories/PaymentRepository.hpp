@@ -17,10 +17,6 @@ namespace omnisphere::repositories
     private:
         std::shared_ptr<omnisphere::data::DatabasePool> m_dbPool;
 
-        static omnisphere::models::Payment MapTransferRow(omnisphere::types::DataTable::Row& row);
-        static omnisphere::models::Payment MapCashRow(omnisphere::types::DataTable::Row& row);
-        static omnisphere::models::Payment MapCardRow(omnisphere::types::DataTable::Row& row);
-
     public:
         explicit PaymentRepository(std::shared_ptr<omnisphere::data::DatabasePool> dbPool);
         ~PaymentRepository() = default;

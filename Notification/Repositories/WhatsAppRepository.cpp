@@ -67,15 +67,12 @@ namespace omnisphere::repositories
             std::string encBusinessAccountId = ensureEncrypted(settings.businessAccountId);
             std::string encWebhookVerifyToken = ensureEncrypted(settings.webhookVerifyToken);
 
-            if (existingDt.RowsCount() > 0)
+            if (!existingDt.IsEmpty())
             {
+                const auto& existingRow = existingDt[0];
                 auto getExisting = [&](const std::string& colName) -> std::string {
                     try {
-                        if (existingDt.RowsCount() > 0)
-                        {
-                            std::string val = (std::string)existingDt[0][colName];
-                            return val;
-                        }
+                        return existingRow[colName].GetOptional<std::string>().value_or("");
                     } catch (...) {}
                     return "";
                 };
@@ -154,9 +151,10 @@ namespace omnisphere::repositories
             std::string selectSql = "SELECT " + qp.SelectClause + " FROM \"WhatsAppConversations\" WHERE " + qp.WhereClause + " LIMIT 1";
             std::vector<omnisphere::types::SQLParam> selectParams = { omnisphere::types::MakeSQLParam(customerPhone) };
             auto dt = conn->FetchPrepared(selectSql, selectParams);
-            if (dt.RowsCount() > 0)
+            if (!dt.IsEmpty())
             {
-                return dt[0]["Entry"];
+                const auto& row = dt[0];
+                return row["Entry"].GetOptional<int>().value_or(0);
             }
 
             conn->BeginTransaction();
@@ -175,10 +173,11 @@ namespace omnisphere::repositories
                 omnisphere::types::MakeSQLParam(1)
             };
             auto insertDt = conn->FetchPrepared(insertSql, insertParams);
-            if (insertDt.RowsCount() > 0)
+            if (!insertDt.IsEmpty())
             {
                 conn->CommitTransaction();
-                return insertDt[0]["Entry"];
+                const auto& insertRow = insertDt[0];
+                return insertRow["Entry"].GetOptional<int>().value_or(0);
             }
             conn->RollbackTransaction();
             return 0;
@@ -351,7 +350,7 @@ namespace omnisphere::repositories
                 omnisphere::types::MakeSQLParam(wamidCode)
             };
             auto dt = conn->FetchPrepared(sql, params);
-            return dt.RowsCount() > 0;
+            return !dt.IsEmpty();
         }
         catch (const std::exception& ex)
         {
@@ -369,21 +368,7 @@ namespace omnisphere::repositories
             std::string sql = "SELECT \"Entry\", \"MessageEntry\", \"ButtonId\", \"Title\", \"ActionType\", \"ActionPayload\", \"SortOrder\" FROM \"CustomButtons\" WHERE \"MessageEntry\" = ? ORDER BY \"SortOrder\" ASC";
             std::vector<omnisphere::types::SQLParam> params = { omnisphere::types::MakeSQLParam(messageEntry) };
             auto dt = conn->FetchPrepared(sql, params);
-
-            std::vector<omnisphere::models::CustomButton> result;
-            for (std::size_t i = 0; i < dt.RowsCount(); ++i)
-            {
-                omnisphere::models::CustomButton btn;
-                btn.entry = dt[i]["Entry"];
-                btn.messageEntry = messageEntry;
-                btn.buttonId = (std::string)dt[i]["ButtonId"];
-                btn.title = (std::string)dt[i]["Title"];
-                btn.actionType = (std::string)dt[i]["ActionType"];
-                try { if (dt[i].HasColumn("ActionPayload") && !dt[i]["ActionPayload"].IsNull()) btn.actionPayload = (std::string)dt[i]["ActionPayload"]; } catch(...) {}
-                btn.sortOrder = dt[i]["SortOrder"];
-                result.push_back(btn);
-            }
-            return result;
+            return omnisphere::types::DataTableToModels<omnisphere::models::CustomButton>(dt);
         }
         catch (const std::exception& ex)
         {
@@ -399,26 +384,13 @@ namespace omnisphere::repositories
         {
             auto conn = m_dbPool->Acquire();
             auto dtMsg = conn->FetchPrepared("SELECT \"Entry\" FROM \"CustomMessages\" WHERE \"Code\" = ? LIMIT 1", { omnisphere::types::MakeSQLParam(messageCode) });
-            if (dtMsg.RowsCount() == 0) return {};
+            if (dtMsg.IsEmpty()) return {};
 
-            int msgEntry = dtMsg[0]["Entry"];
+            const auto& msgRow = dtMsg[0];
+            int msgEntry = msgRow["Entry"].GetOptional<int>().value_or(0);
             std::string sql = "SELECT \"Entry\", \"MessageEntry\", \"ButtonId\", \"Title\", \"ActionType\", \"ActionPayload\", \"SortOrder\" FROM \"CustomButtons\" WHERE \"MessageEntry\" = ? ORDER BY \"SortOrder\" ASC";
             auto dt = conn->FetchPrepared(sql, { omnisphere::types::MakeSQLParam(msgEntry) });
-
-            std::vector<omnisphere::models::CustomButton> result;
-            for (std::size_t i = 0; i < dt.RowsCount(); ++i)
-            {
-                omnisphere::models::CustomButton btn;
-                btn.entry = dt[i]["Entry"];
-                btn.messageEntry = dt[i]["MessageEntry"];
-                btn.buttonId = (std::string)dt[i]["ButtonId"];
-                btn.title = (std::string)dt[i]["Title"];
-                btn.actionType = (std::string)dt[i]["ActionType"];
-                try { if (dt[i].HasColumn("ActionPayload") && !dt[i]["ActionPayload"].IsNull()) btn.actionPayload = (std::string)dt[i]["ActionPayload"]; } catch(...) {}
-                btn.sortOrder = dt[i]["SortOrder"];
-                result.push_back(btn);
-            }
-            return result;
+            return omnisphere::types::DataTableToModels<omnisphere::models::CustomButton>(dt);
         }
         catch (const std::exception& ex)
         {
@@ -436,23 +408,7 @@ namespace omnisphere::repositories
             std::string sql = "SELECT \"Entry\", \"MessageCode\", \"ParamKey\", \"ParamName\", \"DataType\", \"DefaultValue\", \"IsRequired\", \"Description\", \"SortOrder\", \"CreatedBy\" FROM \"CustomMessageParameters\" WHERE \"MessageCode\" = ? ORDER BY \"SortOrder\" ASC";
             std::vector<omnisphere::types::SQLParam> params = { omnisphere::types::MakeSQLParam(messageCode) };
             auto dt = conn->FetchPrepared(sql, params);
-            std::vector<omnisphere::models::CustomMessageParameter> result;
-            for (std::size_t i = 0; i < dt.RowsCount(); ++i)
-            {
-                omnisphere::models::CustomMessageParameter p;
-                p.entry = dt[i]["Entry"];
-                p.messageCode = (std::string)dt[i]["MessageCode"];
-                p.paramKey = (std::string)dt[i]["ParamKey"];
-                p.paramName = (std::string)dt[i]["ParamName"];
-                p.dataType = (std::string)dt[i]["DataType"];
-                try { if (dt[i].HasColumn("DefaultValue") && !dt[i]["DefaultValue"].IsNull()) p.defaultValue = (std::string)dt[i]["DefaultValue"]; } catch(...) {}
-                p.isRequired = dt[i]["IsRequired"];
-                try { if (dt[i].HasColumn("Description") && !dt[i]["Description"].IsNull()) p.description = (std::string)dt[i]["Description"]; } catch(...) {}
-                p.sortOrder = dt[i]["SortOrder"];
-                p.createdBy = (std::string)dt[i]["CreatedBy"];
-                result.push_back(p);
-            }
-            return result;
+            return omnisphere::types::DataTableToModels<omnisphere::models::CustomMessageParameter>(dt);
         }
         catch (const std::exception& ex)
         {
@@ -479,22 +435,9 @@ namespace omnisphere::repositories
                 omnisphere::types::MakeSQLParam(true)
             };
             auto dt = conn->FetchPrepared(sql, params);
-            if (dt.RowsCount() == 0) return std::nullopt;
+            if (dt.IsEmpty()) return std::nullopt;
 
-            omnisphere::models::CustomMessage msg;
-            msg.entry = dt[0]["Entry"];
-            msg.code = (std::string)dt[0]["Code"];
-            msg.title = (std::string)dt[0]["Title"];
-            msg.messageType = (std::string)dt[0]["MessageType"];
-            msg.headerType = (std::string)dt[0]["HeaderType"];
-            try { msg.headerContent = (std::string)dt[0]["HeaderContent"]; } catch(...) {}
-            msg.bodyTemplate = (std::string)dt[0]["BodyTemplate"];
-            try { msg.footerText = (std::string)dt[0]["FooterText"]; } catch(...) {}
-            try { msg.metaTemplateId = (std::string)dt[0]["MetaTemplateId"]; } catch(...) {}
-            try { msg.metaStatus = (std::string)dt[0]["MetaStatus"]; } catch(...) {}
-            try { msg.metaCategory = (std::string)dt[0]["MetaCategory"]; } catch(...) {}
-            try { msg.metaRejectReason = (std::string)dt[0]["MetaRejectReason"]; } catch(...) {}
-            msg.isActive = dt[0]["IsActive"];
+            auto msg = omnisphere::types::FromDataRow<omnisphere::models::CustomMessage>(dt[0]);
             
             // Try fetching buttons by MessageCode first, then fallback to MessageEntry
             msg.buttons = GetButtonsForMessageCode(msg.code);
@@ -550,28 +493,13 @@ namespace omnisphere::repositories
             std::vector<omnisphere::types::SQLParam> params;
             auto dt = conn->FetchPrepared(sql, params);
 
-            std::vector<omnisphere::models::CustomMessage> result;
-            for (std::size_t i = 0; i < dt.RowsCount(); ++i)
+            auto messages = omnisphere::types::DataTableToModels<omnisphere::models::CustomMessage>(dt);
+            for (auto& msg : messages)
             {
-                omnisphere::models::CustomMessage msg;
-                msg.entry = dt[i]["Entry"];
-                msg.code = (std::string)dt[i]["Code"];
-                msg.title = (std::string)dt[i]["Title"];
-                msg.messageType = (std::string)dt[i]["MessageType"];
-                msg.headerType = (std::string)dt[i]["HeaderType"];
-                try { msg.headerContent = (std::string)dt[i]["HeaderContent"]; } catch(...) {}
-                msg.bodyTemplate = (std::string)dt[i]["BodyTemplate"];
-                try { msg.footerText = (std::string)dt[i]["FooterText"]; } catch(...) {}
-                try { msg.metaTemplateId = (std::string)dt[i]["MetaTemplateId"]; } catch(...) {}
-                try { msg.metaStatus = (std::string)dt[i]["MetaStatus"]; } catch(...) {}
-                try { msg.metaCategory = (std::string)dt[i]["MetaCategory"]; } catch(...) {}
-                try { msg.metaRejectReason = (std::string)dt[i]["MetaRejectReason"]; } catch(...) {}
-                msg.isActive = dt[i]["IsActive"];
                 msg.buttons = GetButtonsForMessage(msg.entry);
                 msg.parameters = GetParametersForMessage(msg.code);
-                result.push_back(msg);
             }
-            return result;
+            return messages;
         }
         catch (const std::exception& ex)
         {
@@ -798,9 +726,10 @@ namespace omnisphere::repositories
                 { omnisphere::types::MakeSQLParam("%" + suffix + "%"), omnisphere::types::MakeSQLParam(suffix) }
             );
 
-            if (dtConv.RowsCount() == 0) return false;
+            if (dtConv.IsEmpty()) return false;
 
-            int convEntry = dtConv[0]["Entry"];
+            const auto& convRow = dtConv[0];
+            int convEntry = convRow["Entry"].GetOptional<int>().value_or(0);
 
             // 2. Consultar mensajes recientes para esa conversación
             auto dtMsg = conn->FetchPrepared(
@@ -814,7 +743,7 @@ namespace omnisphere::repositories
                 { omnisphere::types::MakeSQLParam(convEntry), omnisphere::types::MakeSQLParam(minutesWindow) }
             );
 
-            return dtMsg.RowsCount() > 0;
+            return !dtMsg.IsEmpty();
         }
         catch (const std::exception& ex)
         {

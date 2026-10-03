@@ -144,7 +144,7 @@ omnisphere::models::User User::Get(const omnisphere::enums::UserFilter &filter,
                                    const std::string &value, const std::vector<std::string> &fields) const {
   try {
     omnisphere::types::DataTable dataTable = pimpl->user->Read(filter, value, fields);
-    if (dataTable.RowsCount() == 0)
+    if (dataTable.IsEmpty())
       throw std::invalid_argument("User not found");
 
     return omnisphere::types::FromDataRow<omnisphere::models::User>(dataTable[0]);

@@ -24,8 +24,6 @@ namespace omnisphere::repositories
     private:
         std::shared_ptr<omnisphere::data::DatabasePool> m_dbPool;
 
-        omnisphere::models::Employee MapRow(omnisphere::types::DataTable::Row& row) const;
-
     public:
         explicit Employee(std::shared_ptr<omnisphere::data::DatabasePool> dbPool);
         ~Employee() = default;

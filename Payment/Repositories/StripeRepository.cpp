@@ -60,14 +60,12 @@ namespace omnisphere::repositories
             std::string encSecretKey = ensureEncrypted(settings.secretKey);
             std::string encWebhookSecretKey = ensureEncrypted(settings.webhookSecretKey);
 
-            if (existingDt.RowsCount() > 0)
+            if (!existingDt.IsEmpty())
             {
+                const auto& existingRow = existingDt[0];
                 auto getExisting = [&](const std::string& colName) -> std::string {
                     try {
-                        if (existingDt.RowsCount() > 0 && existingDt[0].HasColumn(colName) && !existingDt[0][colName].IsNull())
-                        {
-                            return (std::string)existingDt[0][colName];
-                        }
+                        return existingRow[colName].GetOptional<std::string>().value_or("");
                     } catch (...) {}
                     return "";
                 };
@@ -239,21 +237,9 @@ namespace omnisphere::repositories
             std::string sql = "SELECT " + qp.SelectClause + " FROM \"StripeSessions\" WHERE \"StripeSessionId\" = $1 LIMIT 1";
             std::vector<omnisphere::types::SQLParam> params = { omnisphere::types::MakeSQLParam(stripeSessionId) };
             auto dt = conn->FetchPrepared(sql, params);
-            if (dt.RowsCount() > 0)
+            if (!dt.IsEmpty())
             {
-                omnisphere::models::StripeSession sess;
-                sess.entry = (int)dt[0]["Entry"];
-                sess.code = (std::string)dt[0]["Code"];
-                sess.reservationCode = (std::string)dt[0]["ReservationCode"];
-                sess.stripeSessionId = (std::string)dt[0]["StripeSessionId"];
-                if (dt[0].HasColumn("PaymentIntentId") && !dt[0]["PaymentIntentId"].IsNull())
-                    sess.paymentIntentId = (std::string)dt[0]["PaymentIntentId"];
-                sess.checkoutUrl = (std::string)dt[0]["CheckoutUrl"];
-                sess.amount = (double)dt[0]["Amount"];
-                sess.currency = (std::string)dt[0]["Currency"];
-                sess.status = (std::string)dt[0]["Status"];
-                sess.isActive = (bool)dt[0]["IsActive"];
-                return sess;
+                return omnisphere::types::FromDataRow<omnisphere::models::StripeSession>(dt[0]);
             }
         }
         catch (const std::exception& ex)
@@ -376,36 +362,9 @@ namespace omnisphere::repositories
             std::string sql = "SELECT " + qp.SelectClause + " FROM \"StripeTransactions\" WHERE \"PaymentIntentId\" = $1 LIMIT 1";
             std::vector<omnisphere::types::SQLParam> params = { omnisphere::types::MakeSQLParam(paymentIntentId) };
             auto dt = conn->FetchPrepared(sql, params);
-            if (dt.RowsCount() > 0)
+            if (!dt.IsEmpty())
             {
-                omnisphere::models::StripeTransaction tx;
-                tx.entry = (int)dt[0]["Entry"];
-                tx.code = (std::string)dt[0]["Code"];
-                tx.reservationCode = (std::string)dt[0]["ReservationCode"];
-                tx.paymentIntentId = (std::string)dt[0]["PaymentIntentId"];
-                if (dt[0].HasColumn("ChargeId") && !dt[0]["ChargeId"].IsNull())
-                    tx.chargeId = (std::string)dt[0]["ChargeId"];
-                tx.amount = (double)dt[0]["Amount"];
-                tx.currency = (std::string)dt[0]["Currency"];
-                tx.status = (std::string)dt[0]["Status"];
-                if (dt[0].HasColumn("PaymentMethodType") && !dt[0]["PaymentMethodType"].IsNull())
-                    tx.paymentMethodType = (std::string)dt[0]["PaymentMethodType"];
-                if (dt[0].HasColumn("Clabe") && !dt[0]["Clabe"].IsNull())
-                    tx.clabe = (std::string)dt[0]["Clabe"];
-                if (dt[0].HasColumn("BankName") && !dt[0]["BankName"].IsNull())
-                    tx.bankName = (std::string)dt[0]["BankName"];
-                if (dt[0].HasColumn("HostedInstructionsUrl") && !dt[0]["HostedInstructionsUrl"].IsNull())
-                    tx.hostedInstructionsUrl = (std::string)dt[0]["HostedInstructionsUrl"];
-                if (dt[0].HasColumn("CardBrand") && !dt[0]["CardBrand"].IsNull())
-                    tx.cardBrand = (std::string)dt[0]["CardBrand"];
-                if (dt[0].HasColumn("CardLast4") && !dt[0]["CardLast4"].IsNull())
-                    tx.cardLast4 = (std::string)dt[0]["CardLast4"];
-                if (dt[0].HasColumn("CardType") && !dt[0]["CardType"].IsNull())
-                    tx.cardType = (std::string)dt[0]["CardType"];
-                if (dt[0].HasColumn("ReceiptUrl") && !dt[0]["ReceiptUrl"].IsNull())
-                    tx.receiptUrl = (std::string)dt[0]["ReceiptUrl"];
-                tx.isActive = (bool)dt[0]["IsActive"];
-                return tx;
+                return omnisphere::types::FromDataRow<omnisphere::models::StripeTransaction>(dt[0]);
             }
         }
         catch (const std::exception& ex)

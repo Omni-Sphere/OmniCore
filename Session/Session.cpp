@@ -87,13 +87,17 @@ Session::Login(const omnisphere::dtos::Login &login) const {
     omnisphere::models::AuthPayload authPayload;
 
     data = pimpl->session->Read(login);
+    if (data.IsEmpty()) {
+      throw std::runtime_error("Session data is empty");
+    }
 
-    authPayload.SessionUUID = std::string(data[0]["SessionUUID"]);
+    const auto& row = data[0];
+    authPayload.SessionUUID = std::string(row["SessionUUID"]);
 
     boost::json::object payload;
     payload["SessionUUID"] = authPayload.SessionUUID;
-    if (data.RowsCount() > 0 && data[0].HasColumn("UserCode") && !data[0]["UserCode"].IsNull()) {
-      payload["sub"] = std::string(data[0]["UserCode"]);
+    if (auto userCode = row["UserCode"].GetOptional<std::string>(); userCode.has_value()) {
+      payload["sub"] = *userCode;
     }
 
     authPayload.AccessToken =
@@ -102,17 +106,17 @@ Session::Login(const omnisphere::dtos::Login &login) const {
     if (login.Code.has_value())
       authPayload.User =
           std::make_shared<omnisphere::models::User>(pimpl->user->Get(
-              omnisphere::enums::UserFilter::Code, data[0]["UserCode"]));
+              omnisphere::enums::UserFilter::Code, row["UserCode"]));
 
     if (login.Email.has_value())
       authPayload.User =
           std::make_shared<omnisphere::models::User>(pimpl->user->Get(
-              omnisphere::enums::UserFilter::Email, data[0]["UserEmail"]));
+              omnisphere::enums::UserFilter::Email, row["UserEmail"]));
 
     if (login.Phone.has_value())
       authPayload.User =
           std::make_shared<omnisphere::models::User>(pimpl->user->Get(
-              omnisphere::enums::UserFilter::Phone, data[0]["UserPhone"]));
+              omnisphere::enums::UserFilter::Phone, row["UserPhone"]));
 
     return authPayload;
   } catch (const std::exception &e) {
@@ -132,10 +136,11 @@ bool Session::Active(const std::string &tokenOrUUID) const {
 
     omnisphere::types::DataTable data = pimpl->session->IsActive(sessionUUID);
 
-    if (data.RowsCount() == 0)
+    if (data.IsEmpty())
       return false;
 
-    std::string activeStr = std::string(data[0]["IsActive"]);
+    const auto& row = data[0];
+    std::string activeStr = row["IsActive"].GetOptional<std::string>().value_or("");
     return (activeStr == "Y" || activeStr == "true" || activeStr == "1");
   } catch (const std::exception &) {
     return false;
@@ -146,10 +151,11 @@ bool Session::Exists(const std::string &sessionUUID) const {
   try {
     omnisphere::types::DataTable data = pimpl->session->ExistsUUID(sessionUUID);
 
-    const int sessionCount = data[0]["Total"];
-
-    if (data.RowsCount() == 0)
+    if (data.IsEmpty())
       return false;
+
+    const auto& row = data[0];
+    const int sessionCount = row["Total"].GetOptional<int>().value_or(0);
 
     if (sessionCount == 0)
       return false;
@@ -180,14 +186,18 @@ Session::Logout(const omnisphere::dtos::Logout &logout) const {
     omnisphere::types::DataTable data =
         pimpl->session->Read(logout.SessionUUID);
 
+    if (data.IsEmpty())
+      throw std::runtime_error("Session data not found");
+
+    const auto& row = data[0];
     omnisphere::models::LogoutPayload logoutModel;
-    logoutModel.SessionUUID = std::string(data[0]["SessionUUID"]);
-    logoutModel.StartDate = std::string(data[0]["StartDate"]);
-    logoutModel.EndDate = std::string(data[0]["EndDate"]);
-    logoutModel.Duration = data[0]["DurationSeconds"];
+    logoutModel.SessionUUID = std::string(row["SessionUUID"]);
+    logoutModel.StartDate = std::string(row["StartDate"]);
+    logoutModel.EndDate = std::string(row["EndDate"]);
+    logoutModel.Duration = row["DurationSeconds"];
     logoutModel.Reason = static_cast<omnisphere::enums::LogoutReason>(
-        static_cast<int>(data[0]["Reason"]));
-    logoutModel.Message = data[0]["LogoutMessage"].GetOptional<std::string>();
+        static_cast<int>(row["Reason"]));
+    logoutModel.Message = row["LogoutMessage"].GetOptional<std::string>();
 
     return logoutModel;
   } catch (const std::exception &e) {

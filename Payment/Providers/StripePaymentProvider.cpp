@@ -120,10 +120,11 @@ namespace omnisphere::payment
         try
         {
             auto dtSettings = repo->GetSettings();
-            if (dtSettings.RowsCount() > 0 && dtSettings[0].HasColumn("WebhookSecretKey") && !dtSettings[0]["WebhookSecretKey"].IsNull())
+            if (!dtSettings.IsEmpty())
             {
-                webhookSecret = (std::string)dtSettings[0]["WebhookSecretKey"];
-                if (webhookSecret.rfind("whsec_", 0) != 0)
+                const auto& row = dtSettings[0];
+                webhookSecret = row["WebhookSecretKey"].GetOptional<std::string>().value_or("");
+                if (!webhookSecret.empty() && webhookSecret.rfind("whsec_", 0) != 0)
                 {
                     try { webhookSecret = omnisphere::utils::Base64::Decode(webhookSecret); } catch (...) {}
                 }

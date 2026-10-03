@@ -1,4 +1,5 @@
 #include "Notification/WhatsAppService.hpp"
+#include <OmniData/DataMapper.hpp>
 #include <OmniData/Database.hpp>
 #include <OmniUtils/Base64.hpp>
 #include <OmniUtils/Logger.hpp>
@@ -52,16 +53,13 @@ namespace omnisphere::services
         if (!dbPool) return false;
         m_repository = std::make_shared<omnisphere::repositories::WhatsAppRepository>(dbPool);
         auto dt = m_repository->GetSettings();
-        if (dt.RowsCount() > 0)
+        if (!dt.IsEmpty())
         {
-            std::string rawPhoneId = (std::string)dt[0]["PhoneId"];
-            std::string rawToken = (std::string)dt[0]["ApiToken"];
-            std::string rawWabaId = "";
-            try {
-                if (dt[0].HasColumn("BusinessAccountId") && !dt[0]["BusinessAccountId"].IsNull())
-                    rawWabaId = (std::string)dt[0]["BusinessAccountId"];
-            } catch (...) {}
-            std::string rawWebhookToken = (std::string)dt[0]["WebhookVerifyToken"];
+            const auto& row = dt[0];
+            std::string rawPhoneId = row["PhoneId"].GetOptional<std::string>().value_or("");
+            std::string rawToken = row["ApiToken"].GetOptional<std::string>().value_or("");
+            std::string rawWabaId = row["BusinessAccountId"].GetOptional<std::string>().value_or("");
+            std::string rawWebhookToken = row["WebhookVerifyToken"].GetOptional<std::string>().value_or("");
 
             auto isPlain = [](const std::string& val) -> bool {
                 if (val.empty()) return false;
@@ -89,13 +87,8 @@ namespace omnisphere::services
             m_config.token = decryptVal(rawToken);
             m_config.businessAccountId = decryptVal(rawWabaId);
             m_config.webhookVerifyToken = decryptVal(rawWebhookToken);
-            m_config.apiVersion = (std::string)dt[0]["ApiVersion"];
-            if (m_config.apiVersion.empty()) m_config.apiVersion = "v24.0";
-            try {
-                if (dt[0].HasColumn("IsActive") && !dt[0]["IsActive"].IsNull()) m_config.isActive = (bool)dt[0]["IsActive"];
-                else if (dt[0].HasColumn("isactive") && !dt[0]["isactive"].IsNull()) m_config.isActive = (bool)dt[0]["isactive"];
-                else m_config.isActive = true;
-            } catch (...) { m_config.isActive = true; }
+            m_config.apiVersion = row["ApiVersion"].GetOptional<std::string>().value_or("v24.0");
+            m_config.isActive = row["IsActive"].GetOptional<bool>().value_or(true);
             return true;
         }
         return false;
@@ -117,21 +110,9 @@ namespace omnisphere::services
         if (m_repository)
         {
             auto dt = m_repository->GetSettings(requestedFields);
-            if (dt.RowsCount() > 0)
+            if (!dt.IsEmpty())
             {
-                auto getVal = [&](const std::string& colName) -> std::string {
-                    try {
-                        if (dt[0].HasColumn(colName) && !dt[0][colName].IsNull())
-                            return (std::string)dt[0][colName];
-                    } catch (...) {}
-                    try {
-                        std::string lower = colName;
-                        lower[0] = std::tolower(lower[0]);
-                        if (dt[0].HasColumn(lower) && !dt[0][lower].IsNull())
-                            return (std::string)dt[0][lower];
-                    } catch (...) {}
-                    return "";
-                };
+                settings = omnisphere::types::FromDataRow<omnisphere::models::WhatsAppSettings>(dt[0]);
 
                 auto isPlain = [](const std::string& val) -> bool {
                     if (val.empty()) return false;
@@ -145,36 +126,16 @@ namespace omnisphere::services
                     return false;
                 };
 
-                auto ensureEncryptedVal = [&](const std::string& colName) -> std::string {
-                    std::string val = getVal(colName);
-                    if (val.empty()) return "";
-                    if (isPlain(val)) {
-                        return omnisphere::utils::Base64::Encode(val);
+                auto ensureEncryptedVal = [&](std::string& val) {
+                    if (!val.empty() && isPlain(val)) {
+                        val = omnisphere::utils::Base64::Encode(val);
                     }
-                    return val;
                 };
 
-                try {
-                    if (dt[0].HasColumn("Entry") && !dt[0]["Entry"].IsNull()) settings.entry = (int)dt[0]["Entry"];
-                    else if (dt[0].HasColumn("entry") && !dt[0]["entry"].IsNull()) settings.entry = (int)dt[0]["entry"];
-                } catch (...) {}
-
-                settings.code = getVal("Code");
-                if (settings.code.empty()) settings.code = "DEFAULT";
-
-                settings.name = getVal("Name"); if (settings.name.empty()) settings.name = "MetaConfig";
-
-                // ALWAYS return ENCRYPTED credentials over GraphQL / API responses
-                settings.phoneId = ensureEncryptedVal("PhoneId");
-                settings.apiToken = ensureEncryptedVal("ApiToken");
-                settings.businessAccountId = ensureEncryptedVal("BusinessAccountId");
-                settings.webhookVerifyToken = ensureEncryptedVal("WebhookVerifyToken");
-                settings.apiVersion = getVal("ApiVersion"); if (settings.apiVersion.empty()) settings.apiVersion = "v24.0";
-
-                try {
-                    if (dt[0].HasColumn("IsActive") && !dt[0]["IsActive"].IsNull()) settings.isActive = (bool)dt[0]["IsActive"];
-                    else if (dt[0].HasColumn("isactive") && !dt[0]["isactive"].IsNull()) settings.isActive = (bool)dt[0]["isactive"];
-                } catch (...) {}
+                ensureEncryptedVal(settings.phoneId);
+                ensureEncryptedVal(settings.apiToken);
+                ensureEncryptedVal(settings.businessAccountId);
+                ensureEncryptedVal(settings.webhookVerifyToken);
             }
         }
         return settings;

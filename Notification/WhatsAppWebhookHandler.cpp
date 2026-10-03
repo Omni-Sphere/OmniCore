@@ -41,9 +41,10 @@ namespace omnisphere::services
         try
         {
             auto settingsDt = m_repo->GetSettings();
-            if (settingsDt.RowsCount() > 0 && settingsDt[0].HasColumn("WebhookVerifyToken") && !settingsDt[0]["WebhookVerifyToken"].IsNull())
+            if (!settingsDt.IsEmpty())
             {
-                std::string dbToken = (std::string)settingsDt[0]["WebhookVerifyToken"];
+                const auto& row = settingsDt[0];
+                std::string dbToken = row["WebhookVerifyToken"].GetOptional<std::string>().value_or("");
                 if (!dbToken.empty())
                 {
                     if (token == dbToken) return true;

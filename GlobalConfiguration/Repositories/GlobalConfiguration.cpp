@@ -81,23 +81,17 @@ GlobalConfiguration::Get(int confEntry) const {
     omnisphere::types::DataTable data =
         conn->FetchPrepared(sQuery, std::to_string(confEntry));
 
-    if (data.RowsCount() == 0) {
+    if (data.IsEmpty()) {
       throw std::runtime_error("Configuration not found");
     }
 
+    const auto& row = data[0];
     omnisphere::models::GlobalConfiguration config;
-    config.ConfEntry = data[0]["ConfEntry"];
-
-    if (!data[0]["ImagePath"].IsNull())
-      config.ImagePath = (std::string)data[0]["ImagePath"];
-
-    if (!data[0]["PDFPath"].IsNull())
-      config.PDFPath = (std::string)data[0]["PDFPath"];
-
-    if (!data[0]["XMLPath"].IsNull())
-      config.XMLPath = (std::string)data[0]["XMLPath"];
-
-    config.PasswordExpirationDays = data[0]["PasswordExpirationDays"];
+    config.ConfEntry = row["ConfEntry"];
+    config.ImagePath = row["ImagePath"].GetOptional<std::string>();
+    config.PDFPath = row["PDFPath"].GetOptional<std::string>();
+    config.XMLPath = row["XMLPath"].GetOptional<std::string>();
+    config.PasswordExpirationDays = row["PasswordExpirationDays"];
 
     return config;
   } catch (const std::exception &e) {

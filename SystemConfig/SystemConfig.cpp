@@ -44,7 +44,7 @@ namespace omnisphere::services
     {
         if (!m_repository) return std::nullopt;
         auto dt = m_repository->GetActiveConfig(fields);
-        if (dt.RowsCount() == 0) return std::nullopt;
+        if (dt.IsEmpty()) return std::nullopt;
 
         auto models = omnisphere::types::DataTableToModels<omnisphere::models::SystemConfig>(dt);
         if (!models.empty())

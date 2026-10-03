@@ -12,31 +12,19 @@ namespace omnisphere::repositories
     // Helpers internos
     // -------------------------------------------------------------------------
 
-    template <typename T, typename TRow>
-    static T GetVal(const TRow& row, const std::string& col, T defaultVal = T{})
-    {
-        if (row.HasColumn(col)) {
-            const auto& val = row[col];
-            if (val.has_value()) {
-                if (auto p = std::get_if<T>(&(*val))) return *p;
-            }
-        }
-        return defaultVal;
-    }
-
-    static omnisphere::models::SystemLicense MapRow(const auto& row)
+    static omnisphere::models::SystemLicense MapRow(const omnisphere::types::DataTable::Row& row)
     {
         omnisphere::models::SystemLicense lic;
-        lic.code       = GetVal<std::string>(row, "Code");
-        lic.apiKey     = GetVal<std::string>(row, "ApiKey");
-        lic.clientName = GetVal<std::string>(row, "ClientName");
-        lic.issuer     = GetVal<std::string>(row, "Issuer");
-        lic.issuedAt   = GetVal<std::string>(row, "IssuedAt");
-        lic.expiresAt  = GetVal<std::string>(row, "ExpiresAt");
-        lic.isActive   = GetVal<bool>(row, "IsActive");
+        lic.code       = row["Code"].GetOptional<std::string>().value_or("");
+        lic.apiKey     = row["ApiKey"].GetOptional<std::string>().value_or("");
+        lic.clientName = row["ClientName"].GetOptional<std::string>().value_or("");
+        lic.issuer     = row["Issuer"].GetOptional<std::string>().value_or("");
+        lic.issuedAt   = row["IssuedAt"].GetOptional<std::string>().value_or("");
+        lic.expiresAt  = row["ExpiresAt"].GetOptional<std::string>().value_or("");
+        lic.isActive   = row["IsActive"].GetOptional<bool>().value_or(false);
 
         // Parsear modules JSON "[\"MODULE_WHATSAPP\",\"MODULE_STRIPE\"]"
-        std::string modulesJson = GetVal<std::string>(row, "Modules");
+        std::string modulesJson = row["Modules"].GetOptional<std::string>().value_or("");
         std::string token;
         std::istringstream ss(modulesJson);
         while (std::getline(ss, token, '"'))
@@ -75,10 +63,11 @@ namespace omnisphere::repositories
             std::vector<omnisphere::types::SQLParam> emptyParams;
             auto dt = conn->FetchPrepared(checkSql, emptyParams);
 
-            if (dt.RowsCount() > 0)
+            if (!dt.IsEmpty())
             {
                 // Obtenemos el Entry del único registro a mantener
-                int targetEntry = GetVal<int>(dt[0], "Entry", 1);
+                const auto& row = dt[0];
+                int targetEntry = row["Entry"].GetOptional<int>().value_or(1);
 
                 // Si por alguna razón histórica existía más de un registro, eliminamos los duplicados
                 // ANTES del UPDATE para evitar violaciones del índice único UQ_SystemLicenses_Active.
@@ -164,7 +153,7 @@ namespace omnisphere::repositories
 
             std::vector<omnisphere::types::SQLParam> emptyParams;
             auto dt = conn->FetchPrepared(sql, emptyParams);
-            if (dt.RowsCount() > 0)
+            if (!dt.IsEmpty())
                 return MapRow(dt[0]);
 
             return std::nullopt;
@@ -218,8 +207,9 @@ namespace omnisphere::repositories
 
             std::vector<omnisphere::types::SQLParam> emptyParams;
             auto dt = conn->FetchPrepared(sql, emptyParams);
-            for (size_t i = 0; i < dt.RowsCount(); ++i)
-                result.push_back(MapRow(dt[i]));
+            result.reserve(dt.RowsCount());
+            for (const auto& row : dt)
+                result.push_back(MapRow(row));
 
             return result;
         }
@@ -246,9 +236,10 @@ namespace omnisphere::repositories
             std::string sql = "SELECT \"Value\" FROM \"GlobalConfiguration\" WHERE \"Code\" = 'LICENSE_MASTER_SECRET' AND \"IsActive\" = true LIMIT 1";
             std::vector<omnisphere::types::SQLParam> emptyParams;
             auto dt = conn->FetchPrepared(sql, emptyParams);
-            if (dt.RowsCount() > 0)
+            if (!dt.IsEmpty())
             {
-                std::string secret = GetVal<std::string>(dt[0], "Value");
+                const auto& row = dt[0];
+                std::string secret = row["Value"].GetOptional<std::string>().value_or("");
                 if (!secret.empty()) return secret;
             }
         }

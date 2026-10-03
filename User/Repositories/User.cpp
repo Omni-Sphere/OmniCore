@@ -68,8 +68,10 @@ int User::GetCurrentSequence() const {
 
     omnisphere::types::DataTable data = conn->FetchResults(sQuery);
 
-    if (data.RowsCount() == 1)
-      return data[0]["UserSequence"];
+    if (data.RowsCount() == 1) {
+      const auto& row = data[0];
+      return row["UserSequence"];
+    }
     else
       return 0;
   } catch (const std::exception &e) {
@@ -246,8 +248,9 @@ UserCursorPage User::GetPage(std::optional<int> afterEntry, int limit, const std
   std::string countQuery = "SELECT COALESCE(COUNT(*), 0) AS Total FROM \"Users\" WHERE \"IsCanceled\" = false";
   auto totalTable = conn->FetchResults(countQuery);
   int totalCount = 0;
-  if (totalTable.RowsCount() > 0) {
-    totalCount = totalTable[0]["Total"];
+  if (!totalTable.IsEmpty()) {
+    const auto& row = totalTable[0];
+    totalCount = row["Total"].GetOptional<int>().value_or(0);
   }
 
   auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::User>(fields);
@@ -323,10 +326,11 @@ bool User::ValidatePassword(const omnisphere::enums::UserFilter &searchFilter,
     omnisphere::types::DataTable data =
         conn->FetchPrepared(sQuery, filterValue);
 
-    if (data.RowsCount() == 0)
+    if (data.IsEmpty())
       throw std::runtime_error("No records found");
 
-    std::vector<uint8_t> userPassword = data[0]["Password"];
+    const auto& row = data[0];
+    std::vector<uint8_t> userPassword = row["Password"];
 
     if (omnisphere::utils::Hasher::VerifyPassword(Password, userPassword))
       return true;
@@ -347,10 +351,11 @@ bool User::ExistsEntry(const int &entry) const {
     omnisphere::types::DataTable data =
         conn->FetchPrepared(sQuery, std::to_string(entry));
 
-    if (data.RowsCount() == 0)
+    if (data.IsEmpty())
       return false;
 
-    int total = data[0]["Total"];
+    const auto& row = data[0];
+    int total = row["Total"].GetOptional<int>().value_or(0);
     return total > 0;
   } catch (const std::exception &e) {
     throw std::runtime_error(e.what());
@@ -365,10 +370,11 @@ bool User::ExistsCode(const std::string &code) const {
 
     omnisphere::types::DataTable data = conn->FetchPrepared(sQuery, code);
 
-    if (data.RowsCount() == 0)
+    if (data.IsEmpty())
       return false;
 
-    int total = data[0]["Total"];
+    const auto& row = data[0];
+    int total = row["Total"].GetOptional<int>().value_or(0);
     return total > 0;
   } catch (const std::exception &e) {
     throw std::runtime_error(e.what());

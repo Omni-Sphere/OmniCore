@@ -78,13 +78,11 @@ namespace omnisphere::repositories
             std::string getCodeSql = "SELECT \"Code\", \"UsesIntegration\" FROM \"PaymentMethods\" WHERE \"Entry\" = ? LIMIT 1";
             std::vector<omnisphere::types::SQLParam> getParams = { omnisphere::types::MakeSQLParam(input.Entry) };
             auto curDt = conn->FetchPrepared(getCodeSql, getParams);
-            if (curDt.RowsCount() > 0)
+            if (!curDt.IsEmpty())
             {
-                code = (std::string)curDt[0]["Code"];
-                if (curDt[0].HasColumn("UsesIntegration") && !curDt[0]["UsesIntegration"].IsNull())
-                {
-                    currentUsesIntegration = (bool)curDt[0]["UsesIntegration"];
-                }
+                const auto& curRow = curDt[0];
+                code = curRow["Code"].GetOptional<std::string>().value_or("");
+                currentUsesIntegration = curRow["UsesIntegration"].GetOptional<bool>().value_or(false);
             }
 
             bool effectivelyUsesIntegration = input.UsesIntegration.value_or(currentUsesIntegration);
@@ -267,33 +265,13 @@ namespace omnisphere::repositories
                               "FROM \"PaymentMethodDetails\" WHERE \"Code\" = ? AND \"IsActive\" = true ORDER BY \"Entry\" DESC LIMIT 1";
             std::vector<omnisphere::types::SQLParam> params = { omnisphere::types::MakeSQLParam(code) };
             auto dt = conn->FetchPrepared(sql, params);
-            if (dt.RowsCount() == 0) return std::nullopt;
+            if (dt.IsEmpty()) return std::nullopt;
 
-            auto& row = dt[0];
-            omnisphere::models::PaymentMethodDetail detail;
-            detail.entry = (int)row["Entry"];
-            detail.code = (std::string)row["Code"];
-            detail.bankName = (std::string)row["BankName"];
-
-            // El único dato que se desencripta es la CLABE
-            auto safeDecode = [](const std::string& val) -> std::string {
-                if (val.empty()) return "";
-                try { return omnisphere::utils::Base64::Decode(val); } catch (...) { return val; }
-            };
-            detail.clabe = safeDecode((std::string)row["CLABE"]);
-
-            detail.accountHolder = (std::string)row["AccountHolder"];
-            if (row.HasColumn("PaymentReference") && !row["PaymentReference"].IsNull())
+            auto detail = omnisphere::types::FromDataRow<omnisphere::models::PaymentMethodDetail>(dt[0]);
+            if (!detail.clabe.empty())
             {
-                std::string ref = (std::string)row["PaymentReference"];
-                detail.paymentReference = ref.empty() ? std::nullopt : std::make_optional(ref);
+                try { detail.clabe = omnisphere::utils::Base64::Decode(detail.clabe); } catch (...) {}
             }
-            detail.isActive = (bool)row["IsActive"];
-            if (row.HasColumn("CreatedBy") && !row["CreatedBy"].IsNull()) detail.createdBy = (std::string)row["CreatedBy"];
-            if (row.HasColumn("CreateDate") && !row["CreateDate"].IsNull()) detail.createDate = (std::string)row["CreateDate"];
-            if (row.HasColumn("LastUpdatedBy") && !row["LastUpdatedBy"].IsNull()) detail.lastUpdatedBy = (std::string)row["LastUpdatedBy"];
-            if (row.HasColumn("UpdateDate") && !row["UpdateDate"].IsNull()) detail.updateDate = (std::string)row["UpdateDate"];
-
             return detail;
         }
         catch (const std::exception& ex)
@@ -320,7 +298,7 @@ namespace omnisphere::repositories
             std::vector<omnisphere::types::SQLParam> checkParams = { omnisphere::types::MakeSQLParam(code) };
             auto checkDt = conn->FetchPrepared(checkSql, checkParams);
 
-            if (checkDt.RowsCount() > 0)
+            if (!checkDt.IsEmpty())
             {
                 std::string updateSql = "UPDATE \"PaymentMethodDetails\" SET "
                                         "\"BankName\" = ?, \"CLABE\" = ?, \"AccountHolder\" = ?, \"PaymentReference\" = ?, "

@@ -1,5 +1,6 @@
 #include "Payment/StripeService.hpp"
 #include "Payment/Transaction/Repositories/PaymentRepository.hpp"
+#include <OmniData/DataMapper.hpp>
 #include <OmniUtils/Base64.hpp>
 #include <OmniUtils/Logger.hpp>
 #include <boost/asio/connect.hpp>
@@ -57,21 +58,9 @@ namespace omnisphere::services
     {
         if (!m_repository) return std::nullopt;
         auto dt = m_repository->GetSettings();
-        if (dt.RowsCount() == 0) return std::nullopt;
+        if (dt.IsEmpty()) return std::nullopt;
 
-        omnisphere::models::StripeSettings s;
-        s.entry = (int)dt[0]["Entry"];
-        s.code = (std::string)dt[0]["Code"];
-        s.name = (std::string)dt[0]["Name"];
-        s.publishableKey = dt[0].HasColumn("PublishableKey") && !dt[0]["PublishableKey"].IsNull() ? (std::string)dt[0]["PublishableKey"] : "";
-        s.secretKey = dt[0].HasColumn("SecretKey") && !dt[0]["SecretKey"].IsNull() ? (std::string)dt[0]["SecretKey"] : "";
-        s.webhookSecretKey = dt[0].HasColumn("WebhookSecretKey") && !dt[0]["WebhookSecretKey"].IsNull() ? (std::string)dt[0]["WebhookSecretKey"] : "";
-        s.apiBaseUrl = dt[0].HasColumn("ApiBaseUrl") && !dt[0]["ApiBaseUrl"].IsNull() ? (std::string)dt[0]["ApiBaseUrl"] : "https://api.stripe.com/v1";
-        s.checkoutEndpoint = dt[0].HasColumn("CheckoutEndpoint") && !dt[0]["CheckoutEndpoint"].IsNull() ? (std::string)dt[0]["CheckoutEndpoint"] : "/checkout/sessions";
-        s.webhookPath = dt[0].HasColumn("WebhookPath") && !dt[0]["WebhookPath"].IsNull() ? (std::string)dt[0]["WebhookPath"] : "/api/v1/stripe/webhook";
-        s.currency = dt[0].HasColumn("Currency") && !dt[0]["Currency"].IsNull() ? (std::string)dt[0]["Currency"] : "mxn";
-        s.isTestMode = dt[0].HasColumn("IsTestMode") && !dt[0]["IsTestMode"].IsNull() ? (bool)dt[0]["IsTestMode"] : true;
-        s.isActive = dt[0].HasColumn("IsActive") && !dt[0]["IsActive"].IsNull() ? (bool)dt[0]["IsActive"] : true;
+        auto s = omnisphere::types::FromDataRow<omnisphere::models::StripeSettings>(dt[0]);
 
         if (decryptKeys)
         {
@@ -404,8 +393,9 @@ namespace omnisphere::services
                                     "SELECT \"PaymentMethod\" FROM \"Reservations\" WHERE \"Code\" = ?",
                                     { omnisphere::types::MakeSQLParam(reservationCode) }
                                 );
-                                if (dtRes.RowsCount() > 0 && dtRes[0].HasColumn("PaymentMethod") && !dtRes[0]["PaymentMethod"].IsNull()) {
-                                    paymentMethodCode = (std::string)dtRes[0]["PaymentMethod"];
+                                if (!dtRes.IsEmpty()) {
+                                    const auto& resRow = dtRes[0];
+                                    paymentMethodCode = resRow["PaymentMethod"].GetOptional<std::string>().value_or("");
                                 }
                             } catch (...) {}
 
@@ -415,8 +405,9 @@ namespace omnisphere::services
                                     auto dtPm = conn->FetchResults(
                                         "SELECT \"Code\" FROM \"PaymentMethods\" WHERE \"Type\" IN ('CARD', 'STRIPE') AND \"IsActive\" = true ORDER BY \"Entry\" ASC LIMIT 1"
                                     );
-                                    if (dtPm.RowsCount() > 0 && dtPm[0].HasColumn("Code") && !dtPm[0]["Code"].IsNull()) {
-                                        paymentMethodCode = (std::string)dtPm[0]["Code"];
+                                    if (!dtPm.IsEmpty()) {
+                                        const auto& pmRow = dtPm[0];
+                                        paymentMethodCode = pmRow["Code"].GetOptional<std::string>().value_or("");
                                     }
                                 } catch (...) {}
                             }
@@ -694,8 +685,9 @@ namespace omnisphere::services
                                     "SELECT \"PaymentMethod\" FROM \"Reservations\" WHERE \"Code\" = ?",
                                     { omnisphere::types::MakeSQLParam(reservationCode) }
                                 );
-                                if (dtRes.RowsCount() > 0 && dtRes[0].HasColumn("PaymentMethod") && !dtRes[0]["PaymentMethod"].IsNull()) {
-                                    paymentMethodCode = (std::string)dtRes[0]["PaymentMethod"];
+                                if (!dtRes.IsEmpty()) {
+                                    const auto& resRow = dtRes[0];
+                                    paymentMethodCode = resRow["PaymentMethod"].GetOptional<std::string>().value_or("");
                                 }
                             } catch (...) {}
 
@@ -705,8 +697,9 @@ namespace omnisphere::services
                                     auto dtPm = conn->FetchResults(
                                         "SELECT \"Code\" FROM \"PaymentMethods\" WHERE \"Type\" IN ('TRANSFER', 'SPEI') AND \"IsActive\" = true ORDER BY \"Entry\" ASC LIMIT 1"
                                     );
-                                    if (dtPm.RowsCount() > 0 && dtPm[0].HasColumn("Code") && !dtPm[0]["Code"].IsNull()) {
-                                        paymentMethodCode = (std::string)dtPm[0]["Code"];
+                                    if (!dtPm.IsEmpty()) {
+                                        const auto& pmRow = dtPm[0];
+                                        paymentMethodCode = pmRow["Code"].GetOptional<std::string>().value_or("");
                                     }
                                 } catch (...) {}
                             }

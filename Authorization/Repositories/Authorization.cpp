@@ -32,35 +32,26 @@ namespace omnisphere::repositories
             };
             auto userDt = conn->FetchPrepared(userQuery, userParams);
 
-            if (userDt.RowsCount() == 0)
+            if (userDt.IsEmpty())
             {
                 return false;
             }
 
+            const auto& userRow = userDt[0];
+
             // Si es SuperUser directamente en la tabla Users, tiene acceso total
-            if (!userDt[0]["SuperUser"].IsNull())
+            if (userRow["SuperUser"].GetOptional<bool>().value_or(false))
             {
-                bool isSuper = userDt[0]["SuperUser"];
-                if (isSuper) return true;
+                return true;
             }
 
-            std::string roleCode = "";
-            if (!userDt[0]["RoleCode"].IsNull())
-            {
-                roleCode = std::string(userDt[0]["RoleCode"]);
-            }
-
-            // Si el rol es de administración total
+            std::string roleCode = userRow["RoleCode"].GetOptional<std::string>().value_or("");
             if (roleCode == "ADMIN" || roleCode == "SUPERADMIN")
             {
                 return true;
             }
 
-            std::string permMode = "P";
-            if (!userDt[0]["PermissionMode"].IsNull())
-            {
-                permMode = std::string(userDt[0]["PermissionMode"]);
-            }
+            std::string permMode = userRow["PermissionMode"].GetOptional<std::string>().value_or("P");
 
             // MODO R (Role-based): Valida única y estrictamente contra RolePermissions
             if (permMode == "R")
@@ -79,9 +70,10 @@ namespace omnisphere::repositories
                     omnisphere::types::MakeSQLParam(permission)
                 };
                 auto dt = conn->FetchPrepared(roleQuery, roleParams);
-                if (dt.RowsCount() > 0)
+                if (!dt.IsEmpty())
                 {
-                    int count = dt[0]["Allowed"];
+                    const auto& row = dt[0];
+                    int count = row["Allowed"].GetOptional<int>().value_or(0);
                     return count > 0;
                 }
                 return false;
@@ -99,9 +91,10 @@ namespace omnisphere::repositories
                 omnisphere::types::MakeSQLParam(userCode),
                 omnisphere::types::MakeSQLParam(permission)
             });
-            if (userPermDt.RowsCount() > 0)
+            if (!userPermDt.IsEmpty())
             {
-                int count = userPermDt[0]["Allowed"];
+                const auto& row = userPermDt[0];
+                int count = row["Allowed"].GetOptional<int>().value_or(0);
                 return count > 0;
             }
             return false;
@@ -130,12 +123,13 @@ namespace omnisphere::repositories
             auto qp = omnisphere::types::BuildQueryParts({"\"RoleCode\"", "\"SuperUser\""}, conditions);
             std::string userQuery = "SELECT " + qp.SelectClause + " FROM \"Users\" WHERE " + qp.WhereClause;
             auto dt = conn->FetchPrepared(userQuery, { omnisphere::types::MakeSQLParam(userCode) });
-            if (dt.RowsCount() > 0)
+            if (!dt.IsEmpty())
             {
-                if (!dt[0]["SuperUser"].IsNull() && (bool)dt[0]["SuperUser"]) return true;
-                if (!dt[0]["RoleCode"].IsNull())
+                const auto& row = dt[0];
+                if (row["SuperUser"].GetOptional<bool>().value_or(false)) return true;
+                std::string role = row["RoleCode"].GetOptional<std::string>().value_or("");
+                if (!role.empty())
                 {
-                    std::string role = std::string(dt[0]["RoleCode"]);
                     if (role == "ADMIN" || role == "SUPERADMIN") return true;
                     for (const auto& r : allowedRoles)
                     {
@@ -214,22 +208,22 @@ namespace omnisphere::repositories
             std::string permSql = "SELECT " + permQp.SelectClause + " FROM \"Permissions\" WHERE " + permQp.WhereClause + " ORDER BY \"Entry\" ASC";
             auto permDt = conn->FetchResults(permSql);
 
-            for (size_t m = 0; m < modDt.RowsCount(); ++m)
+            for (const auto& modRow : modDt)
             {
                 omnisphere::models::PermissionModule module;
-                module.code = std::string(modDt[m]["Code"]);
-                module.name = std::string(modDt[m]["Name"]);
-                if (!modDt[m]["Icon"].IsNull()) module.icon = std::string(modDt[m]["Icon"]);
+                module.code = modRow["Code"].GetOptional<std::string>().value_or("");
+                module.name = modRow["Name"].GetOptional<std::string>().value_or("");
+                module.icon = modRow["Icon"].GetOptional<std::string>().value_or("");
 
-                for (size_t p = 0; p < permDt.RowsCount(); ++p)
+                for (const auto& permRow : permDt)
                 {
-                    std::string pModCode = std::string(permDt[p]["ModuleCode"]);
+                    std::string pModCode = permRow["ModuleCode"].GetOptional<std::string>().value_or("");
                     if (pModCode == module.code)
                     {
                         omnisphere::models::PermissionItem item;
-                        item.code = std::string(permDt[p]["Code"]);
-                        item.name = std::string(permDt[p]["Name"]);
-                        if (!permDt[p]["Description"].IsNull()) item.description = std::string(permDt[p]["Description"]);
+                        item.code = permRow["Code"].GetOptional<std::string>().value_or("");
+                        item.name = permRow["Name"].GetOptional<std::string>().value_or("");
+                        item.description = permRow["Description"].GetOptional<std::string>().value_or("");
                         item.moduleCode = pModCode;
                         module.permissions.push_back(item);
                     }
@@ -267,11 +261,12 @@ namespace omnisphere::repositories
             bool isSuper = false;
             std::string roleCode = "";
             std::string permMode = "P";
-            if (userDt.RowsCount() > 0)
+            if (!userDt.IsEmpty())
             {
-                if (!userDt[0]["SuperUser"].IsNull() && (bool)userDt[0]["SuperUser"]) isSuper = true;
-                if (!userDt[0]["RoleCode"].IsNull()) roleCode = std::string(userDt[0]["RoleCode"]);
-                if (!userDt[0]["PermissionMode"].IsNull()) permMode = std::string(userDt[0]["PermissionMode"]);
+                const auto& userRow = userDt[0];
+                isSuper = userRow["SuperUser"].GetOptional<bool>().value_or(false);
+                roleCode = userRow["RoleCode"].GetOptional<std::string>().value_or("");
+                permMode = userRow["PermissionMode"].GetOptional<std::string>().value_or("P");
             }
 
             // Si es SuperUser o tiene rol ADMIN/SUPERADMIN, devolver todos los permisos del catálogo
@@ -283,9 +278,12 @@ namespace omnisphere::repositories
                 auto allQp = omnisphere::types::BuildQueryParts({"\"Code\""}, allConds);
                 std::string allSql = "SELECT " + allQp.SelectClause + " FROM \"Permissions\" WHERE " + allQp.WhereClause;
                 auto allDt = conn->FetchResults(allSql);
-                for (size_t i = 0; i < allDt.RowsCount(); ++i)
+                for (const auto& row : allDt)
                 {
-                    perms.push_back(std::string(allDt[i]["Code"]));
+                    if (auto code = row["Code"].GetOptional<std::string>(); code.has_value())
+                    {
+                        perms.push_back(*code);
+                    }
                 }
                 return perms;
             }
@@ -310,11 +308,11 @@ namespace omnisphere::repositories
             std::string userPermSql = "SELECT " + permQp.SelectClause + " FROM \"UserPermissions\" WHERE " + permQp.WhereClause;
             auto userPermDt = conn->FetchPrepared(userPermSql, { omnisphere::types::MakeSQLParam(userCode) });
             // Permisos concedidos
-            if (userPermDt.RowsCount() > 0)
+            for (const auto& row : userPermDt)
             {
-                for (size_t i = 0; i < userPermDt.RowsCount(); ++i)
+                if (auto pCode = row["PermissionCode"].GetOptional<std::string>(); pCode.has_value())
                 {
-                    perms.push_back(std::string(userPermDt[i]["PermissionCode"]));
+                    perms.push_back(*pCode);
                 }
             }
 
@@ -348,9 +346,12 @@ namespace omnisphere::repositories
             auto qp = omnisphere::types::BuildQueryParts({"\"PermissionCode\""}, conditions);
             std::string sql = "SELECT " + qp.SelectClause + " FROM \"RolePermissions\" WHERE " + qp.WhereClause;
             auto dt = conn->FetchPrepared(sql, { omnisphere::types::MakeSQLParam(roleCode) });
-            for (size_t i = 0; i < dt.RowsCount(); ++i)
+            for (const auto& row : dt)
             {
-                perms.push_back(std::string(dt[i]["PermissionCode"]));
+                if (auto pCode = row["PermissionCode"].GetOptional<std::string>(); pCode.has_value())
+                {
+                    perms.push_back(*pCode);
+                }
             }
 
             // Permisos con autorización requerida (AllowOverride)
@@ -388,11 +389,12 @@ namespace omnisphere::repositories
             bool isSuper = false;
             std::string roleCode = "";
             std::string permMode = "P";
-            if (userDt.RowsCount() > 0)
+            if (!userDt.IsEmpty())
             {
-                if (!userDt[0]["SuperUser"].IsNull() && (bool)userDt[0]["SuperUser"]) isSuper = true;
-                if (!userDt[0]["RoleCode"].IsNull()) roleCode = std::string(userDt[0]["RoleCode"]);
-                if (!userDt[0]["PermissionMode"].IsNull()) permMode = std::string(userDt[0]["PermissionMode"]);
+                const auto& userRow = userDt[0];
+                isSuper = userRow["SuperUser"].GetOptional<bool>().value_or(false);
+                roleCode = userRow["RoleCode"].GetOptional<std::string>().value_or("");
+                permMode = userRow["PermissionMode"].GetOptional<std::string>().value_or("P");
             }
 
             // Administradores y SuperUsers tienen acceso directo, no requieren override
@@ -419,9 +421,12 @@ namespace omnisphere::repositories
             auto permQp = omnisphere::types::BuildQueryParts({"\"PermissionCode\""}, permConds);
             std::string userPermSql = "SELECT " + permQp.SelectClause + " FROM \"UserPermissions\" WHERE " + permQp.WhereClause;
             auto userPermDt = conn->FetchPrepared(userPermSql, { omnisphere::types::MakeSQLParam(userCode) });
-            for (size_t i = 0; i < userPermDt.RowsCount(); ++i)
+            for (const auto& row : userPermDt)
             {
-                perms.push_back(std::string(userPermDt[i]["PermissionCode"]));
+                if (auto pCode = row["PermissionCode"].GetOptional<std::string>(); pCode.has_value())
+                {
+                    perms.push_back(*pCode);
+                }
             }
         }
         catch (const std::exception& ex)
@@ -448,9 +453,12 @@ namespace omnisphere::repositories
             auto qp = omnisphere::types::BuildQueryParts({"\"PermissionCode\""}, conditions);
             std::string sql = "SELECT " + qp.SelectClause + " FROM \"RolePermissions\" WHERE " + qp.WhereClause;
             auto dt = conn->FetchPrepared(sql, { omnisphere::types::MakeSQLParam(roleCode) });
-            for (size_t i = 0; i < dt.RowsCount(); ++i)
+            for (const auto& row : dt)
             {
-                perms.push_back(std::string(dt[i]["PermissionCode"]));
+                if (auto pCode = row["PermissionCode"].GetOptional<std::string>(); pCode.has_value())
+                {
+                    perms.push_back(*pCode);
+                }
             }
         }
         catch (const std::exception& ex)
@@ -479,16 +487,15 @@ namespace omnisphere::repositories
             std::string userQuery = "SELECT " + qp.SelectClause + " FROM \"Users\" WHERE " + qp.WhereClause;
             auto userDt = conn->FetchPrepared(userQuery, { omnisphere::types::MakeSQLParam(userCode) });
 
-            if (userDt.RowsCount() == 0) return false;
+            if (userDt.IsEmpty()) return false;
 
-            if (!userDt[0]["SuperUser"].IsNull() && (bool)userDt[0]["SuperUser"]) return true;
+            const auto& userRow = userDt[0];
+            if (userRow["SuperUser"].GetOptional<bool>().value_or(false)) return true;
 
-            std::string roleCode = "";
-            if (!userDt[0]["RoleCode"].IsNull()) roleCode = std::string(userDt[0]["RoleCode"]);
+            std::string roleCode = userRow["RoleCode"].GetOptional<std::string>().value_or("");
             if (roleCode == "ADMIN" || roleCode == "SUPERADMIN") return true;
 
-            std::string permMode = "P";
-            if (!userDt[0]["PermissionMode"].IsNull()) permMode = std::string(userDt[0]["PermissionMode"]);
+            std::string permMode = userRow["PermissionMode"].GetOptional<std::string>().value_or("P");
 
             if (permMode == "R")
             {
@@ -505,7 +512,12 @@ namespace omnisphere::repositories
                     omnisphere::types::MakeSQLParam(roleCode),
                     omnisphere::types::MakeSQLParam(permission)
                 });
-                return (dt.RowsCount() > 0 && (int)dt[0]["CanOverride"] > 0);
+                if (!dt.IsEmpty())
+                {
+                    const auto& row = dt[0];
+                    return (row["CanOverride"].GetOptional<int>().value_or(0) > 0);
+                }
+                return false;
             }
 
             // Modo P:
@@ -521,7 +533,12 @@ namespace omnisphere::repositories
                 omnisphere::types::MakeSQLParam(userCode),
                 omnisphere::types::MakeSQLParam(permission)
             });
-            return (userPermDt.RowsCount() > 0 && (int)userPermDt[0]["CanOverride"] > 0);
+            if (!userPermDt.IsEmpty())
+            {
+                const auto& row = userPermDt[0];
+                return (row["CanOverride"].GetOptional<int>().value_or(0) > 0);
+            }
+            return false;
         }
         catch (const std::exception& ex)
         {
@@ -546,10 +563,7 @@ namespace omnisphere::repositories
             auto qp = omnisphere::types::BuildQueryParts(selectFields, conditions);
             std::string sql = "SELECT " + qp.SelectClause + " FROM \"Roles\" WHERE " + qp.WhereClause + " ORDER BY \"Entry\" ASC";
             auto dt = conn->FetchResults(sql);
-            for (size_t i = 0; i < dt.RowsCount(); ++i)
-            {
-                roles.push_back(omnisphere::data::MapFromRow<omnisphere::models::Role>(dt[i]));
-            }
+            roles = omnisphere::types::DataTableToModels<omnisphere::models::Role>(dt);
         }
         catch (const std::exception& ex)
         {

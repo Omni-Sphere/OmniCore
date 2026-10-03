@@ -63,9 +63,10 @@ namespace omnisphere::repositories
             if (targetEntry <= 0)
             {
                 auto dtActive = GetActiveConfig({"Entry"});
-                if (dtActive.RowsCount() > 0 && dtActive[0].HasColumn("Entry"))
+                if (!dtActive.IsEmpty())
                 {
-                    targetEntry = (int)dtActive[0]["Entry"];
+                    const auto& row = dtActive[0];
+                    targetEntry = row["Entry"].GetOptional<int>().value_or(1);
                 }
                 else
                 {
@@ -94,9 +95,13 @@ namespace omnisphere::repositories
             std::string checkSql = "SELECT COUNT(*) as cnt FROM \"SystemConfigs\"";
             std::vector<omnisphere::types::SQLParam> emptyParams;
             auto dt = conn->FetchPrepared(checkSql, emptyParams);
-            if (dt.RowsCount() > 0 && (int)dt[0]["cnt"] > 0)
+            if (!dt.IsEmpty())
             {
-                return true;
+                const auto& row = dt[0];
+                if (row["cnt"].GetOptional<int>().value_or(0) > 0)
+                {
+                    return true;
+                }
             }
 
             std::string insertSql = "INSERT INTO \"SystemConfigs\" (\"FeeHandlingStrategy\", \"TaxRatePercent\", \"DefaultCurrency\", \"CompanyName\", \"EnableEmailNotifications\", \"EnableWhatsappNotifications\", \"AllowPartialPayments\", \"IsActive\") VALUES ('ABSORBED', 0.0, 'MXN', 'OmniRoute', true, true, false, true)";
@@ -121,9 +126,10 @@ namespace omnisphere::repositories
             std::string configSql = "SELECT \"FeeHandlingStrategy\" FROM \"SystemConfigs\" WHERE \"IsActive\" = true LIMIT 1";
             std::vector<omnisphere::types::SQLParam> emptyParams;
             auto dtConfig = conn->FetchPrepared(configSql, emptyParams);
-            if (dtConfig.RowsCount() > 0)
+            if (!dtConfig.IsEmpty())
             {
-                strategy = (std::string)dtConfig[0]["FeeHandlingStrategy"];
+                const auto& row = dtConfig[0];
+                strategy = row["FeeHandlingStrategy"].GetOptional<std::string>().value_or("ABSORBED");
             }
         }
         catch (const std::exception& ex)
@@ -142,10 +148,11 @@ namespace omnisphere::repositories
             std::string pmSql = "SELECT \"UsesCommission\", \"CommissionRate\" FROM \"PaymentMethods\" WHERE \"Entry\" = ? AND \"IsActive\" = true";
             std::vector<omnisphere::types::SQLParam> pmParams = { omnisphere::types::MakeSQLParam(paymentMethodEntry) };
             auto dtPm = conn->FetchPrepared(pmSql, pmParams);
-            if (dtPm.RowsCount() > 0)
+            if (!dtPm.IsEmpty())
             {
-                bool usesComm = (bool)dtPm[0]["UsesCommission"];
-                double commRate = (double)dtPm[0]["CommissionRate"];
+                const auto& pmRow = dtPm[0];
+                bool usesComm = pmRow["UsesCommission"].GetOptional<bool>().value_or(false);
+                double commRate = pmRow["CommissionRate"].GetOptional<double>().value_or(0.0);
                 if (usesComm && commRate > 0)
                 {
                     double commAmount = (baseAmount * commRate) / 100.0;

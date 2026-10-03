@@ -36,20 +36,6 @@ namespace omnisphere::repositories
         }
     }
 
-    template <typename T, typename TRow>
-    static T GetVal(const TRow& row, const std::string& col, T defaultVal = T{})
-    {
-        if (row.HasColumn(col)) {
-            auto val = row[col];
-            if (val.has_value()) {
-                if (auto p = std::get_if<T>(&(*val))) {
-                    return *p;
-                }
-            }
-        }
-        return defaultVal;
-    }
-
     std::string IdentityRepository::GetNextCode(omnisphere::data::IDatabase* conn, const std::string& domain, const std::string& defaultPrefix, int prefixIndex) const
     {
         if (!conn) return "";
@@ -60,12 +46,13 @@ namespace omnisphere::repositories
             std::vector<omnisphere::types::SQLParam> params = { omnisphere::types::MakeSQLParam(domain) };
 
             auto dt = conn->FetchPrepared(sqlUpdate, params);
-            if (dt.RowsCount() > 0)
+            if (!dt.IsEmpty())
             {
-                std::string p1 = GetVal<std::string>(dt[0], "Prefix1");
-                std::string p2 = GetVal<std::string>(dt[0], "Prefix2");
-                std::string p3 = GetVal<std::string>(dt[0], "Prefix3");
-                int seq = GetVal<int>(dt[0], "CurrentSequence");
+                const auto& row = dt[0];
+                std::string p1 = row["Prefix1"].GetOptional<std::string>().value_or("");
+                std::string p2 = row["Prefix2"].GetOptional<std::string>().value_or("");
+                std::string p3 = row["Prefix3"].GetOptional<std::string>().value_or("");
+                int seq = row["CurrentSequence"].GetOptional<int>().value_or(0);
 
                 std::string selectedPrefix = p1;
                 if (prefixIndex == 2 && !p2.empty()) selectedPrefix = p2;
@@ -92,12 +79,13 @@ namespace omnisphere::repositories
             };
 
             auto insertDt = conn->FetchPrepared(sqlInsert, insertParams);
-            if (insertDt.RowsCount() > 0)
+            if (!insertDt.IsEmpty())
             {
-                std::string p1 = GetVal<std::string>(insertDt[0], "Prefix1");
+                const auto& row = insertDt[0];
+                std::string p1 = row["Prefix1"].GetOptional<std::string>().value_or("");
                 p1.erase(std::remove_if(p1.begin(), p1.end(),
                     [](unsigned char c) { return !std::isalnum(c); }), p1.end());
-                int seq = GetVal<int>(insertDt[0], "CurrentSequence");
+                int seq = row["CurrentSequence"].GetOptional<int>().value_or(0);
                 char buf[64];
                 snprintf(buf, sizeof(buf), "%s%d", p1.c_str(), seq);
                 return std::string(buf);

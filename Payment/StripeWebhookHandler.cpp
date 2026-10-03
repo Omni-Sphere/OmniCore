@@ -31,10 +31,11 @@ namespace omnisphere::services
         try
         {
             auto dtSettings = m_repo->GetSettings();
-            if (dtSettings.RowsCount() > 0 && dtSettings[0].HasColumn("WebhookSecretKey") && !dtSettings[0]["WebhookSecretKey"].IsNull())
+            if (!dtSettings.IsEmpty())
             {
-                std::string webhookSecret = (std::string)dtSettings[0]["WebhookSecretKey"];
-                if (webhookSecret.rfind("whsec_", 0) != 0)
+                const auto& row = dtSettings[0];
+                std::string webhookSecret = row["WebhookSecretKey"].GetOptional<std::string>().value_or("");
+                if (!webhookSecret.empty() && webhookSecret.rfind("whsec_", 0) != 0)
                 {
                     try { webhookSecret = omnisphere::utils::Base64::Decode(webhookSecret); } catch (...) {}
                 }
