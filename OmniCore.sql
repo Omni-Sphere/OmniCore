@@ -1426,22 +1426,7 @@ ON CONFLICT ("Code") DO UPDATE SET
     "ModuleCode" = EXCLUDED."ModuleCode",
     "IsActive" = true;
 
--- Seed Default Role: ROL_ADMIN
-INSERT INTO "Roles" ("Code", "Name", "Description", "IsActive", "IsCanceled", "CreatedBy")
-VALUES ('ROL_ADMIN', 'Administrador General', 'Control total de la plataforma y módulos', true, false, 'system')
-ON CONFLICT ("Code") DO UPDATE SET "IsActive" = true, "IsCanceled" = false;
-
--- Grant all 11 modules to ROL_ADMIN
-INSERT INTO "RoleModules" ("RoleCode", "ModuleCode", "IsAllowed", "AllowOverride", "IsActive", "CreatedBy")
-SELECT 'ROL_ADMIN', "Code", true, true, true, 'system'
-FROM "Modules"
-ON CONFLICT ("RoleCode", "ModuleCode") DO UPDATE SET "IsAllowed" = true, "AllowOverride" = true, "IsActive" = true;
-
--- Grant all 34 operational permissions to ROL_ADMIN
-INSERT INTO "RolePermissions" ("RoleCode", "PermissionCode", "ModuleCode", "IsAllowed", "AllowOverride", "IsActive", "CreatedBy")
-SELECT 'ROL_ADMIN', "Code", "ModuleCode", true, true, true, 'system'
-FROM "Permissions"
-ON CONFLICT ("RoleCode", "PermissionCode") DO UPDATE SET "IsAllowed" = true, "AllowOverride" = true, "IsActive" = true;
+-- Access Control & Permissions catalog seeded. No default roles created.
 
 -- Migration: Ensure all CreatedBy and LastUpdatedBy columns are VARCHAR(50) on existing databases
 DO $$
