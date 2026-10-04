@@ -11,6 +11,7 @@ namespace omnisphere::models
         std::string userRole;        // Rol principal (ej: "ADMIN", "OPERATOR")
         std::string grantedByCode;   // Código del supervisor/autorizador (si aplica a la transacción)
         std::string delegationToken; // Token de delegación opcional
+        std::string clientIp;        // Dirección IP real del cliente conectado
         boost::json::object rawClaims;
 
         bool isAuthenticated() const
