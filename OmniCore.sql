@@ -88,27 +88,41 @@ CREATE TABLE IF NOT EXISTS "Users" (
     "Email" VARCHAR(50),
     "Phone" VARCHAR(50),
     "Employee" INT,
+    "EmployeeCode" VARCHAR(50),
     "Department" INT,
     "PermissionMode" "PermissionMode" NOT NULL DEFAULT 'P',
     "RoleEntry" INT,
+    "RoleCode" VARCHAR(50),
     "MaxDisccountPerLine" NUMERIC(12, 6),
     "MaxDisccountPerDocument" NUMERIC(12, 6),
     "SuperUser" BOOLEAN NOT NULL DEFAULT false,
     "IsLocked" BOOLEAN NOT NULL DEFAULT false,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "IsCanceled" BOOLEAN NOT NULL DEFAULT false,
     "Password" BYTEA,
     "ChangePasswordNextLogin" BOOLEAN NOT NULL DEFAULT false,
     "PasswordNeverExpires" BOOLEAN NOT NULL DEFAULT false,
     "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "LastUpdatedBy" VARCHAR(50),
-    "UpdateDate" TIMESTAMP,
-    "EmployeeCode" VARCHAR(50)
+    "UpdateDate" TIMESTAMP
 );
 
--- Migration for existing Users table
-ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "EmployeeCode" VARCHAR(50);
 CREATE INDEX IF NOT EXISTS "IDX_Users_EmployeeCode" ON "Users" ("EmployeeCode");
+CREATE INDEX IF NOT EXISTS "IDX_Users_RoleCode" ON "Users" ("RoleCode");
+
+-- Default System & Administrator SuperUsers
+INSERT INTO "Users" (
+    "Code", "Name", "Email", "SuperUser", "IsLocked", "IsActive",
+    "ChangePasswordNextLogin", "PasswordNeverExpires", "CreatedBy"
+) VALUES 
+('system', 'Administrador General del Sistema', 'system@omnisphere.local', true, false, true, false, true, 'system'),
+('admin', 'System Administrator', 'admin@omnisphere.local', true, false, true, false, true, 'system')
+ON CONFLICT ("Code") DO UPDATE SET
+    "SuperUser" = true,
+    "IsActive" = true,
+    "IsLocked" = false,
+    "ChangePasswordNextLogin" = false;
 
 -- 2.1 Employees (Agnostic Master Entity)
 CREATE TABLE IF NOT EXISTS "Employees" (
@@ -135,24 +149,6 @@ CREATE TABLE IF NOT EXISTS "Employees" (
 );
 CREATE INDEX IF NOT EXISTS "IDX_Employees_Code_Active" ON "Employees" ("Code") WHERE "IsCanceled" = false;
 CREATE INDEX IF NOT EXISTS "IDX_Employees_Email" ON "Employees" ("Email");
-
--- Users.EmployeeCode is the single source of truth for employee-user links.
--- Preserve links from installations that previously stored them on Employees.
-DO $$
-BEGIN
-    IF EXISTS (
-        SELECT 1 FROM information_schema.columns
-        WHERE table_name = 'Employees' AND column_name = 'UserCode'
-    ) THEN
-        UPDATE "Users" AS u
-        SET "EmployeeCode" = e."Code"
-        FROM "Employees" AS e
-        WHERE e."UserCode" = u."Code"
-          AND (u."EmployeeCode" IS NULL OR u."EmployeeCode" = '');
-
-        ALTER TABLE "Employees" DROP COLUMN "UserCode";
-    END IF;
-END $$;
 
 -- 3. Sessions
 CREATE TABLE IF NOT EXISTS "Sessions" (
@@ -450,7 +446,7 @@ CREATE TABLE IF NOT EXISTS "Reservations" (
     "TripType" "ScheduleType" NOT NULL DEFAULT 'ROUND_TRIP',
     "UnitPrice" NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
     "TotalPrice" NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
-    "PaymentMethod" "PaymentMethodType" NOT NULL DEFAULT 'NOT_APPLICABLE',
+    "PaymentMethod" VARCHAR(50) NOT NULL DEFAULT 'NOT_APPLICABLE',
     "PaymentStatus" "PaymentStatusType" NOT NULL DEFAULT 'UNPAID',
     "PaymentReference" VARCHAR(100),
     "PaymentDate" TIMESTAMP,
@@ -459,6 +455,7 @@ CREATE TABLE IF NOT EXISTS "Reservations" (
     "Status" "ReservationStatusType" NOT NULL DEFAULT 'UNCONFIRMED',
     "ExpiresAt" TIMESTAMPTZ,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "IsCanceled" BOOLEAN NOT NULL DEFAULT false,
     "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "LastUpdatedBy" VARCHAR(50),
@@ -472,18 +469,12 @@ CREATE TABLE IF NOT EXISTS "Reservations" (
     CONSTRAINT "CHK_Reservations_IsActive" CHECK ("IsActive" IN (true, false))
 );
 
-ALTER TABLE "Reservations" ADD COLUMN IF NOT EXISTS "ExpiresAt" TIMESTAMPTZ;
-
--- Migrar "PaymentMethod" de ENUM a VARCHAR para soportar códigos del catálogo (e.g., "PMT2")
-ALTER TABLE "Reservations" ALTER COLUMN "PaymentMethod" TYPE VARCHAR(50) USING "PaymentMethod"::text;
-
-
-CREATE INDEX IF NOT EXISTS "IDX_Reservations_EventCode_Active" ON "Reservations" ("EventCode") WHERE "IsActive" = true;
-CREATE INDEX IF NOT EXISTS "IDX_Reservations_RouteCode_Active" ON "Reservations" ("RouteCode") WHERE "IsActive" = true;
-CREATE INDEX IF NOT EXISTS "IDX_Reservations_Phone_Active" ON "Reservations" ("Phone") WHERE "IsActive" = true;
-CREATE INDEX IF NOT EXISTS "IDX_Reservations_Status_Active" ON "Reservations" ("Status") WHERE "IsActive" = true;
-CREATE INDEX IF NOT EXISTS "IDX_Reservations_PaymentStatus_Active" ON "Reservations" ("PaymentStatus") WHERE "IsActive" = true;
-CREATE INDEX IF NOT EXISTS "IDX_Reservations_PaymentMethod_Active" ON "Reservations" ("PaymentMethod") WHERE "IsActive" = true;
+CREATE INDEX IF NOT EXISTS "IDX_Reservations_EventCode_Active" ON "Reservations" ("EventCode") WHERE "IsActive" = true AND "IsCanceled" = false;
+CREATE INDEX IF NOT EXISTS "IDX_Reservations_RouteCode_Active" ON "Reservations" ("RouteCode") WHERE "IsActive" = true AND "IsCanceled" = false;
+CREATE INDEX IF NOT EXISTS "IDX_Reservations_Phone_Active" ON "Reservations" ("Phone") WHERE "IsActive" = true AND "IsCanceled" = false;
+CREATE INDEX IF NOT EXISTS "IDX_Reservations_Status_Active" ON "Reservations" ("Status") WHERE "IsActive" = true AND "IsCanceled" = false;
+CREATE INDEX IF NOT EXISTS "IDX_Reservations_PaymentStatus_Active" ON "Reservations" ("PaymentStatus") WHERE "IsActive" = true AND "IsCanceled" = false;
+CREATE INDEX IF NOT EXISTS "IDX_Reservations_PaymentMethod_Active" ON "Reservations" ("PaymentMethod") WHERE "IsActive" = true AND "IsCanceled" = false;
 CREATE INDEX IF NOT EXISTS "IDX_Reservations_ExpiresAt_Pending" ON "Reservations" ("ExpiresAt") WHERE "Status" = 'PENDING' AND "IsActive" = true;
 
 -- 17. PaymentMethods
@@ -505,10 +496,6 @@ CREATE TABLE IF NOT EXISTS "PaymentMethods" (
     CONSTRAINT "CHK_PaymentMethods_IsActive" CHECK ("IsActive" IN (true, false))
 );
 
-ALTER TABLE "PaymentMethods" ADD COLUMN IF NOT EXISTS "UsesIntegration" BOOLEAN NOT NULL DEFAULT false;
-ALTER TABLE "PaymentMethods" ADD COLUMN IF NOT EXISTS "IntegrationProvider" VARCHAR(50);
-ALTER TABLE "PaymentMethods" ADD COLUMN IF NOT EXISTS "IsCanceled" BOOLEAN NOT NULL DEFAULT false;
-
 CREATE UNIQUE INDEX IF NOT EXISTS "UQ_PaymentMethods_Name_Active" ON "PaymentMethods" (LOWER(TRIM("Name"))) WHERE "IsActive" = true AND "IsCanceled" = false;
 
 INSERT INTO "PaymentMethods" ("Code", "Name", "Type", "UsesCommission", "CommissionRate", "CreatedBy") VALUES
@@ -519,7 +506,6 @@ INSERT INTO "PaymentMethods" ("Code", "Name", "Type", "UsesCommission", "Commiss
 ON CONFLICT ("Code") DO NOTHING;
 
 -- 17.1 PaymentMethodDetails (Detalles bancarios para transferencias/sin integración)
--- Relación lógica vía "Code" con "PaymentMethods"."Code" (Sin FOREIGN KEY)
 CREATE TABLE IF NOT EXISTS "PaymentMethodDetails" (
     "Entry"            SERIAL PRIMARY KEY,
     "Code"             VARCHAR(50) NOT NULL,
@@ -528,9 +514,9 @@ CREATE TABLE IF NOT EXISTS "PaymentMethodDetails" (
     "AccountHolder"    VARCHAR(255) NOT NULL,
     "PaymentReference" VARCHAR(255),
     "IsActive"         BOOLEAN NOT NULL DEFAULT true,
-    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
+    "CreatedBy"        VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate"       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "LastUpdatedBy" VARCHAR(50),
+    "LastUpdatedBy"    VARCHAR(50),
     "UpdateDate"       TIMESTAMP,
     CONSTRAINT "CHK_PaymentMethodDetails_IsActive" CHECK ("IsActive" IN (true, false))
 );
@@ -550,7 +536,7 @@ CREATE TABLE IF NOT EXISTS "PaymentTransactions" (
     "PaymentMethod" VARCHAR(50) NOT NULL DEFAULT 'CARD',
     "Amount" NUMERIC(10, 2) NOT NULL,
     "Currency" VARCHAR(10) NOT NULL DEFAULT 'mxn',
-    "Status" VARCHAR(50) NOT NULL DEFAULT 'PENDING', -- 'PENDING', 'SUCCEEDED', 'FAILED', 'EXPIRED', 'CANCELLED'
+    "Status" VARCHAR(50) NOT NULL DEFAULT 'PENDING',
     "PaymentIntentId" VARCHAR(255),
     "SessionId" VARCHAR(255),
     "Clabe" VARCHAR(50),
@@ -620,13 +606,6 @@ CREATE TABLE IF NOT EXISTS "StripeTransactions" (
     "UpdateDate" TIMESTAMP
 );
 
-ALTER TABLE "StripeTransactions" ADD COLUMN IF NOT EXISTS "PaymentMethodType" VARCHAR(50) DEFAULT 'card';
-ALTER TABLE "StripeTransactions" ADD COLUMN IF NOT EXISTS "Clabe" VARCHAR(50);
-ALTER TABLE "StripeTransactions" ADD COLUMN IF NOT EXISTS "BankName" VARCHAR(100);
-ALTER TABLE "StripeTransactions" ADD COLUMN IF NOT EXISTS "HostedInstructionsUrl" TEXT;
-ALTER TABLE "StripeTransactions" ALTER COLUMN "CreatedBy" TYPE VARCHAR(50) USING "CreatedBy"::VARCHAR;
-ALTER TABLE "StripeTransactions" ALTER COLUMN "LastUpdatedBy" TYPE VARCHAR(50) USING "LastUpdatedBy"::VARCHAR;
-
 CREATE INDEX IF NOT EXISTS "IDX_StripeTransactions_ReservationCode" ON "StripeTransactions" ("ReservationCode");
 CREATE INDEX IF NOT EXISTS "IDX_StripeTransactions_PaymentIntentId" ON "StripeTransactions" ("PaymentIntentId");
 CREATE INDEX IF NOT EXISTS "IDX_StripeTransactions_Clabe" ON "StripeTransactions" ("Clabe");
@@ -689,8 +668,6 @@ CREATE TABLE IF NOT EXISTS "WhatsAppMessages" (
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-ALTER TABLE "WhatsAppMessages" ADD COLUMN IF NOT EXISTS "WhatsAppId" VARCHAR(255);
-
 CREATE INDEX IF NOT EXISTS "IDX_WhatsAppMessages_ConversationEntry" ON "WhatsAppMessages" ("ConversationEntry");
 CREATE INDEX IF NOT EXISTS "IDX_WhatsAppMessages_Code" ON "WhatsAppMessages" ("Code");
 CREATE INDEX IF NOT EXISTS "IDX_WhatsAppMessages_WhatsAppId" ON "WhatsAppMessages" ("WhatsAppId");
@@ -736,11 +713,6 @@ CREATE TABLE IF NOT EXISTS "CustomMessages" (
     "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP
 );
-
-ALTER TABLE "CustomMessages" ADD COLUMN IF NOT EXISTS "MetaTemplateId" VARCHAR(100);
-ALTER TABLE "CustomMessages" ADD COLUMN IF NOT EXISTS "MetaStatus" VARCHAR(50) DEFAULT 'NONE';
-ALTER TABLE "CustomMessages" ADD COLUMN IF NOT EXISTS "MetaCategory" VARCHAR(50) DEFAULT 'UTILITY';
-ALTER TABLE "CustomMessages" ADD COLUMN IF NOT EXISTS "MetaRejectReason" TEXT;
 
 CREATE INDEX IF NOT EXISTS "IDX_CustomMessages_Code" ON "CustomMessages" ("Code");
 
@@ -999,175 +971,7 @@ INSERT INTO "CustomMessageParameters" ("MessageCode", "ParamKey", "ParamName", "
 ('TPL_TRANSFER_REJECTED', 'motivo_rechazo', 'Motivo del Rechazo', 'STRING', 'Comprobante ilegible o monto incompleto', true, 3)
 ON CONFLICT ("MessageCode", "ParamKey") DO NOTHING;
 
--- =============================================================================
--- 32. DATA MIGRATION & CODE NORMALIZATION SCRIPT
--- Strips leading zeroes from code formats (e.g., EVT001 -> EVT1, VNU002 -> VNU2)
--- across all tables and foreign key relationships.
--- =============================================================================
-DO $$
-BEGIN
-    -- A. Update Foreign Key references first to avoid constraints mismatch
 
-    -- Events -> Venues
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Events') THEN
-        UPDATE "Events" 
-        SET "VenueCode" = REGEXP_REPLACE("VenueCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
-        WHERE "VenueCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-    END IF;
-
-    -- Routes -> DeparturePoints & Venues
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Routes') THEN
-        UPDATE "Routes" 
-        SET "OriginPointCode" = REGEXP_REPLACE("OriginPointCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
-        WHERE "OriginPointCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-
-        UPDATE "Routes" 
-        SET "DestinationVenueCode" = REGEXP_REPLACE("DestinationVenueCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
-        WHERE "DestinationVenueCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-    END IF;
-
-    -- RouteStops -> Routes
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'RouteStops') THEN
-        UPDATE "RouteStops" 
-        SET "RouteCode" = REGEXP_REPLACE("RouteCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
-        WHERE "RouteCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-    END IF;
-
-    -- Schedules -> Events & Routes
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Schedules') THEN
-        UPDATE "Schedules" 
-        SET "EventCode" = REGEXP_REPLACE("EventCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
-        WHERE "EventCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-
-        UPDATE "Schedules" 
-        SET "RouteCode" = REGEXP_REPLACE("RouteCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
-        WHERE "RouteCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-    END IF;
-
-    -- Tickets -> Schedules
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Tickets') THEN
-        UPDATE "Tickets" 
-        SET "ScheduleCode" = REGEXP_REPLACE("ScheduleCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
-        WHERE "ScheduleCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-    END IF;
-
-    -- Reservations -> Events, Routes, DeparturePoints, Schedules
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Reservations') THEN
-        UPDATE "Reservations" 
-        SET "EventCode" = REGEXP_REPLACE("EventCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
-        WHERE "EventCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-
-        UPDATE "Reservations" 
-        SET "RouteCode" = REGEXP_REPLACE("RouteCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
-        WHERE "RouteCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-
-        UPDATE "Reservations" 
-        SET "PickupPointCode" = REGEXP_REPLACE("PickupPointCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
-        WHERE "PickupPointCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-
-        UPDATE "Reservations" 
-        SET "DropoffPointCode" = REGEXP_REPLACE("DropoffPointCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
-        WHERE "DropoffPointCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-
-        UPDATE "Reservations" 
-        SET "ScheduleCode" = REGEXP_REPLACE("ScheduleCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
-        WHERE "ScheduleCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-    END IF;
-
-    -- StripeSessions -> Reservations
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'StripeSessions') THEN
-        UPDATE "StripeSessions"
-        SET "ReservationCode" = REGEXP_REPLACE("ReservationCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
-        WHERE "ReservationCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-    END IF;
-
-    -- StripeTransactions -> Reservations
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'StripeTransactions') THEN
-        UPDATE "StripeTransactions"
-        SET "ReservationCode" = REGEXP_REPLACE("ReservationCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
-        WHERE "ReservationCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-    END IF;
-
-    -- PaymentTransactions -> EntityCode
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'PaymentTransactions') THEN
-        UPDATE "PaymentTransactions"
-        SET "EntityCode" = REGEXP_REPLACE("EntityCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
-        WHERE "EntityCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-    END IF;
-
-    -- Sessions -> Users
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Sessions') THEN
-        UPDATE "Sessions"
-        SET "UserCode" = REGEXP_REPLACE("UserCode", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2')
-        WHERE "UserCode" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-    END IF;
-
-    -- B. Update Primary Key Codes across all entities
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Venues') THEN
-        UPDATE "Venues" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-    END IF;
-
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Events') THEN
-        UPDATE "Events" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-    END IF;
-
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'DeparturePoints') THEN
-        UPDATE "DeparturePoints" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-    END IF;
-
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Routes') THEN
-        UPDATE "Routes" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-    END IF;
-
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'RouteStops') THEN
-        UPDATE "RouteStops" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-    END IF;
-
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Schedules') THEN
-        UPDATE "Schedules" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-    END IF;
-
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Tickets') THEN
-        UPDATE "Tickets" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-    END IF;
-
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'NotificationContacts') THEN
-        UPDATE "NotificationContacts" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-    END IF;
-
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Reservations') THEN
-        UPDATE "Reservations" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-    END IF;
-
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'PaymentMethods') THEN
-        UPDATE "PaymentMethods" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-    END IF;
-
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Users') THEN
-        UPDATE "Users" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-    END IF;
-
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'StripeSessions') THEN
-        UPDATE "StripeSessions" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-    END IF;
-
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'StripeTransactions') THEN
-        UPDATE "StripeTransactions" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-    END IF;
-
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'PaymentTransactions') THEN
-        UPDATE "PaymentTransactions" SET "Code" = REGEXP_REPLACE("Code", '^([A-Za-z]+)0+([1-9][0-9]*)$', '\1\2') WHERE "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-    END IF;
-
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'WhatsAppConversations') THEN
-        UPDATE "WhatsAppConversations" SET "Code" = 'WAC' || "Entry" WHERE "Code" LIKE 'CONV-%' OR "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-    END IF;
-
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'WhatsAppMessages') THEN
-        UPDATE "WhatsAppMessages" SET "WhatsAppId" = "Code" WHERE ("WhatsAppId" IS NULL OR "WhatsAppId" = '') AND "Code" LIKE 'wamid.%';
-        UPDATE "WhatsAppMessages" SET "Code" = 'WAM' || "Entry" WHERE "Code" LIKE 'wamid.%' OR "Code" LIKE 'ERR-%' OR "Code" ~ '^([A-Za-z]+)0+([1-9][0-9]*)$';
-    END IF;
-END $$;
 
 -- =============================================================================
 -- 34. SystemLicenses
@@ -1201,9 +1005,6 @@ ON CONFLICT ("Domain") DO NOTHING;
 -- =============================================================================
 -- 35. Access Control & Security (Modules, Permissions, Roles, RolePermissions, UserPermissions, AuthorizationAuditLog)
 -- =============================================================================
-
-ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "RoleCode" VARCHAR(50);
-ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "IsCanceled" BOOLEAN NOT NULL DEFAULT false;
 
 -- Identities seed for Roles, Permissions, Modules
 INSERT INTO "Identities" ("Domain", "Prefix1", "CurrentSequence") VALUES
@@ -1288,7 +1089,6 @@ CREATE TABLE IF NOT EXISTS "RolePermissions" (
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "UQ_RolePermissions" UNIQUE ("RoleCode", "PermissionCode")
 );
-ALTER TABLE "RolePermissions" ADD COLUMN IF NOT EXISTS "AllowOverride" BOOLEAN NOT NULL DEFAULT false;
 CREATE INDEX IF NOT EXISTS "IDX_RolePermissions_RoleCode" ON "RolePermissions" ("RoleCode");
 
 -- E1. UserModules
@@ -1325,7 +1125,6 @@ CREATE TABLE IF NOT EXISTS "UserPermissions" (
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "UQ_UserPermissions" UNIQUE ("UserCode", "PermissionCode")
 );
-ALTER TABLE "UserPermissions" ADD COLUMN IF NOT EXISTS "AllowOverride" BOOLEAN NOT NULL DEFAULT false;
 CREATE INDEX IF NOT EXISTS "IDX_UserPermissions_UserCode" ON "UserPermissions" ("UserCode");
 
 -- F. AuthorizationAuditLog
