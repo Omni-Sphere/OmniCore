@@ -2,6 +2,7 @@
 #include <OmniData/DataTable.hpp>
 #include <OmniData/DatabasePool.hpp>
 #include "Session/Session.hpp"
+#include "License/Services/LicenseService.hpp"
 #include <memory>
 #include <optional>
 #include <stdexcept>
@@ -65,6 +66,14 @@ Session::Login(const omnisphere::dtos::Login &login) const {
 
     if (!userModel.IsActive)
       throw std::runtime_error("La cuenta de usuario está inactiva");
+
+    // Candado de Licencia OmniSphere: Si el sistema no cuenta con licencia activa,
+    // únicamente el usuario 'system' está autorizado a autenticarse.
+    auto licService = omnisphere::services::LicenseService::GetSharedInstance();
+    bool hasActiveLicense = (licService != nullptr && licService->IsLicenseActive());
+    if (!hasActiveLicense && userModel.Code != "system") {
+      throw std::runtime_error("El sistema no cuenta con una licencia activa. Communíquese con su administrador para recibir asistencia técnica.");
+    }
 
     if (login.Code.has_value() &&
         !pimpl->user->CheckPassword(omnisphere::enums::UserFilter::Code,
