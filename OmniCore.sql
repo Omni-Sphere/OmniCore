@@ -244,6 +244,7 @@ CREATE TABLE IF NOT EXISTS "Venues" (
     "City" VARCHAR(3) NOT NULL,
     "Address" TEXT NOT NULL,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "IsCanceled" BOOLEAN NOT NULL DEFAULT false,
     "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "LastUpdatedBy" VARCHAR(50),
@@ -251,8 +252,8 @@ CREATE TABLE IF NOT EXISTS "Venues" (
     CONSTRAINT "CHK_Venues_IsActive" CHECK ("IsActive" IN (true, false))
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS "UQ_Venues_Name_Active" ON "Venues" (LOWER(TRIM("Name"))) WHERE "IsActive" = true;
-CREATE INDEX IF NOT EXISTS "IDX_Venues_Code_Active" ON "Venues" ("Code") WHERE "IsActive" = true;
+CREATE UNIQUE INDEX IF NOT EXISTS "UQ_Venues_Name_Active" ON "Venues" (LOWER(TRIM("Name"))) WHERE "IsActive" = true AND "IsCanceled" = false;
+CREATE INDEX IF NOT EXISTS "IDX_Venues_Code_Active" ON "Venues" ("Code") WHERE "IsActive" = true AND "IsCanceled" = false;
 
 -- 8. Events
 CREATE TABLE IF NOT EXISTS "Events" (
@@ -267,6 +268,7 @@ CREATE TABLE IF NOT EXISTS "Events" (
     "IsUpcoming" BOOLEAN NOT NULL DEFAULT true,
     "CommingSoon" BOOLEAN NOT NULL DEFAULT false,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "IsCanceled" BOOLEAN NOT NULL DEFAULT false,
     "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "LastUpdatedBy" VARCHAR(50),
@@ -277,10 +279,10 @@ CREATE TABLE IF NOT EXISTS "Events" (
     CONSTRAINT "CHK_Events_IsActive" CHECK ("IsActive" IN (true, false))
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS "UQ_Events_Name_Active" ON "Events" (LOWER(TRIM("Name"))) WHERE "IsActive" = true;
-CREATE INDEX IF NOT EXISTS "IDX_Events_VenueCode_Active" ON "Events" ("VenueCode") WHERE "IsActive" = true;
-CREATE INDEX IF NOT EXISTS "IDX_Events_Date_Active" ON "Events" ("Date") WHERE "IsActive" = true;
-CREATE INDEX IF NOT EXISTS "IDX_Events_Category_Active" ON "Events" ("Category") WHERE "IsActive" = true;
+CREATE UNIQUE INDEX IF NOT EXISTS "UQ_Events_Name_Active" ON "Events" (LOWER(TRIM("Name"))) WHERE "IsActive" = true AND "IsCanceled" = false;
+CREATE INDEX IF NOT EXISTS "IDX_Events_VenueCode_Active" ON "Events" ("VenueCode") WHERE "IsActive" = true AND "IsCanceled" = false;
+CREATE INDEX IF NOT EXISTS "IDX_Events_Date_Active" ON "Events" ("Date") WHERE "IsActive" = true AND "IsCanceled" = false;
+CREATE INDEX IF NOT EXISTS "IDX_Events_Category_Active" ON "Events" ("Category") WHERE "IsActive" = true AND "IsCanceled" = false;
 
 -- 9. DeparturePoints
 CREATE TABLE IF NOT EXISTS "DeparturePoints" (
@@ -291,6 +293,7 @@ CREATE TABLE IF NOT EXISTS "DeparturePoints" (
     "Address" TEXT NOT NULL,
     "PointType" "DeparturePointType" NOT NULL,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "IsCanceled" BOOLEAN NOT NULL DEFAULT false,
     "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "LastUpdatedBy" VARCHAR(50),
@@ -298,8 +301,8 @@ CREATE TABLE IF NOT EXISTS "DeparturePoints" (
     CONSTRAINT "CHK_DeparturePoints_IsActive" CHECK ("IsActive" IN (true, false))
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS "UQ_DeparturePoints_Name_Active" ON "DeparturePoints" (LOWER(TRIM("Name"))) WHERE "IsActive" = true;
-CREATE INDEX IF NOT EXISTS "IDX_DeparturePoints_City_PointType_Active" ON "DeparturePoints" ("City", "PointType") WHERE "IsActive" = true;
+CREATE UNIQUE INDEX IF NOT EXISTS "UQ_DeparturePoints_Name_Active" ON "DeparturePoints" (LOWER(TRIM("Name"))) WHERE "IsActive" = true AND "IsCanceled" = false;
+CREATE INDEX IF NOT EXISTS "IDX_DeparturePoints_City_PointType_Active" ON "DeparturePoints" ("City", "PointType") WHERE "IsActive" = true AND "IsCanceled" = false;
 
 -- 10. Routes
 CREATE TABLE IF NOT EXISTS "Routes" (
@@ -310,6 +313,7 @@ CREATE TABLE IF NOT EXISTS "Routes" (
     "DestinationVenueCode" VARCHAR(50) NOT NULL,
     "BasePrice" NUMERIC(10, 2) NOT NULL,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "IsCanceled" BOOLEAN NOT NULL DEFAULT false,
     "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "LastUpdatedBy" VARCHAR(50),
@@ -318,8 +322,8 @@ CREATE TABLE IF NOT EXISTS "Routes" (
     CONSTRAINT "CHK_Routes_IsActive" CHECK ("IsActive" IN (true, false))
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS "UQ_Routes_Name_Active" ON "Routes" (LOWER(TRIM("Name"))) WHERE "IsActive" = true;
-CREATE INDEX IF NOT EXISTS "IDX_Routes_Origin_Dest_Active" ON "Routes" ("OriginPointCode", "DestinationVenueCode") WHERE "IsActive" = true;
+CREATE UNIQUE INDEX IF NOT EXISTS "UQ_Routes_Name_Active" ON "Routes" (LOWER(TRIM("Name"))) WHERE "IsActive" = true AND "IsCanceled" = false;
+CREATE INDEX IF NOT EXISTS "IDX_Routes_Origin_Dest_Active" ON "Routes" ("OriginPointCode", "DestinationVenueCode") WHERE "IsActive" = true AND "IsCanceled" = false;
 
 -- 11. RouteStops
 CREATE TABLE IF NOT EXISTS "RouteStops" (
@@ -331,6 +335,7 @@ CREATE TABLE IF NOT EXISTS "RouteStops" (
     "BasePrice" NUMERIC(10, 2) NOT NULL,
     "ArrivalTime" VARCHAR(50),
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "IsCanceled" BOOLEAN NOT NULL DEFAULT false,
     "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "LastUpdatedBy" VARCHAR(50),
@@ -339,9 +344,9 @@ CREATE TABLE IF NOT EXISTS "RouteStops" (
     CONSTRAINT "CHK_RouteStops_IsActive" CHECK ("IsActive" IN (true, false))
 );
 
-CREATE INDEX IF NOT EXISTS "IDX_RouteStops_RouteCode_Active" ON "RouteStops" ("RouteCode") WHERE "IsActive" = true;
-CREATE UNIQUE INDEX IF NOT EXISTS "UQ_RouteStops_RouteCode_Pickup_Active" ON "RouteStops" ("RouteCode") WHERE "Type" = 'PICKUP' AND "IsActive" = true;
-CREATE UNIQUE INDEX IF NOT EXISTS "UQ_RouteStops_RouteCode_Dropoff_Active" ON "RouteStops" ("RouteCode") WHERE "Type" = 'DROPOFF' AND "IsActive" = true;
+CREATE INDEX IF NOT EXISTS "IDX_RouteStops_RouteCode_Active" ON "RouteStops" ("RouteCode") WHERE "IsActive" = true AND "IsCanceled" = false;
+CREATE UNIQUE INDEX IF NOT EXISTS "UQ_RouteStops_RouteCode_Pickup_Active" ON "RouteStops" ("RouteCode") WHERE "Type" = 'PICKUP' AND "IsActive" = true AND "IsCanceled" = false;
+CREATE UNIQUE INDEX IF NOT EXISTS "UQ_RouteStops_RouteCode_Dropoff_Active" ON "RouteStops" ("RouteCode") WHERE "Type" = 'DROPOFF' AND "IsActive" = true AND "IsCanceled" = false;
 
 -- 12. Schedules
 CREATE TABLE IF NOT EXISTS "Schedules" (
@@ -361,6 +366,7 @@ CREATE TABLE IF NOT EXISTS "Schedules" (
     "AvailableSeats" INT NOT NULL,
     "Price" NUMERIC(10, 2) NOT NULL,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "IsCanceled" BOOLEAN NOT NULL DEFAULT false,
     "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "LastUpdatedBy" VARCHAR(50),
@@ -372,8 +378,8 @@ CREATE TABLE IF NOT EXISTS "Schedules" (
     CONSTRAINT "CHK_Schedules_IsActive" CHECK ("IsActive" IN (true, false))
 );
 
-CREATE INDEX IF NOT EXISTS "IDX_Schedules_EventCode_Type_Active" ON "Schedules" ("EventCode", "Type") WHERE "IsActive" = true;
-CREATE INDEX IF NOT EXISTS "IDX_Schedules_RouteCode_Active" ON "Schedules" ("RouteCode") WHERE "IsActive" = true;
+CREATE INDEX IF NOT EXISTS "IDX_Schedules_EventCode_Type_Active" ON "Schedules" ("EventCode", "Type") WHERE "IsActive" = true AND "IsCanceled" = false;
+CREATE INDEX IF NOT EXISTS "IDX_Schedules_RouteCode_Active" ON "Schedules" ("RouteCode") WHERE "IsActive" = true AND "IsCanceled" = false;
 
 -- 13. Tickets
 CREATE TABLE IF NOT EXISTS "Tickets" (
@@ -384,6 +390,7 @@ CREATE TABLE IF NOT EXISTS "Tickets" (
     "Phone" VARCHAR(50) NOT NULL,
     "Quantity" INT NOT NULL DEFAULT 1,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "IsCanceled" BOOLEAN NOT NULL DEFAULT false,
     "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "LastUpdatedBy" VARCHAR(50),
@@ -393,7 +400,7 @@ CREATE TABLE IF NOT EXISTS "Tickets" (
     CONSTRAINT "CHK_Tickets_IsActive" CHECK ("IsActive" IN (true, false))
 );
 
-CREATE INDEX IF NOT EXISTS "IDX_Tickets_ScheduleCode_Active" ON "Tickets" ("ScheduleCode") WHERE "IsActive" = true;
+CREATE INDEX IF NOT EXISTS "IDX_Tickets_ScheduleCode_Active" ON "Tickets" ("ScheduleCode") WHERE "IsActive" = true AND "IsCanceled" = false;
 
 -- 14. NotificationContacts
 CREATE TABLE IF NOT EXISTS "NotificationContacts" (
@@ -403,6 +410,7 @@ CREATE TABLE IF NOT EXISTS "NotificationContacts" (
     "Phone" VARCHAR(50) NOT NULL,
     "Role" VARCHAR(100) NOT NULL,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "IsCanceled" BOOLEAN NOT NULL DEFAULT false,
     "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "LastUpdatedBy" VARCHAR(50),
@@ -411,7 +419,7 @@ CREATE TABLE IF NOT EXISTS "NotificationContacts" (
     CONSTRAINT "CHK_NotificationContacts_IsActive" CHECK ("IsActive" IN (true, false))
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS "UQ_NotificationContacts_Phone_Active" ON "NotificationContacts" ("Phone") WHERE "IsActive" = true;
+CREATE UNIQUE INDEX IF NOT EXISTS "UQ_NotificationContacts_Phone_Active" ON "NotificationContacts" ("Phone") WHERE "IsActive" = true AND "IsCanceled" = false;
 
 -- 15. NotificationSettings
 CREATE TABLE IF NOT EXISTS "NotificationSettings" (
@@ -419,6 +427,7 @@ CREATE TABLE IF NOT EXISTS "NotificationSettings" (
     "Code" VARCHAR(50) NOT NULL DEFAULT 'DEFAULT' UNIQUE,
     "Name" VARCHAR(255) NOT NULL DEFAULT 'Notification Settings',
     "OwnerWhatsapp" VARCHAR(50) NOT NULL,
+    "IsCanceled" BOOLEAN NOT NULL DEFAULT false,
     "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "LastUpdatedBy" VARCHAR(50),
