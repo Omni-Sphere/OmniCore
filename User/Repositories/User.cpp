@@ -320,7 +320,14 @@ bool User::ValidatePassword(const omnisphere::enums::UserFilter &searchFilter,
       throw std::runtime_error("No records found");
 
     const auto& row = data[0];
+    if (row["Password"].IsNull()) {
+      return false;
+    }
+
     std::vector<uint8_t> userPassword = row["Password"];
+    if (userPassword.empty()) {
+      return false;
+    }
 
     if (omnisphere::utils::Hasher::VerifyPassword(Password, userPassword))
       return true;
