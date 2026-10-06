@@ -23,7 +23,7 @@ namespace omnisphere::services
     public:
         explicit WhatsAppWebhookHandler(
             std::shared_ptr<omnisphere::data::DatabasePool> dbPool,
-            const std::string& verifyToken = "OMNI_WHATSAPP_VERIFY_TOKEN",
+            const std::string& verifyToken = "",
             InboundMessageHandler messageHandler = nullptr
         );
         ~WhatsAppWebhookHandler() = default;

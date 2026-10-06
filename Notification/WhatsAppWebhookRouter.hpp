@@ -21,7 +21,7 @@ namespace omnisphere::services
         static void RegisterEndpoints(
             std::shared_ptr<omnisphere::net::Router> router,
             std::shared_ptr<omnisphere::data::DatabasePool> dbPool,
-            const std::string& verifyToken = "OMNI_WHATSAPP_VERIFY_TOKEN",
+            const std::string& verifyToken = "",
             const std::string& path = "/api/v1/whatsapp/webhook",
             InboundMessageHandler messageHandler = nullptr
         );

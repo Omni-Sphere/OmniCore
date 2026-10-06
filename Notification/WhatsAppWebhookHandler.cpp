@@ -29,9 +29,10 @@ namespace omnisphere::services
     {
         if (token.empty()) return false;
 
-        if (token == m_verifyToken ||
-            token == "omni_route_webhook_secret_key" ||
-            token == "OMNI_WHATSAPP_VERIFY_TOKEN")
+        // Si se configuró un verifyToken explícito no vacío y no es el placeholder por defecto, verificarlo
+        if (!m_verifyToken.empty() && 
+            m_verifyToken != "OMNI_WHATSAPP_VERIFY_TOKEN" && 
+            token == m_verifyToken)
         {
             return true;
         }
