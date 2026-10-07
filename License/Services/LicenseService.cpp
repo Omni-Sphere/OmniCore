@@ -294,15 +294,16 @@ namespace omnisphere::services
         lic.isActive      = true;
         lic.daysRemaining = DaysRemaining(lic.expiresAt);
 
-        // Actualizar caché en RAM (thread-safe)
+        // Persistir primero en BD: si no se guarda, la licencia se perdería al reiniciar
+        if (!m_repository || !m_repository->Save(lic))
+            throw LicenseException("No se pudo guardar la licencia en la base de datos (SystemLicenses). Revisa el log de LicenseRepository::Save.");
+
+        // Actualizar caché en RAM (thread-safe) solo tras persistir correctamente
         {
             std::unique_lock lock(m_mutex);
             m_license = lic;
             m_loaded  = true;
         }
-
-        // Persistir en BD (fire-and-forget; la RAM ya está actualizada)
-        if (m_repository) m_repository->Save(lic);
 
         std::cout << "[LicenseService] Licencia activada. Cliente: " << lic.clientName
                   << " | Módulos: " << lic.modules.size()
