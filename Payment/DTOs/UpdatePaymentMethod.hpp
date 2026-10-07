@@ -8,8 +8,8 @@ namespace omnisphere::dtos
 {
     struct UpdatePaymentMethodInput
     {
-        int Entry = 0;
-        std::optional<std::string> Code;
+        std::string Code;
+        int Entry = 0; // Campo legado, preferir siempre Code
         std::optional<std::string> Name;
         std::optional<std::string> Type;
         std::optional<bool> UsesCommission;

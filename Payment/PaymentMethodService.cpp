@@ -47,6 +47,13 @@ namespace omnisphere::services
         return m_repository->Delete(entry);
     }
 
+    bool PaymentMethodService::DeleteByCode(const omnisphere::models::SecurityContext& ctx, const std::string& code) const
+    {
+        AUTHORIZE(ctx, "MOD_PAYMENTS", "PAYMENTS_METHOD_DELETE");
+        if (!m_repository) return false;
+        return m_repository->DeleteByCode(code);
+    }
+
     omnisphere::types::DataTable PaymentMethodService::ReadAll(const omnisphere::models::SecurityContext& /*ctx*/, const std::vector<std::string>& fields) const
     {
         if (!m_repository) return {};

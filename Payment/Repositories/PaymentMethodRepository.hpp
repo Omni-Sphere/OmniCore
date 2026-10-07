@@ -17,6 +17,7 @@ namespace omnisphere::repositories
         bool Create(const omnisphere::dtos::CreatePaymentMethodInput& input, const std::vector<std::string>& mutationFields = {}) const;
         bool Update(const omnisphere::dtos::UpdatePaymentMethodInput& input, const std::vector<std::string>& mutationFields = {}) const;
         bool Delete(int entry) const;
+        bool DeleteByCode(const std::string& code) const;
 
         omnisphere::types::DataTable ReadAll(const std::vector<std::string>& fields = {}) const;
         omnisphere::types::DataTable GetByEntry(int entry, const std::vector<std::string>& fields = {}) const;

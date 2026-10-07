@@ -63,7 +63,19 @@ namespace omnisphere::repositories
 
     bool PaymentMethodRepository::Update(const omnisphere::dtos::UpdatePaymentMethodInput& input, const std::vector<std::string>& mutationFields) const
     {
-        if (!m_dbPool || input.Entry <= 0) return false;
+        if (!m_dbPool) return false;
+        std::string targetCode = input.Code;
+        if (targetCode.empty() && input.Entry > 0)
+        {
+            // Fallback de retrocompatibilidad solo si Code viene vacío
+            auto curDt = GetByEntry(input.Entry, {"\"Code\""});
+            if (!curDt.IsEmpty())
+            {
+                targetCode = curDt[0]["Code"].GetOptional<std::string>().value_or("");
+            }
+        }
+        if (targetCode.empty()) return false;
+
         if (input.UsesIntegration.value_or(false) && input.Details.has_value())
         {
             throw std::runtime_error("No se permiten detalles de transferencia para formas de pago que usan integración");
@@ -73,16 +85,23 @@ namespace omnisphere::repositories
         {
             conn->BeginTransaction();
 
-            std::string code;
+            std::string code = targetCode;
             bool currentUsesIntegration = false;
-            std::string getCodeSql = "SELECT \"Code\", \"UsesIntegration\" FROM \"PaymentMethods\" WHERE \"Entry\" = ? LIMIT 1";
-            std::vector<omnisphere::types::SQLParam> getParams = { omnisphere::types::MakeSQLParam(input.Entry) };
+
+            std::string getCodeSql = "SELECT \"Code\", \"UsesIntegration\" FROM \"PaymentMethods\" WHERE \"Code\" = ? LIMIT 1";
+            std::vector<omnisphere::types::SQLParam> getParams = { omnisphere::types::MakeSQLParam(targetCode) };
+
             auto curDt = conn->FetchPrepared(getCodeSql, getParams);
             if (!curDt.IsEmpty())
             {
                 const auto& curRow = curDt[0];
-                code = curRow["Code"].GetOptional<std::string>().value_or("");
+                code = curRow["Code"].GetOptional<std::string>().value_or(targetCode);
                 currentUsesIntegration = curRow["UsesIntegration"].GetOptional<bool>().value_or(false);
+            }
+            else
+            {
+                conn->RollbackTransaction();
+                return false;
             }
 
             bool effectivelyUsesIntegration = input.UsesIntegration.value_or(currentUsesIntegration);
@@ -98,7 +117,7 @@ namespace omnisphere::repositories
                 updateCols.push_back({"\"LastUpdatedBy\"", omnisphere::types::MakeSQLParam(input.LastUpdatedBy)});
 
                 auto updateResult = omnisphere::types::BuildUpdateQuery(
-                    "\"PaymentMethods\"", updateCols, "\"Entry\"", omnisphere::types::MakeSQLParam(input.Entry)
+                    "\"PaymentMethods\"", updateCols, "\"Code\"", omnisphere::types::MakeSQLParam(code)
                 );
                 if (!conn->RunPrepared(updateResult.Query, updateResult.Parameters))
                 {
@@ -160,6 +179,35 @@ namespace omnisphere::repositories
         {
             conn->RollbackTransaction();
             std::cerr << "[PaymentMethodRepository::Delete Exception] " << ex.what() << std::endl;
+            return false;
+        }
+    }
+
+    bool PaymentMethodRepository::DeleteByCode(const std::string& code) const
+    {
+        if (!m_dbPool || code.empty()) return false;
+        auto conn = m_dbPool->Acquire();
+        try
+        {
+            conn->BeginTransaction();
+            std::vector<omnisphere::types::ColumnValue> updateCols = {
+                {"\"IsActive\"", omnisphere::types::MakeSQLParam(false)}
+            };
+            auto updateResult = omnisphere::types::BuildUpdateQuery(
+                "\"PaymentMethods\"", updateCols, "\"Code\"", omnisphere::types::MakeSQLParam(code)
+            );
+            if (!conn->RunPrepared(updateResult.Query, updateResult.Parameters))
+            {
+                conn->RollbackTransaction();
+                return false;
+            }
+            conn->CommitTransaction();
+            return true;
+        }
+        catch (const std::exception& ex)
+        {
+            conn->RollbackTransaction();
+            std::cerr << "[PaymentMethodRepository::DeleteByCode Exception] " << ex.what() << std::endl;
             return false;
         }
     }

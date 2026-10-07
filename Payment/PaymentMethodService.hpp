@@ -32,6 +32,7 @@ namespace omnisphere::services
         bool Create(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::CreatePaymentMethodInput& input, const std::vector<std::string>& mutationFields = {}) const;
         bool Update(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::UpdatePaymentMethodInput& input, const std::vector<std::string>& mutationFields = {}) const;
         bool Delete(const omnisphere::models::SecurityContext& ctx, int entry) const;
+        bool DeleteByCode(const omnisphere::models::SecurityContext& ctx, const std::string& code) const;
 
         omnisphere::types::DataTable ReadAll(const omnisphere::models::SecurityContext& ctx, const std::vector<std::string>& fields = {}) const;
         omnisphere::types::DataTable GetByEntry(const omnisphere::models::SecurityContext& ctx, int entry, const std::vector<std::string>& fields = {}) const;
