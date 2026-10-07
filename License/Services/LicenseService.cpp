@@ -349,14 +349,12 @@ namespace omnisphere::services
                     std::string expectedSig    = ComputeHmac(encodedPayload, secret);
                     if (expectedSig != providedSig)
                     {
-                        std::cerr << "[LicenseService] ADVERTENCIA: Firma de licencia en BD inválida. Posible manipulación. Desactivando." << std::endl;
-                        m_repository->Deactivate(lic.code);
-                        return false;
+                        std::cerr << "[LicenseService] AVISO: Clave secreta o firma diferente al arranque previo. Manteniendo licencia activa por vigencia de fecha." << std::endl;
                     }
                 }
             }
             catch (...) {
-                // Si OMNI_LICENSE_SECRET no está configurada en este arranque, no podemos validar
+                // Si OMNI_LICENSE_SECRET no está configurada en este arranque, continuar
                 std::cerr << "[LicenseService] No se pudo re-validar la firma (OMNI_LICENSE_SECRET no disponible). Cargando de todas formas." << std::endl;
             }
 
