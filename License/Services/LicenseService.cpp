@@ -265,6 +265,7 @@ namespace omnisphere::services
 
     omnisphere::models::SystemLicense LicenseService::ActivateKey(const std::string& apiKey)
     {
+        
         // Verificar formato: debe comenzar con "OMNI-"
         if (apiKey.rfind("OMNI-", 0) != 0)
             throw LicenseException("Formato de API Key inválido. Se espera el prefijo 'OMNI-'.");
@@ -280,6 +281,10 @@ namespace omnisphere::services
         // Verificar firma HMAC-SHA256
         std::string secret = GetMasterSecret();
         std::string expectedSig = ComputeHmac(encodedPayload, secret);
+
+        std::cout << "[DEBUG] Encoded Payload recibido: " << encodedPayload << std::endl;
+        std::cout << "[DEBUG] Firma esperada por C++: " << expectedSig << std::endl;
+        std::cout << "[DEBUG] Firma provista por la Key: " << providedSig << std::endl;
 
         if (expectedSig != providedSig)
             throw LicenseException("Firma de API Key inválida. La clave no fue emitida por OmniSphere Authority o ha sido modificada.");
