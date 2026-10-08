@@ -247,11 +247,12 @@ namespace omnisphere::services
 
     std::string LicenseService::GetMasterSecret() const
     {
+        // El secreto HMAC NUNCA se guarda ni se lee de la base de datos.
+        // Fuente única: variable de entorno del contenedor de la API.
         const char* envSecret = std::getenv("OMNI_LICENSE_SECRET");
         if (envSecret && *envSecret) return std::string(envSecret);
 
-        if (m_repository) return m_repository->GetMasterSecret();
-        return "_.:0mn15ph3r3L1c3n53:._";
+        throw LicenseException("OMNI_LICENSE_SECRET no está configurada en el contenedor de la API.");
     }
 
     // =========================================================================
