@@ -265,23 +265,6 @@ namespace omnisphere::services
 
     omnisphere::models::SystemLicense LicenseService::ActivateKey(const std::string& apiKey)
     {
-        LicenseParams params;
-
-        params.clientName = "OmniRoute Enterprise";
-        params.issuer     = "OmniSphere Authority";
-        params.issuedAt   = "2026-10-07";
-        params.expiresAt  = "2099-12-31";
-        params.modules = {
-            "MODULE_WHATSAPP",
-            "MODULE_STRIPE",
-            "MODULE_ANALYTICS",
-            "MODULE_QR"
-        };
-
-        std::string newKey = GenerateKey(params);
-
-        std::cout << "[DEBUG] Nueva API Key generada: " << newKey << std::endl;
-
         // Verificar formato: debe comenzar con "OMNI-"
         if (apiKey.rfind("OMNI-", 0) != 0)
             throw LicenseException("Formato de API Key inválido. Se espera el prefijo 'OMNI-'.");
