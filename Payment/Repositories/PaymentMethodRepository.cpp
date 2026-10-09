@@ -404,4 +404,131 @@ namespace omnisphere::repositories
             return false;
         }
     }
+
+    std::vector<omnisphere::models::PaymentMethod> PaymentMethodRepository::GetEnrichedModels() const
+    {
+        if (!m_dbPool) return {};
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            std::string sql =
+                "SELECT "
+                "  pm.\"Entry\", "
+                "  pm.\"Code\", "
+                "  pm.\"Name\", "
+                "  pm.\"Type\"::text AS \"Type\", "
+                "  pm.\"UsesCommission\", "
+                "  pm.\"CommissionRate\", "
+                "  pm.\"UsesIntegration\", "
+                "  pm.\"IntegrationProvider\", "
+                "  pm.\"IsActive\", "
+                "  pm.\"CreatedBy\", "
+                "  TO_CHAR(pm.\"CreateDate\", 'YYYY-MM-DD\"T\"HH24:MI:SS') AS \"CreateDate\", "
+                "  pm.\"LastUpdatedBy\", "
+                "  TO_CHAR(pm.\"UpdateDate\", 'YYYY-MM-DD\"T\"HH24:MI:SS') AS \"UpdateDate\", "
+
+                "  pmd.\"Entry\" AS \"pmd_Entry\", "
+                "  pmd.\"Code\" AS \"pmd_Code\", "
+                "  pmd.\"BankName\" AS \"pmd_BankName\", "
+                "  pmd.\"CLABE\" AS \"pmd_CLABE\", "
+                "  pmd.\"AccountHolder\" AS \"pmd_AccountHolder\", "
+                "  pmd.\"PaymentReference\" AS \"pmd_PaymentReference\", "
+                "  pmd.\"IsActive\" AS \"pmd_IsActive\" "
+                "FROM \"PaymentMethods\" pm "
+                "LEFT JOIN \"PaymentMethodDetails\" pmd ON pmd.\"Code\" = pm.\"Code\" AND pmd.\"IsActive\" = true "
+                "ORDER BY pm.\"Entry\" ASC";
+
+            auto dt = conn->FetchResults(sql);
+            std::vector<omnisphere::models::PaymentMethod> list;
+            list.reserve(dt.RowsCount());
+
+            for (const auto& row : dt)
+            {
+                auto pm = omnisphere::types::FromDataRow<omnisphere::models::PaymentMethod>(row);
+
+                if (row.HasColumn("pmd_Code") && !row["pmd_Code"].IsNull() &&
+                    !row["pmd_Code"].As<std::string>().empty())
+                {
+                    auto detail = omnisphere::types::FromDataRow<omnisphere::models::PaymentMethodDetail>(row, "pmd_");
+                    if (!detail.clabe.empty())
+                    {
+                        try { detail.clabe = omnisphere::utils::Base64::Decode(detail.clabe); } catch (...) {}
+                    }
+                    pm.details = std::move(detail);
+                }
+
+                list.push_back(std::move(pm));
+            }
+
+            return list;
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[PaymentMethodRepository::GetEnrichedModels Exception] " << ex.what() << std::endl;
+            return {};
+        }
+    }
+
+    std::optional<omnisphere::models::PaymentMethod> PaymentMethodRepository::GetEnrichedByCode(const std::string& code) const
+    {
+        if (!m_dbPool || code.empty()) return std::nullopt;
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            std::string sql =
+                "SELECT "
+                "  pm.\"Entry\", "
+                "  pm.\"Code\", "
+                "  pm.\"Name\", "
+                "  pm.\"Type\"::text AS \"Type\", "
+                "  pm.\"UsesCommission\", "
+                "  pm.\"CommissionRate\", "
+                "  pm.\"UsesIntegration\", "
+                "  pm.\"IntegrationProvider\", "
+                "  pm.\"IsActive\", "
+                "  pm.\"CreatedBy\", "
+                "  TO_CHAR(pm.\"CreateDate\", 'YYYY-MM-DD\"T\"HH24:MI:SS') AS \"CreateDate\", "
+                "  pm.\"LastUpdatedBy\", "
+                "  TO_CHAR(pm.\"UpdateDate\", 'YYYY-MM-DD\"T\"HH24:MI:SS') AS \"UpdateDate\", "
+
+                "  pmd.\"Entry\" AS \"pmd_Entry\", "
+                "  pmd.\"Code\" AS \"pmd_Code\", "
+                "  pmd.\"BankName\" AS \"pmd_BankName\", "
+                "  pmd.\"CLABE\" AS \"pmd_CLABE\", "
+                "  pmd.\"AccountHolder\" AS \"pmd_AccountHolder\", "
+                "  pmd.\"PaymentReference\" AS \"pmd_PaymentReference\", "
+                "  pmd.\"IsActive\" AS \"pmd_IsActive\" "
+                "FROM \"PaymentMethods\" pm "
+                "LEFT JOIN \"PaymentMethodDetails\" pmd ON pmd.\"Code\" = pm.\"Code\" AND pmd.\"IsActive\" = true "
+                "WHERE pm.\"Code\" = ? LIMIT 1";
+
+            std::vector<omnisphere::types::SQLParam> params = {
+                omnisphere::types::MakeSQLParam(code)
+            };
+
+            auto dt = conn->FetchPrepared(sql, params);
+            if (dt.IsEmpty()) return std::nullopt;
+
+            const auto& row = dt[0];
+            auto pm = omnisphere::types::FromDataRow<omnisphere::models::PaymentMethod>(row);
+
+            if (row.HasColumn("pmd_Code") && !row["pmd_Code"].IsNull() &&
+                !row["pmd_Code"].As<std::string>().empty())
+            {
+                auto detail = omnisphere::types::FromDataRow<omnisphere::models::PaymentMethodDetail>(row, "pmd_");
+                if (!detail.clabe.empty())
+                {
+                    try { detail.clabe = omnisphere::utils::Base64::Decode(detail.clabe); } catch (...) {}
+                }
+                pm.details = std::move(detail);
+            }
+
+            return pm;
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[PaymentMethodRepository::GetEnrichedByCode Exception] " << ex.what() << std::endl;
+            return std::nullopt;
+        }
+    }
 } // namespace omnisphere::repositories

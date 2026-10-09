@@ -28,6 +28,10 @@ namespace omnisphere::repositories
         bool SaveDetail(const std::string& code, const omnisphere::dtos::PaymentMethodDetailInput& detailInput, const std::string& userId) const;
         bool DeactivateDetail(const std::string& code, const std::string& userId) const;
 
+        // Enriched View Operations (LEFT JOIN "PaymentMethodDetails" sin N+1)
+        std::vector<omnisphere::models::PaymentMethod> GetEnrichedModels() const;
+        std::optional<omnisphere::models::PaymentMethod> GetEnrichedByCode(const std::string& code) const;
+
     private:
         std::shared_ptr<omnisphere::data::DatabasePool> m_dbPool;
     };
