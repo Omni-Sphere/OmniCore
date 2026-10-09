@@ -309,7 +309,7 @@ namespace omnisphere::repositories
         try
         {
             auto conn = m_dbPool->Acquire();
-            std::string sql = "SELECT \"Entry\", \"Code\", \"BankName\", \"CLABE\", \"AccountHolder\", \"PaymentReference\", \"IsActive\", \"CreatedBy\", \"CreateDate\", \"LastUpdatedBy\", \"UpdateDate\" "
+            std::string sql = "SELECT \"Entry\", \"Code\", \"BankName\", \"CLABE\" AS \"Clabe\", \"CLABE\", \"AccountHolder\", \"PaymentReference\", \"IsActive\", \"CreatedBy\", \"CreateDate\", \"LastUpdatedBy\", \"UpdateDate\" "
                               "FROM \"PaymentMethodDetails\" WHERE \"Code\" = ? AND \"IsActive\" = true ORDER BY \"Entry\" DESC LIMIT 1";
             std::vector<omnisphere::types::SQLParam> params = { omnisphere::types::MakeSQLParam(code) };
             auto dt = conn->FetchPrepared(sql, params);
@@ -430,6 +430,7 @@ namespace omnisphere::repositories
                 "  pmd.\"Entry\" AS \"pmd_Entry\", "
                 "  pmd.\"Code\" AS \"pmd_Code\", "
                 "  pmd.\"BankName\" AS \"pmd_BankName\", "
+                "  pmd.\"CLABE\" AS \"pmd_Clabe\", "
                 "  pmd.\"CLABE\" AS \"pmd_CLABE\", "
                 "  pmd.\"AccountHolder\" AS \"pmd_AccountHolder\", "
                 "  pmd.\"PaymentReference\" AS \"pmd_PaymentReference\", "
