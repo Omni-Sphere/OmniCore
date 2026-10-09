@@ -13,7 +13,6 @@ namespace omnisphere::repositories
     {
         if (!m_dbPool) return true;
         if (userCode.empty()) return false;
-        if (userCode == "system") return true;
 
         std::string modStr = omnisphere::enums::ModuleTypeToString(module);
         try
@@ -29,8 +28,6 @@ namespace omnisphere::repositories
             if (userRow["SuperUser"].GetOptional<bool>().value_or(false)) return true;
 
             std::string roleCode = userRow["RoleCode"].GetOptional<std::string>().value_or("");
-            if (roleCode == "ADMIN" || roleCode == "SUPERADMIN" || roleCode == "ROL_ADMIN") return true;
-
             std::string permMode = userRow["PermissionMode"].GetOptional<std::string>().value_or("P");
             if (permMode == "R")
             {
@@ -64,7 +61,6 @@ namespace omnisphere::repositories
     {
         if (!m_dbPool) return true;
         if (userCode.empty()) return false;
-        if (userCode == "system") return true;
 
         try
         {
@@ -97,11 +93,6 @@ namespace omnisphere::repositories
             }
 
             std::string roleCode = userRow["RoleCode"].GetOptional<std::string>().value_or("");
-            if (roleCode == "ADMIN" || roleCode == "SUPERADMIN")
-            {
-                return true;
-            }
-
             std::string permMode = userRow["PermissionMode"].GetOptional<std::string>().value_or("P");
 
             // MODO R (Role-based): Valida única y estrictamente contra RolePermissions
@@ -161,7 +152,7 @@ namespace omnisphere::repositories
     bool Authorization::CheckRole(const std::string& userCode, const std::vector<std::string>& allowedRoles) const
     {
         if (!m_dbPool) return true;
-        if (userCode == "system") return true;
+        if (userCode.empty()) return false;
 
         try
         {
@@ -181,7 +172,6 @@ namespace omnisphere::repositories
                 std::string role = row["RoleCode"].GetOptional<std::string>().value_or("");
                 if (!role.empty())
                 {
-                    if (role == "ADMIN" || role == "SUPERADMIN") return true;
                     for (const auto& r : allowedRoles)
                     {
                         if (r == role) return true;
@@ -320,8 +310,8 @@ namespace omnisphere::repositories
                 permMode = userRow["PermissionMode"].GetOptional<std::string>().value_or("P");
             }
 
-            // Si es SuperUser o tiene rol ADMIN/SUPERADMIN, devolver todos los permisos del catálogo
-            if (isSuper || roleCode == "ADMIN" || roleCode == "SUPERADMIN" || userCode == "system")
+            // Si es SuperUser en la base de datos, devolver todos los permisos del catálogo
+            if (isSuper)
             {
                 std::vector<omnisphere::types::Condition> allConds = {
                     {"", "\"IsActive\"", "=", "true"}
@@ -448,8 +438,8 @@ namespace omnisphere::repositories
                 permMode = userRow["PermissionMode"].GetOptional<std::string>().value_or("P");
             }
 
-            // Administradores y SuperUsers tienen acceso directo, no requieren override
-            if (isSuper || roleCode == "ADMIN" || roleCode == "SUPERADMIN" || userCode == "system")
+            // SuperUsers tienen acceso directo, no requieren override
+            if (isSuper)
             {
                 return {};
             }
@@ -544,8 +534,6 @@ namespace omnisphere::repositories
             if (userRow["SuperUser"].GetOptional<bool>().value_or(false)) return true;
 
             std::string roleCode = userRow["RoleCode"].GetOptional<std::string>().value_or("");
-            if (roleCode == "ADMIN" || roleCode == "SUPERADMIN") return true;
-
             std::string permMode = userRow["PermissionMode"].GetOptional<std::string>().value_or("P");
 
             if (permMode == "R")
