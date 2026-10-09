@@ -20,6 +20,7 @@ struct UserData {
   std::optional<int> Employee;
   std::optional<std::string> EmployeeCode;
   std::optional<bool> IsActive;
+  std::optional<bool> SuperUser;
   std::optional<int> RoleEntry;
   std::optional<std::string> RoleCode;
   std::optional<double> MaxDisccountPerLine;
@@ -37,6 +38,7 @@ BOOST_DESCRIBE_STRUCT(UserData, (), (
   Employee,
   EmployeeCode,
   IsActive,
+  SuperUser,
   RoleEntry,
   RoleCode,
   MaxDisccountPerLine,

@@ -42,6 +42,7 @@ public:
 BOOST_DESCRIBE_STRUCT(User, (), (
     Entry, Code, Name, Email, Phone, Employee, EmployeeCode,
     RoleEntry, RoleCode, MaxDisccountPerLine, MaxDisccountPerDocument, Department,
+    PermissionMode,
     SuperUser, IsLocked, IsActive, IsCanceled, ChangePasswordNextLogin, PasswordNeverExpires,
     CreatedBy, CreateDate, LastUpdatedBy, UpdateDate
 ))
