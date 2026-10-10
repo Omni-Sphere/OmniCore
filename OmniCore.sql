@@ -1204,30 +1204,35 @@ INSERT INTO "Permissions" ("Code", "Name", "Description", "ModuleCode", "IsActiv
 ('ROUTE_CATALOG_UPDATE', 'Editar Catálogo', 'Permite actualizar información de recintos o paradas', 'MOD_CATALOGS', true, 'system'),
 ('ROUTE_CATALOG_DELETE', 'Eliminar Catálogo', 'Permite dar de baja recintos o puntos de abordaje', 'MOD_CATALOGS', true, 'system'),
 
--- 07. Personal (Employees)
-('ROUTE_EMPLOYEE_CREATE', 'Crear Empleado', 'Permite registrar personal y operadores', 'MOD_EMPLOYEES', true, 'system'),
-('ROUTE_EMPLOYEE_UPDATE', 'Editar Empleado', 'Permite actualizar datos del colaborador', 'MOD_EMPLOYEES', true, 'system'),
-('ROUTE_EMPLOYEE_DELETE', 'Eliminar Empleado', 'Permite dar de baja colaboradores', 'MOD_EMPLOYEES', true, 'system'),
+-- 07. Personal (Employees) - CORE
+('CORE_EMPLOYEE_CREATE', 'Crear Empleado', 'Permite registrar personal y operadores', 'MOD_EMPLOYEES', true, 'system'),
+('CORE_EMPLOYEE_UPDATE', 'Editar Empleado', 'Permite actualizar datos del colaborador', 'MOD_EMPLOYEES', true, 'system'),
+('CORE_EMPLOYEE_DELETE', 'Eliminar Empleado', 'Permite dar de baja colaboradores', 'MOD_EMPLOYEES', true, 'system'),
 
--- 08. Clientes (Customers)
-('ROUTE_CUSTOMER_CREATE', 'Registrar Cliente', 'Permite registrar nuevos pasajeros', 'MOD_CUSTOMERS', true, 'system'),
-('ROUTE_CUSTOMER_UPDATE', 'Editar Cliente', 'Permite actualizar información del cliente', 'MOD_CUSTOMERS', true, 'system'),
-('ROUTE_CUSTOMER_DELETE', 'Eliminar Cliente', 'Permite dar de baja registros de clientes', 'MOD_CUSTOMERS', true, 'system'),
+-- 08. Clientes (Customers) - CORE
+('CORE_CUSTOMER_CREATE', 'Registrar Cliente', 'Permite registrar nuevos pasajeros', 'MOD_CUSTOMERS', true, 'system'),
+('CORE_CUSTOMER_UPDATE', 'Editar Cliente', 'Permite actualizar información del cliente', 'MOD_CUSTOMERS', true, 'system'),
+('CORE_CUSTOMER_DELETE', 'Eliminar Cliente', 'Permite dar de baja registros de clientes', 'MOD_CUSTOMERS', true, 'system'),
 
--- 09. Usuarios
-('ROUTE_USER_CREATE', 'Crear Usuario', 'Permite crear cuentas de acceso al sistema', 'MOD_USERS', true, 'system'),
-('ROUTE_USER_UPDATE', 'Editar Usuario', 'Permite actualizar accesos, correo y credenciales', 'MOD_USERS', true, 'system'),
-('ROUTE_USER_DELETE', 'Eliminar Usuario', 'Permite desactivar cuentas de acceso', 'MOD_USERS', true, 'system'),
+-- 09. Usuarios - CORE
+('CORE_USER_CREATE', 'Crear Usuario', 'Permite crear cuentas de acceso al sistema', 'MOD_USERS', true, 'system'),
+('CORE_USER_UPDATE', 'Editar Usuario', 'Permite actualizar accesos, correo y credenciales', 'MOD_USERS', true, 'system'),
+('CORE_USER_DELETE', 'Eliminar Usuario', 'Permite desactivar cuentas de acceso', 'MOD_USERS', true, 'system'),
 
--- 10. Roles
-('ROUTE_ROLE_CREATE', 'Crear Rol', 'Permite definir nuevos perfiles de usuario', 'MOD_ROLES', true, 'system'),
-('ROUTE_ROLE_UPDATE', 'Editar Rol', 'Permite modificar asignación de permisos y módulos', 'MOD_ROLES', true, 'system'),
-('ROUTE_ROLE_DELETE', 'Eliminar Rol', 'Permite dar de baja perfiles de rol', 'MOD_ROLES', true, 'system'),
+-- 10. Roles y Permisos - CORE
+('CORE_ROLE_CREATE', 'Crear Rol', 'Permite definir nuevos perfiles de usuario', 'MOD_ROLES', true, 'system'),
+('CORE_ROLE_UPDATE', 'Editar Rol', 'Permite modificar asignación de permisos y módulos', 'MOD_ROLES', true, 'system'),
+('CORE_ROLE_DELETE', 'Eliminar Rol', 'Permite dar de baja perfiles de rol', 'MOD_ROLES', true, 'system'),
+('CORE_ROLE_MANAGE', 'Administrar Roles', 'Permite gestionar perfiles y asignaciones de rol', 'MOD_ROLES', true, 'system'),
+('CORE_PERM_MANAGE', 'Administrar Permisos', 'Permite modificar y conceder permisos específicos', 'MOD_ROLES', true, 'system'),
 
--- 11. Configuración del Sistema
-('ROUTE_SETTING_UPDATE', 'Actualizar Configuración', 'Permite ajustar parámetros generales y políticas', 'MOD_SETTINGS', true, 'system'),
-('ROUTE_SETTING_PAYMENT_UPDATE', 'Configurar Pagos', 'Permite editar métodos de cobro y Stripe', 'MOD_SETTINGS', true, 'system'),
-('ROUTE_SETTING_WHATSAPP_UPDATE', 'Configurar WhatsApp', 'Permite editar tokens y plantillas de Meta Cloud', 'MOD_SETTINGS', true, 'system')
+-- 11. Configuración del Sistema - CORE
+('CORE_CONFIG_UPDATE', 'Actualizar Configuración', 'Permite ajustar parámetros generales y políticas', 'MOD_SETTINGS', true, 'system'),
+('CORE_PAYMENT_CREATE', 'Crear Método de Pago', 'Permite dar de alta nuevas formas de cobro', 'MOD_SETTINGS', true, 'system'),
+('CORE_PAYMENT_UPDATE', 'Editar Configuración de Pago', 'Permite editar comisiones y cuentas bancarias', 'MOD_SETTINGS', true, 'system'),
+('CORE_PAYMENT_DELETE', 'Eliminar Método de Pago', 'Permite desactivar opciones de cobro', 'MOD_SETTINGS', true, 'system'),
+('CORE_INTEGRATION_STRIPE', 'Configurar Stripe', 'Permite configurar API keys y webhooks de cobros', 'MOD_SETTINGS', true, 'system'),
+('CORE_INTEGRATION_WHATSAPP', 'Configurar WhatsApp', 'Permite editar tokens y plantillas de Meta Cloud', 'MOD_SETTINGS', true, 'system')
 ON CONFLICT ("Code") DO UPDATE SET
     "Name" = EXCLUDED."Name",
     "Description" = EXCLUDED."Description",

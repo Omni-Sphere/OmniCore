@@ -24,7 +24,7 @@ namespace omnisphere::services
 
     bool SystemConfig::Update(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::UpdateSystemConfigInput& input, const std::vector<std::string>& mutationFields) const
     {
-        AUTHORIZE(ctx, "MOD_SETTINGS", "ROUTE_CONFIG_UPDATE");
+        AUTHORIZE(ctx, "MOD_SETTINGS", "CORE_CONFIG_UPDATE");
         if (!m_repository) return false;
         auto mutableInput = input;
         if (ctx.isAuthenticated() && !ctx.userCode.empty() && (mutableInput.LastUpdatedBy.empty() || mutableInput.LastUpdatedBy == "SYSTEM"))

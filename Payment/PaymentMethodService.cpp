@@ -18,7 +18,7 @@ namespace omnisphere::services
 
     bool PaymentMethodService::Create(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::CreatePaymentMethodInput& input, const std::vector<std::string>& mutationFields) const
     {
-        AUTHORIZE(ctx, "MOD_PAYMENTS", "PAYMENTS_METHOD_CREATE");
+        AUTHORIZE(ctx, "MOD_SETTINGS", "CORE_PAYMENT_CREATE");
         if (!m_repository) return false;
         auto mutableInput = input;
         if (ctx.isAuthenticated() && !ctx.userCode.empty() && (mutableInput.CreatedBy.empty() || mutableInput.CreatedBy == "SYSTEM"))
@@ -30,7 +30,7 @@ namespace omnisphere::services
 
     bool PaymentMethodService::Update(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::UpdatePaymentMethodInput& input, const std::vector<std::string>& mutationFields) const
     {
-        AUTHORIZE(ctx, "MOD_PAYMENTS", "PAYMENTS_METHOD_UPDATE");
+        AUTHORIZE(ctx, "MOD_SETTINGS", "CORE_PAYMENT_UPDATE");
         if (!m_repository) return false;
         auto mutableInput = input;
         if (ctx.isAuthenticated() && !ctx.userCode.empty() && (mutableInput.LastUpdatedBy.empty() || mutableInput.LastUpdatedBy == "SYSTEM"))
@@ -42,14 +42,14 @@ namespace omnisphere::services
 
     bool PaymentMethodService::Delete(const omnisphere::models::SecurityContext& ctx, int entry) const
     {
-        AUTHORIZE(ctx, "MOD_PAYMENTS", "PAYMENTS_METHOD_DELETE");
+        AUTHORIZE(ctx, "MOD_SETTINGS", "CORE_PAYMENT_DELETE");
         if (!m_repository) return false;
         return m_repository->Delete(entry);
     }
 
     bool PaymentMethodService::DeleteByCode(const omnisphere::models::SecurityContext& ctx, const std::string& code) const
     {
-        AUTHORIZE(ctx, "MOD_PAYMENTS", "PAYMENTS_METHOD_DELETE");
+        AUTHORIZE(ctx, "MOD_SETTINGS", "CORE_PAYMENT_DELETE");
         if (!m_repository) return false;
         return m_repository->DeleteByCode(code);
     }
