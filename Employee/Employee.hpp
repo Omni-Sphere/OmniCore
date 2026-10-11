@@ -26,7 +26,7 @@ namespace omnisphere::services
         );
         ~Employee() = default;
 
-        bool Create(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::CreateEmployee& employee, const std::vector<std::string>& mutationFields = {}) const;
+        bool Create(const omnisphere::models::SecurityContext& ctx, omnisphere::dtos::CreateEmployee& employee, const std::vector<std::string>& mutationFields = {}) const;
         bool Update(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::UpdateEmployee& employee, const std::vector<std::string>& mutationFields = {}) const;
         bool Delete(const omnisphere::models::SecurityContext& ctx, const std::string& code, const std::vector<std::string>& mutationFields = {}) const;
 

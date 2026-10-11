@@ -1,4 +1,5 @@
 #include "Employee/Repositories/Employee.hpp"
+#include "Identity/Repositories/IdentityRepository.hpp"
 #include <OmniData/Database.hpp>
 #include <OmniData/QueryBuilder.hpp>
 #include <iostream>
@@ -8,13 +9,33 @@ namespace omnisphere::repositories
     Employee::Employee(std::shared_ptr<omnisphere::data::DatabasePool> dbPool)
         : m_dbPool(std::move(dbPool)) {}
 
-    bool Employee::Create(const omnisphere::dtos::CreateEmployee& emp, const std::vector<std::string>& mutationFields) const
+    bool Employee::Create(omnisphere::dtos::CreateEmployee& emp, const std::vector<std::string>& mutationFields) const
     {
         if (!m_dbPool) return false;
         auto conn = m_dbPool->Acquire();
         try
         {
             conn->BeginTransaction();
+
+            IdentityRepository identityRepo(m_dbPool);
+            emp.code = identityRepo.GetNextCode(conn, "Employee", "EMP");
+
+            std::string fullName;
+            if (emp.firstName && !emp.firstName->empty()) fullName += *emp.firstName;
+            if (emp.secondName && !emp.secondName->empty()) {
+                if (!fullName.empty()) fullName += " ";
+                fullName += *emp.secondName;
+            }
+            if (emp.lastName && !emp.lastName->empty()) {
+                if (!fullName.empty()) fullName += " ";
+                fullName += *emp.lastName;
+            }
+            if (emp.secondLastName && !emp.secondLastName->empty()) {
+                if (!fullName.empty()) fullName += " ";
+                fullName += *emp.secondLastName;
+            }
+            emp.name = fullName;
+
             auto insertData = omnisphere::types::BuildInsertQuery("\"Employees\"", 0, emp, mutationFields);
 
             if (!conn->RunPrepared(insertData.Query, insertData.Parameters))

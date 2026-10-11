@@ -28,7 +28,7 @@ namespace omnisphere::repositories
         explicit Employee(std::shared_ptr<omnisphere::data::DatabasePool> dbPool);
         ~Employee() = default;
 
-        bool Create(const omnisphere::dtos::CreateEmployee& employee, const std::vector<std::string>& mutationFields = {}) const;
+        bool Create(omnisphere::dtos::CreateEmployee& employee, const std::vector<std::string>& mutationFields = {}) const;
         bool Update(const omnisphere::dtos::UpdateEmployee& employee, const std::vector<std::string>& mutationFields = {}) const;
         bool Delete(const std::string& code, const std::vector<std::string>& mutationFields = {}) const;
 

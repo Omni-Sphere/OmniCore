@@ -15,16 +15,15 @@ namespace omnisphere::services
         : m_repository(std::make_shared<omnisphere::repositories::Employee>(dbPool)),
           m_authService(authService ? std::move(authService) : std::make_shared<omnisphere::services::Authorization>(dbPool)) {}
 
-    bool Employee::Create(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::CreateEmployee& employee, const std::vector<std::string>& mutationFields) const
+    bool Employee::Create(const omnisphere::models::SecurityContext& ctx, omnisphere::dtos::CreateEmployee& employee, const std::vector<std::string>& mutationFields) const
     {
         AUTHORIZE(ctx, "MOD_USERS", "CORE_USER_CREATE");
         if (!m_repository) return false;
-        auto mutableDto = employee;
-        if (ctx.isAuthenticated() && !ctx.userCode.empty() && (mutableDto.createdBy.empty() || mutableDto.createdBy == "SYSTEM"))
+        if (ctx.isAuthenticated() && !ctx.userCode.empty() && (employee.createdBy.empty() || employee.createdBy == "SYSTEM"))
         {
-            mutableDto.createdBy = ctx.userCode;
+            employee.createdBy = ctx.userCode;
         }
-        return m_repository->Create(mutableDto, mutationFields);
+        return m_repository->Create(employee, mutationFields);
     }
 
     bool Employee::Update(const omnisphere::models::SecurityContext& ctx, const omnisphere::dtos::UpdateEmployee& employee, const std::vector<std::string>& mutationFields) const
