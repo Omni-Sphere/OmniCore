@@ -13,6 +13,7 @@ namespace omnisphere::repositories
     {
         if (!m_dbPool) return false;
         auto conn = m_dbPool->Acquire();
+        omnisphere::types::InsertQueryResult insertData;
         try
         {
             conn->BeginTransaction();
@@ -36,12 +37,21 @@ namespace omnisphere::repositories
             }
             emp.name = fullName;
 
-            auto insertData = omnisphere::types::BuildInsertQuery("\"Employees\"", 0, emp, mutationFields);
+            std::vector<std::string> fieldsToInsert = mutationFields;
+            if (!fieldsToInsert.empty())
+            {
+                fieldsToInsert.push_back("Code");
+                fieldsToInsert.push_back("Name");
+            }
+
+            insertData = omnisphere::types::BuildInsertQuery("\"Employees\"", 0, emp, fieldsToInsert);
 
             if (!conn->RunPrepared(insertData.Query, insertData.Parameters))
             {
                 conn->RollbackTransaction();
-                return false;
+                std::string err = "Error al ejecutar inserción en Employees | [SQL Query]: " + insertData.Query;
+                std::cerr << "[Employee::Create Error] " << err << std::endl;
+                throw std::runtime_error(err);
             }
 
             conn->CommitTransaction();
@@ -50,8 +60,12 @@ namespace omnisphere::repositories
         catch (const std::exception& ex)
         {
             conn->RollbackTransaction();
-            std::cerr << "[Employee::Create Exception] " << ex.what() << std::endl;
-            return false;
+            std::string err = std::string(ex.what());
+            if (err.find("[SQL Query]") == std::string::npos && !insertData.Query.empty()) {
+                err += " | [SQL Query]: " + insertData.Query;
+            }
+            std::cerr << "[Employee::Create Exception] " << err << std::endl;
+            throw std::runtime_error(err);
         }
     }
 
@@ -120,13 +134,15 @@ namespace omnisphere::repositories
                 cols.push_back({"\"UpdateDate\"", omnisphere::types::MakeSQLParam(std::string(timeBuf))});
             }
 
-            auto updateResult = omnisphere::types::BuildUpdateQuery(
+            omnisphere::types::UpdateQueryResult updateResult = omnisphere::types::BuildUpdateQuery(
                 "\"Employees\"", cols, "\"Code\"", omnisphere::types::MakeSQLParam(emp.code));
 
             if (!conn->RunPrepared(updateResult.Query, updateResult.Parameters))
             {
                 conn->RollbackTransaction();
-                return false;
+                std::string err = "Error al ejecutar actualización en Employees | [SQL Query]: " + updateResult.Query;
+                std::cerr << "[Employee::Update Error] " << err << std::endl;
+                throw std::runtime_error(err);
             }
 
             conn->CommitTransaction();
@@ -135,8 +151,9 @@ namespace omnisphere::repositories
         catch (const std::exception& ex)
         {
             conn->RollbackTransaction();
-            std::cerr << "[Employee::Update Exception] " << ex.what() << std::endl;
-            return false;
+            std::string err = std::string(ex.what());
+            std::cerr << "[Employee::Update Exception] " << err << std::endl;
+            throw std::runtime_error(err);
         }
     }
 
@@ -177,7 +194,7 @@ namespace omnisphere::repositories
         {
             conn->RollbackTransaction();
             std::cerr << "[Employee::Delete Exception] " << ex.what() << std::endl;
-            return false;
+            throw;
         }
     }
 
