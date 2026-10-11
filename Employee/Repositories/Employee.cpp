@@ -62,7 +62,43 @@ namespace omnisphere::repositories
         try
         {
             conn->BeginTransaction();
-            auto cols = omnisphere::types::ExtractUpdateColumns(emp, mutationFields);
+            auto mutableEmp = emp;
+            auto cols = omnisphere::types::ExtractUpdateColumns(mutableEmp, mutationFields);
+
+            bool nameFieldsModified = mutableEmp.firstName.has_value() || 
+                                     mutableEmp.secondName.has_value() || 
+                                     mutableEmp.lastName.has_value() || 
+                                     mutableEmp.secondLastName.has_value();
+
+            if (nameFieldsModified)
+            {
+                std::string fullName;
+                if (mutableEmp.firstName && !mutableEmp.firstName->empty()) fullName += *mutableEmp.firstName;
+                if (mutableEmp.secondName && !mutableEmp.secondName->empty()) {
+                    if (!fullName.empty()) fullName += " ";
+                    fullName += *mutableEmp.secondName;
+                }
+                if (mutableEmp.lastName && !mutableEmp.lastName->empty()) {
+                    if (!fullName.empty()) fullName += " ";
+                    fullName += *mutableEmp.lastName;
+                }
+                if (mutableEmp.secondLastName && !mutableEmp.secondLastName->empty()) {
+                    if (!fullName.empty()) fullName += " ";
+                    fullName += *mutableEmp.secondLastName;
+                }
+
+                bool hasNameCol = false;
+                for (auto& c : cols) {
+                    if (c.Column == "\"Name\"") {
+                        c.Value = omnisphere::types::MakeSQLParam(fullName);
+                        hasNameCol = true;
+                        break;
+                    }
+                }
+                if (!hasNameCol) {
+                    cols.push_back({"\"Name\"", omnisphere::types::MakeSQLParam(fullName)});
+                }
+            }
 
             auto now = std::chrono::system_clock::now();
             auto in_time_t = std::chrono::system_clock::to_time_t(now);
