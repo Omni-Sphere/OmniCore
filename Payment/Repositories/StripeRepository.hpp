@@ -17,14 +17,15 @@ namespace omnisphere::repositories
         explicit StripeRepository(std::shared_ptr<omnisphere::data::DatabasePool> dbPool);
 
         omnisphere::types::DataTable GetSettings(const std::vector<std::string>& requestedFields = {}) const;
-        bool SaveSettings(const omnisphere::models::StripeSettings& settings) const;
+        bool Create(const omnisphere::models::StripeSettings& settings, const std::vector<std::string>& mutationFields = {}) const;
+        bool Update(const omnisphere::models::StripeSettings& settings, const std::vector<std::string>& mutationFields = {}) const;
 
-        bool SaveSession(const omnisphere::models::StripeSession& session) const;
+        bool SaveSession(omnisphere::models::StripeSession& session, const std::vector<std::string>& mutationFields = {}) const;
         bool UpdateSessionStatus(const std::string& stripeSessionId, const std::string& newStatus, const std::string& paymentIntentId = "") const;
         omnisphere::types::DataTable GetSessionsByReservation(const std::string& reservationCode) const;
         std::optional<omnisphere::models::StripeSession> GetSessionByStripeId(const std::string& stripeSessionId) const;
 
-        bool SaveTransaction(const omnisphere::models::StripeTransaction& tx) const;
+        bool SaveTransaction(omnisphere::models::StripeTransaction& tx, const std::vector<std::string>& mutationFields = {}) const;
         bool UpdateTransactionStatus(const std::string& paymentIntentId, const std::string& newStatus, const std::string& receiptUrl = "") const;
         omnisphere::types::DataTable GetTransactionsByReservation(const std::string& reservationCode) const;
         std::optional<omnisphere::models::StripeTransaction> GetTransactionByPaymentIntent(const std::string& paymentIntentId) const;

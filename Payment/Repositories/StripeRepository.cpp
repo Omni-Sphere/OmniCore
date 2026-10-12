@@ -30,127 +30,45 @@ namespace omnisphere::repositories
         }
     }
 
-    bool StripeRepository::SaveSettings(const omnisphere::models::StripeSettings& settings) const
+    bool StripeRepository::Create(const omnisphere::models::StripeSettings& settings, const std::vector<std::string>& mutationFields) const
     {
         if (!m_dbPool) return false;
         try
         {
             auto conn = m_dbPool->Acquire();
-            auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::StripeSettings>({});
-            auto qp = omnisphere::types::BuildQueryParts(selectFields, {});
-            std::string selectSql = "SELECT " + qp.SelectClause + " FROM \"StripeSettings\" LIMIT 1";
-            std::vector<omnisphere::types::SQLParam> selectParams;
-            auto existingDt = conn->FetchPrepared(selectSql, selectParams);
-
-            auto isPlain = [](const std::string& val) -> bool {
-                if (val.empty()) return false;
-                if (val.rfind("pk_", 0) == 0 || val.rfind("sk_", 0) == 0 || val.rfind("whsec_", 0) == 0) return true;
-                return false;
-            };
-
-            auto ensureEncrypted = [&](const std::string& val) -> std::string {
-                if (val.empty()) return "";
-                if (isPlain(val)) {
-                    return omnisphere::utils::Base64::Encode(val);
-                }
-                return val;
-            };
-
-            std::string encPublishableKey = ensureEncrypted(settings.publishableKey);
-            std::string encSecretKey = ensureEncrypted(settings.secretKey);
-            std::string encWebhookSecretKey = ensureEncrypted(settings.webhookSecretKey);
-
-            if (!existingDt.IsEmpty())
-            {
-                const auto& existingRow = existingDt[0];
-                auto getExisting = [&](const std::string& colName) -> std::string {
-                    try {
-                        return existingRow[colName].GetOptional<std::string>().value_or("");
-                    } catch (...) {}
-                    return "";
-                };
-
-                std::string finalName = settings.name.empty() ? getExisting("Name") : settings.name;
-                std::string finalPublishableKey = settings.publishableKey.empty() ? getExisting("PublishableKey") : encPublishableKey;
-                std::string finalSecretKey = settings.secretKey.empty() ? getExisting("SecretKey") : encSecretKey;
-                std::string finalWebhookSecretKey = settings.webhookSecretKey.empty() ? getExisting("WebhookSecretKey") : encWebhookSecretKey;
-                std::string finalApiBaseUrl = settings.apiBaseUrl.empty() ? getExisting("ApiBaseUrl") : settings.apiBaseUrl;
-                if (finalApiBaseUrl.empty()) finalApiBaseUrl = "https://api.stripe.com/v1";
-                std::string finalCheckoutEndpoint = settings.checkoutEndpoint.empty() ? getExisting("CheckoutEndpoint") : settings.checkoutEndpoint;
-                if (finalCheckoutEndpoint.empty()) finalCheckoutEndpoint = "/checkout/sessions";
-                std::string finalWebhookPath = settings.webhookPath.empty() ? getExisting("WebhookPath") : settings.webhookPath;
-                if (finalWebhookPath.empty()) finalWebhookPath = "/api/v1/stripe/webhook";
-                std::string finalCurrency = settings.currency.empty() ? getExisting("Currency") : settings.currency;
-                if (finalCurrency.empty()) finalCurrency = "mxn";
-
-                bool finalIsActive = settings.isActive;
-                if (finalPublishableKey.empty() || finalSecretKey.empty())
-                {
-                    finalIsActive = false;
-                }
-
-                std::vector<omnisphere::types::ColumnValue> updateCols = {
-                    {"\"Name\"", omnisphere::types::MakeSQLParam(finalName)},
-                    {"\"PublishableKey\"", omnisphere::types::MakeSQLParam(finalPublishableKey)},
-                    {"\"SecretKey\"", omnisphere::types::MakeSQLParam(finalSecretKey)},
-                    {"\"WebhookSecretKey\"", omnisphere::types::MakeSQLParam(finalWebhookSecretKey)},
-                    {"\"ApiBaseUrl\"", omnisphere::types::MakeSQLParam(finalApiBaseUrl)},
-                    {"\"CheckoutEndpoint\"", omnisphere::types::MakeSQLParam(finalCheckoutEndpoint)},
-                    {"\"WebhookPath\"", omnisphere::types::MakeSQLParam(finalWebhookPath)},
-                    {"\"Currency\"", omnisphere::types::MakeSQLParam(finalCurrency)},
-                    {"\"IsTestMode\"", omnisphere::types::MakeSQLParam(settings.isTestMode)},
-                    {"\"IsActive\"", omnisphere::types::MakeSQLParam(finalIsActive)},
-                    {"\"LastUpdatedBy\"", omnisphere::types::MakeSQLParam(settings.createdBy)}
-                };
-
-                auto updateQuery = omnisphere::types::BuildUpdateQuery("\"StripeSettings\"", updateCols, "\"Code\"", omnisphere::types::MakeSQLParam(std::string("DEFAULT")));
-                return conn->RunPrepared(updateQuery.Query, updateQuery.Parameters);
-            }
-            else
-            {
-                // Inserción bajo demanda desde la mutación (cuando no existe el registro aún)
-                std::string finalApiBaseUrl = settings.apiBaseUrl.empty() ? "https://api.stripe.com/v1" : settings.apiBaseUrl;
-                std::string finalCheckoutEndpoint = settings.checkoutEndpoint.empty() ? "/checkout/sessions" : settings.checkoutEndpoint;
-                std::string finalWebhookPath = settings.webhookPath.empty() ? "/api/v1/stripe/webhook" : settings.webhookPath;
-                std::string finalCurrency = settings.currency.empty() ? "mxn" : settings.currency;
-
-                bool finalIsActive = settings.isActive;
-                if (encPublishableKey.empty() || encSecretKey.empty())
-                {
-                    finalIsActive = false;
-                }
-
-                std::vector<std::string> cols = {
-                    "\"Code\"", "\"Name\"", "\"PublishableKey\"", "\"SecretKey\"",
-                    "\"WebhookSecretKey\"", "\"ApiBaseUrl\"", "\"CheckoutEndpoint\"", "\"WebhookPath\"",
-                    "\"Currency\"", "\"IsTestMode\"", "\"IsActive\"", "\"CreatedBy\""
-                };
-                std::string sql = omnisphere::types::BuildInsertQuery("\"StripeSettings\"", cols);
-                std::vector<omnisphere::types::SQLParam> params = {
-                    omnisphere::types::MakeSQLParam(std::string("DEFAULT")),
-                    omnisphere::types::MakeSQLParam(settings.name.empty() ? std::string("Stripe Payment Settings") : settings.name),
-                    omnisphere::types::MakeSQLParam(encPublishableKey),
-                    omnisphere::types::MakeSQLParam(encSecretKey),
-                    omnisphere::types::MakeSQLParam(encWebhookSecretKey),
-                    omnisphere::types::MakeSQLParam(finalApiBaseUrl),
-                    omnisphere::types::MakeSQLParam(finalCheckoutEndpoint),
-                    omnisphere::types::MakeSQLParam(finalWebhookPath),
-                    omnisphere::types::MakeSQLParam(finalCurrency),
-                    omnisphere::types::MakeSQLParam(settings.isTestMode),
-                    omnisphere::types::MakeSQLParam(finalIsActive),
-                    omnisphere::types::MakeSQLParam(settings.createdBy)
-                };
-                return conn->RunPrepared(sql, params);
-            }
+            auto insertResult = omnisphere::types::BuildInsertQuery("\"StripeSettings\"", 0, settings, mutationFields);
+            return conn->RunPrepared(insertResult.Query, insertResult.Parameters);
         }
         catch (const std::exception& ex)
         {
-            std::cerr << "[StripeRepository::SaveSettings Exception] " << ex.what() << std::endl;
+            std::cerr << "[StripeRepository::Create Exception] " << ex.what() << std::endl;
             return false;
         }
     }
 
-    bool StripeRepository::SaveSession(const omnisphere::models::StripeSession& session) const
+    bool StripeRepository::Update(const omnisphere::models::StripeSettings& settings, const std::vector<std::string>& mutationFields) const
+    {
+        if (!m_dbPool) return false;
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            auto cols = omnisphere::types::ExtractUpdateColumns(settings, mutationFields);
+            auto updateResult = omnisphere::types::BuildUpdateQuery(
+                "\"StripeSettings\"",
+                cols,
+                "\"Code\"",
+                omnisphere::types::MakeSQLParam(settings.code.empty() ? "DEFAULT" : settings.code)
+            );
+            return conn->RunPrepared(updateResult.Query, updateResult.Parameters);
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[StripeRepository::Update Exception] " << ex.what() << std::endl;
+            return false;
+        }
+    }
+
+    bool StripeRepository::SaveSession(omnisphere::models::StripeSession& session, const std::vector<std::string>& mutationFields) const
     {
         if (!m_dbPool) return false;
         auto conn = m_dbPool->Acquire();
@@ -158,27 +76,20 @@ namespace omnisphere::repositories
         {
             conn->BeginTransaction();
             omnisphere::repositories::IdentityRepository identityRepo(m_dbPool);
-            std::string codeVal = session.code.empty() ? identityRepo.GetNextCode(conn, "StripeSession", "STS") : session.code;
-            if (codeVal.empty()) codeVal = "STS1";
-            std::vector<std::string> cols = {
-                "\"Code\"", "\"ReservationCode\"", "\"StripeSessionId\"", "\"PaymentIntentId\"",
-                "\"CheckoutUrl\"", "\"Amount\"", "\"Currency\"", "\"Status\"", "\"IsActive\"", "\"CreatedBy\""
-            };
-            std::string sql = omnisphere::types::BuildInsertQuery("\"StripeSessions\"", cols);
-            std::vector<omnisphere::types::SQLParam> params = {
-                omnisphere::types::MakeSQLParam(codeVal),
-                omnisphere::types::MakeSQLParam(session.reservationCode),
-                omnisphere::types::MakeSQLParam(session.stripeSessionId),
-                omnisphere::types::MakeSQLParam(session.paymentIntentId.value_or("")),
-                omnisphere::types::MakeSQLParam(session.checkoutUrl),
-                omnisphere::types::MakeSQLParam(session.amount),
-                omnisphere::types::MakeSQLParam(session.currency.empty() ? std::string("mxn") : session.currency),
-                omnisphere::types::MakeSQLParam(session.status.empty() ? std::string("open") : session.status),
-                omnisphere::types::MakeSQLParam(session.isActive),
-                omnisphere::types::MakeSQLParam(session.createdBy)
-            };
+            if (session.code.empty())
+            {
+                session.code = identityRepo.GetNextCode(conn, "StripeSession", "STS");
+                if (session.code.empty()) session.code = "STS1";
+            }
 
-            if (!conn->RunPrepared(sql, params))
+            std::vector<std::string> fieldsToInsert = mutationFields;
+            if (!fieldsToInsert.empty())
+            {
+                fieldsToInsert.push_back("Code");
+            }
+
+            auto insertData = omnisphere::types::BuildInsertQuery("\"StripeSessions\"", 0, session, fieldsToInsert);
+            if (!conn->RunPrepared(insertData.Query, insertData.Parameters))
             {
                 conn->RollbackTransaction();
                 return false;
@@ -260,7 +171,7 @@ namespace omnisphere::repositories
         return std::nullopt;
     }
 
-    bool StripeRepository::SaveTransaction(const omnisphere::models::StripeTransaction& tx) const
+    bool StripeRepository::SaveTransaction(omnisphere::models::StripeTransaction& tx, const std::vector<std::string>& mutationFields) const
     {
         if (!m_dbPool) return false;
         auto conn = m_dbPool->Acquire();
@@ -268,42 +179,38 @@ namespace omnisphere::repositories
         {
             conn->BeginTransaction();
             omnisphere::repositories::IdentityRepository identityRepo(m_dbPool);
-            std::string codeVal = tx.code.empty() ? identityRepo.GetNextCode(conn, "StripeTransaction", "STX") : tx.code;
-            if (codeVal.empty()) codeVal = "STX1";
+            if (tx.code.empty())
+            {
+                tx.code = identityRepo.GetNextCode(conn, "StripeTransaction", "STX");
+                if (tx.code.empty()) tx.code = "STX1";
+            }
 
-            std::vector<std::string> cols = {
-                "\"Code\"", "\"ReservationCode\"", "\"PaymentIntentId\"", "\"ChargeId\"",
-                "\"Amount\"", "\"Currency\"", "\"Status\"", "\"PaymentMethodType\"",
-                "\"Clabe\"", "\"BankName\"", "\"CardBrand\"", "\"CardLast4\"", "\"CardType\"",
-                "\"AuthorizationCode\"", "\"CardFingerprint\"", "\"ReceiptUrl\"", "\"HostedInstructionsUrl\"",
-                "\"ClientIp\"", "\"IsActive\"", "\"CreatedBy\""
-            };
+            std::vector<std::string> fieldsToInsert = mutationFields;
+            if (!fieldsToInsert.empty())
+            {
+                fieldsToInsert.push_back("Code");
+            }
 
-            std::string sql = omnisphere::types::BuildInsertQuery("\"StripeTransactions\"", cols);
-            std::vector<omnisphere::types::SQLParam> params = {
-                omnisphere::types::MakeSQLParam(codeVal),
-                omnisphere::types::MakeSQLParam(tx.reservationCode),
-                omnisphere::types::MakeSQLParam(tx.paymentIntentId),
-                omnisphere::types::MakeSQLParam(tx.chargeId.value_or("")),
-                omnisphere::types::MakeSQLParam(tx.amount),
-                omnisphere::types::MakeSQLParam(tx.currency.empty() ? std::string("mxn") : tx.currency),
-                omnisphere::types::MakeSQLParam(tx.status.empty() ? std::string("succeeded") : tx.status),
-                omnisphere::types::MakeSQLParam(tx.paymentMethodType.value_or("card")),
-                omnisphere::types::MakeSQLParam(tx.clabe.value_or("")),
-                omnisphere::types::MakeSQLParam(tx.bankName.value_or("")),
-                omnisphere::types::MakeSQLParam(tx.cardBrand.value_or("")),
-                omnisphere::types::MakeSQLParam(tx.cardLast4.value_or("")),
-                omnisphere::types::MakeSQLParam(tx.cardType.value_or("")),
-                omnisphere::types::MakeSQLParam(tx.authorizationCode.value_or("")),
-                omnisphere::types::MakeSQLParam(tx.cardFingerprint.value_or("")),
-                omnisphere::types::MakeSQLParam(tx.receiptUrl.value_or("")),
-                omnisphere::types::MakeSQLParam(tx.hostedInstructionsUrl.value_or("")),
-                omnisphere::types::MakeSQLParam(tx.clientIp.value_or("")),
-                omnisphere::types::MakeSQLParam(tx.isActive),
-                omnisphere::types::MakeSQLParam(tx.createdBy.empty() ? std::string("system") : tx.createdBy)
-            };
+            omnisphere::models::StripeTransaction toSave = tx;
+            if (toSave.clabe.has_value() && !toSave.clabe->empty())
+            {
+                toSave.clabe = omnisphere::utils::Base64::Encode(*toSave.clabe);
+            }
+            if (toSave.authorizationCode.has_value() && !toSave.authorizationCode->empty())
+            {
+                toSave.authorizationCode = omnisphere::utils::Base64::Encode(*toSave.authorizationCode);
+            }
+            if (toSave.cardFingerprint.has_value() && !toSave.cardFingerprint->empty())
+            {
+                toSave.cardFingerprint = omnisphere::utils::Base64::Encode(*toSave.cardFingerprint);
+            }
+            if (toSave.clientIp.has_value() && !toSave.clientIp->empty())
+            {
+                toSave.clientIp = omnisphere::utils::Base64::Encode(*toSave.clientIp);
+            }
 
-            if (!conn->RunPrepared(sql, params))
+            auto insertData = omnisphere::types::BuildInsertQuery("\"StripeTransactions\"", 0, toSave, fieldsToInsert);
+            if (!conn->RunPrepared(insertData.Query, insertData.Parameters))
             {
                 conn->RollbackTransaction();
                 return false;
@@ -375,7 +282,17 @@ namespace omnisphere::repositories
             auto dt = conn->FetchPrepared(sql, params);
             if (!dt.IsEmpty())
             {
-                return omnisphere::types::FromDataRow<omnisphere::models::StripeTransaction>(dt[0]);
+                auto model = omnisphere::types::FromDataRow<omnisphere::models::StripeTransaction>(dt[0]);
+                auto safeDecode = [](std::optional<std::string>& opt) {
+                    if (opt.has_value() && !opt->empty()) {
+                        try { *opt = omnisphere::utils::Base64::Decode(*opt); } catch (...) {}
+                    }
+                };
+                safeDecode(model.clabe);
+                safeDecode(model.authorizationCode);
+                safeDecode(model.cardFingerprint);
+                safeDecode(model.clientIp);
+                return model;
             }
         }
         catch (const std::exception& ex)

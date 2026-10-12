@@ -16,9 +16,10 @@ namespace omnisphere::repositories
         explicit MercadoPagoRepository(std::shared_ptr<omnisphere::data::DatabasePool> dbPool);
 
         omnisphere::types::DataTable GetSettings(const std::vector<std::string>& requestedFields = {}) const;
-        bool SaveSettings(const omnisphere::models::MercadoPagoSettings& settings) const;
+        bool Create(const omnisphere::models::MercadoPagoSettings& settings, const std::vector<std::string>& mutationFields = {}) const;
+        bool Update(const omnisphere::models::MercadoPagoSettings& settings, const std::vector<std::string>& mutationFields = {}) const;
 
-        bool SaveTransaction(const omnisphere::models::MercadoPagoTransaction& tx) const;
+        bool SaveTransaction(omnisphere::models::MercadoPagoTransaction& tx, const std::vector<std::string>& mutationFields = {}) const;
         bool UpdateTransactionStatus(
             const std::string& paymentId,
             const std::string& newStatus,

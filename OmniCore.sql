@@ -638,6 +638,9 @@ CREATE TABLE IF NOT EXISTS "MercadoPagoSettings" (
     "UpdateDate" TIMESTAMP
 );
 
+ALTER TABLE "MercadoPagoSettings" ADD COLUMN IF NOT EXISTS "WebhookPath" VARCHAR(255) NOT NULL DEFAULT '/api/v1/mercadopago/webhook';
+ALTER TABLE "MercadoPagoSettings" ADD COLUMN IF NOT EXISTS "Currency" VARCHAR(10) NOT NULL DEFAULT 'mxn';
+
 -- 24.2 MercadoPagoTransactions (Auditing & Webhook Correlation)
 CREATE TABLE IF NOT EXISTS "MercadoPagoTransactions" (
     "Entry" SERIAL PRIMARY KEY,

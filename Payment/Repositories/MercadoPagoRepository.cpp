@@ -30,120 +30,46 @@ namespace omnisphere::repositories
         }
     }
 
-    bool MercadoPagoRepository::SaveSettings(const omnisphere::models::MercadoPagoSettings& settings) const
+    bool MercadoPagoRepository::Create(const omnisphere::models::MercadoPagoSettings& settings, const std::vector<std::string>& mutationFields) const
     {
         if (!m_dbPool) return false;
         try
         {
             auto conn = m_dbPool->Acquire();
-            auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::MercadoPagoSettings>({});
-            auto qp = omnisphere::types::BuildQueryParts(selectFields, {});
-            std::string selectSql = "SELECT " + qp.SelectClause + " FROM \"MercadoPagoSettings\" LIMIT 1";
-            std::vector<omnisphere::types::SQLParam> selectParams;
-            auto existingDt = conn->FetchPrepared(selectSql, selectParams);
-
-            auto isPlain = [](const std::string& val) -> bool {
-                if (val.empty()) return false;
-                if (val.rfind("TEST-", 0) == 0 || val.rfind("APP_USR-", 0) == 0) return true;
-                return false;
-            };
-
-            auto ensureEncrypted = [&](const std::string& val) -> std::string {
-                if (val.empty()) return "";
-                if (isPlain(val)) {
-                    return omnisphere::utils::Base64::Encode(val);
-                }
-                return val;
-            };
-
-            std::string encPublicKey = ensureEncrypted(settings.publicKey);
-            std::string encAccessToken = ensureEncrypted(settings.accessToken);
-            std::string encWebhookSecretKey = settings.webhookSecretKey.empty() ? "" : omnisphere::utils::Base64::Encode(settings.webhookSecretKey);
-
-            if (!existingDt.IsEmpty())
-            {
-                const auto& existingRow = existingDt[0];
-                auto getExisting = [&](const std::string& colName) -> std::string {
-                    try {
-                        return existingRow[colName].GetOptional<std::string>().value_or("");
-                    } catch (...) {}
-                    return "";
-                };
-
-                std::string finalName = settings.name.empty() ? getExisting("Name") : settings.name;
-                std::string finalPublicKey = settings.publicKey.empty() ? getExisting("PublicKey") : encPublicKey;
-                std::string finalAccessToken = settings.accessToken.empty() ? getExisting("AccessToken") : encAccessToken;
-                std::string finalWebhookSecret = settings.webhookSecretKey.empty() ? getExisting("WebhookSecretKey") : encWebhookSecretKey;
-                std::string finalApiBaseUrl = settings.apiBaseUrl.empty() ? getExisting("ApiBaseUrl") : settings.apiBaseUrl;
-                std::string finalWebhookPath = settings.webhookPath.empty() ? getExisting("WebhookPath") : settings.webhookPath;
-                if (finalWebhookPath.empty()) finalWebhookPath = "/api/v1/mercadopago/webhook";
-                std::string finalCurrency = settings.currency.empty() ? getExisting("Currency") : settings.currency;
-                if (finalCurrency.empty()) finalCurrency = "mxn";
-
-                bool finalIsActive = settings.isActive;
-                if (finalPublicKey.empty() || finalAccessToken.empty())
-                {
-                    finalIsActive = false;
-                }
-
-                std::vector<omnisphere::types::ColumnValue> updateCols = {
-                    {"\"Name\"", omnisphere::types::MakeSQLParam(finalName)},
-                    {"\"PublicKey\"", omnisphere::types::MakeSQLParam(finalPublicKey)},
-                    {"\"AccessToken\"", omnisphere::types::MakeSQLParam(finalAccessToken)},
-                    {"\"WebhookSecretKey\"", omnisphere::types::MakeSQLParam(finalWebhookSecret)},
-                    {"\"ApiBaseUrl\"", omnisphere::types::MakeSQLParam(finalApiBaseUrl)},
-                    {"\"WebhookPath\"", omnisphere::types::MakeSQLParam(finalWebhookPath)},
-                    {"\"Currency\"", omnisphere::types::MakeSQLParam(finalCurrency)},
-                    {"\"IsTestMode\"", omnisphere::types::MakeSQLParam(settings.isTestMode)},
-                    {"\"IsActive\"", omnisphere::types::MakeSQLParam(finalIsActive)},
-                    {"\"LastUpdatedBy\"", omnisphere::types::MakeSQLParam(settings.createdBy)}
-                };
-
-                auto updateQuery = omnisphere::types::BuildUpdateQuery("\"MercadoPagoSettings\"", updateCols, "\"Code\"", omnisphere::types::MakeSQLParam(std::string("DEFAULT")));
-                return conn->RunPrepared(updateQuery.Query, updateQuery.Parameters);
-            }
-            else
-            {
-                std::string finalApiBaseUrl = settings.apiBaseUrl.empty() ? "https://api.mercadopago.com" : settings.apiBaseUrl;
-                std::string finalWebhookPath = settings.webhookPath.empty() ? "/api/v1/mercadopago/webhook" : settings.webhookPath;
-                std::string finalCurrency = settings.currency.empty() ? "mxn" : settings.currency;
-
-                bool finalIsActive = settings.isActive;
-                if (encPublicKey.empty() || encAccessToken.empty())
-                {
-                    finalIsActive = false;
-                }
-
-                std::vector<std::string> cols = {
-                    "\"Code\"", "\"Name\"", "\"PublicKey\"", "\"AccessToken\"",
-                    "\"WebhookSecretKey\"", "\"ApiBaseUrl\"", "\"WebhookPath\"", "\"Currency\"",
-                    "\"IsTestMode\"", "\"IsActive\"", "\"CreatedBy\""
-                };
-                std::string sql = omnisphere::types::BuildInsertQuery("\"MercadoPagoSettings\"", cols);
-                std::vector<omnisphere::types::SQLParam> params = {
-                    omnisphere::types::MakeSQLParam(std::string("DEFAULT")),
-                    omnisphere::types::MakeSQLParam(settings.name.empty() ? std::string("Mercado Pago Settings") : settings.name),
-                    omnisphere::types::MakeSQLParam(encPublicKey),
-                    omnisphere::types::MakeSQLParam(encAccessToken),
-                    omnisphere::types::MakeSQLParam(encWebhookSecretKey),
-                    omnisphere::types::MakeSQLParam(finalApiBaseUrl),
-                    omnisphere::types::MakeSQLParam(finalWebhookPath),
-                    omnisphere::types::MakeSQLParam(finalCurrency),
-                    omnisphere::types::MakeSQLParam(settings.isTestMode),
-                    omnisphere::types::MakeSQLParam(finalIsActive),
-                    omnisphere::types::MakeSQLParam(settings.createdBy)
-                };
-                return conn->RunPrepared(sql, params);
-            }
+            auto insertResult = omnisphere::types::BuildInsertQuery("\"MercadoPagoSettings\"", 0, settings, mutationFields);
+            return conn->RunPrepared(insertResult.Query, insertResult.Parameters);
         }
         catch (const std::exception& ex)
         {
-            std::cerr << "[MercadoPagoRepository::SaveSettings Exception] " << ex.what() << std::endl;
+            std::cerr << "[MercadoPagoRepository::Create Exception] " << ex.what() << std::endl;
             return false;
         }
     }
 
-    bool MercadoPagoRepository::SaveTransaction(const omnisphere::models::MercadoPagoTransaction& tx) const
+    bool MercadoPagoRepository::Update(const omnisphere::models::MercadoPagoSettings& settings, const std::vector<std::string>& mutationFields) const
+    {
+        if (!m_dbPool) return false;
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            auto cols = omnisphere::types::ExtractUpdateColumns(settings, mutationFields);
+            auto updateResult = omnisphere::types::BuildUpdateQuery(
+                "\"MercadoPagoSettings\"",
+                cols,
+                "\"Code\"",
+                omnisphere::types::MakeSQLParam(settings.code.empty() ? "DEFAULT" : settings.code)
+            );
+            return conn->RunPrepared(updateResult.Query, updateResult.Parameters);
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[MercadoPagoRepository::Update Exception] " << ex.what() << std::endl;
+            return false;
+        }
+    }
+
+
+    bool MercadoPagoRepository::SaveTransaction(omnisphere::models::MercadoPagoTransaction& tx, const std::vector<std::string>& mutationFields) const
     {
         if (!m_dbPool) return false;
         auto conn = m_dbPool->Acquire();
@@ -151,40 +77,34 @@ namespace omnisphere::repositories
         {
             conn->BeginTransaction();
             omnisphere::repositories::IdentityRepository identityRepo(m_dbPool);
-            std::string codeVal = tx.code.empty() ? identityRepo.GetNextCode(conn, "MercadoPagoTransaction", "MPTX") : tx.code;
-            if (codeVal.empty()) codeVal = "MPTX1";
+            if (tx.code.empty())
+            {
+                tx.code = identityRepo.GetNextCode(conn, "MercadoPagoTransaction", "MPTX");
+                if (tx.code.empty()) tx.code = "MPTX1";
+            }
 
-            std::vector<std::string> cols = {
-                "\"Code\"", "\"ExternalReference\"", "\"PaymentId\"", "\"PreferenceId\"",
-                "\"Amount\"", "\"Currency\"", "\"Status\"", "\"StatusDetail\"",
-                "\"PaymentMethodId\"", "\"PaymentTypeId\"", "\"Installments\"",
-                "\"TicketUrl\"", "\"Clabe\"", "\"CardBrand\"", "\"CardLast4\"",
-                "\"ClientIp\"", "\"IsActive\"", "\"CreatedBy\""
-            };
+            std::vector<std::string> fieldsToInsert = mutationFields;
+            if (!fieldsToInsert.empty())
+            {
+                fieldsToInsert.push_back("Code");
+            }
 
-            std::string sql = omnisphere::types::BuildInsertQuery("\"MercadoPagoTransactions\"", cols);
-            std::vector<omnisphere::types::SQLParam> params = {
-                omnisphere::types::MakeSQLParam(codeVal),
-                omnisphere::types::MakeSQLParam(tx.externalReference),
-                omnisphere::types::MakeSQLParam(tx.paymentId),
-                omnisphere::types::MakeSQLParam(tx.preferenceId.value_or("")),
-                omnisphere::types::MakeSQLParam(tx.amount),
-                omnisphere::types::MakeSQLParam(tx.currency.empty() ? std::string("mxn") : tx.currency),
-                omnisphere::types::MakeSQLParam(tx.status.empty() ? std::string("pending") : tx.status),
-                omnisphere::types::MakeSQLParam(tx.statusDetail.value_or("")),
-                omnisphere::types::MakeSQLParam(tx.paymentMethodId.value_or("")),
-                omnisphere::types::MakeSQLParam(tx.paymentTypeId.value_or("")),
-                omnisphere::types::MakeSQLParam(tx.installments),
-                omnisphere::types::MakeSQLParam(tx.ticketUrl.value_or("")),
-                omnisphere::types::MakeSQLParam(tx.clabe.value_or("")),
-                omnisphere::types::MakeSQLParam(tx.cardBrand.value_or("")),
-                omnisphere::types::MakeSQLParam(tx.cardLast4.value_or("")),
-                omnisphere::types::MakeSQLParam(tx.clientIp.value_or("")),
-                omnisphere::types::MakeSQLParam(tx.isActive),
-                omnisphere::types::MakeSQLParam(tx.createdBy.empty() ? std::string("system") : tx.createdBy)
-            };
+            omnisphere::models::MercadoPagoTransaction toSave = tx;
+            if (toSave.clabe.has_value() && !toSave.clabe->empty())
+            {
+                toSave.clabe = omnisphere::utils::Base64::Encode(*toSave.clabe);
+            }
+            if (toSave.preferenceId.has_value() && !toSave.preferenceId->empty())
+            {
+                toSave.preferenceId = omnisphere::utils::Base64::Encode(*toSave.preferenceId);
+            }
+            if (toSave.clientIp.has_value() && !toSave.clientIp->empty())
+            {
+                toSave.clientIp = omnisphere::utils::Base64::Encode(*toSave.clientIp);
+            }
 
-            if (!conn->RunPrepared(sql, params))
+            auto insertData = omnisphere::types::BuildInsertQuery("\"MercadoPagoTransactions\"", 0, toSave, fieldsToInsert);
+            if (!conn->RunPrepared(insertData.Query, insertData.Parameters))
             {
                 conn->RollbackTransaction();
                 return false;
@@ -247,7 +167,16 @@ namespace omnisphere::repositories
             auto dt = conn->FetchPrepared(sql, { omnisphere::types::MakeSQLParam(paymentId) });
             if (!dt.IsEmpty())
             {
-                return omnisphere::types::FromDataRow<omnisphere::models::MercadoPagoTransaction>(dt[0]);
+                auto model = omnisphere::types::FromDataRow<omnisphere::models::MercadoPagoTransaction>(dt[0]);
+                auto safeDecode = [](std::optional<std::string>& opt) {
+                    if (opt.has_value() && !opt->empty()) {
+                        try { *opt = omnisphere::utils::Base64::Decode(*opt); } catch (...) {}
+                    }
+                };
+                safeDecode(model.clabe);
+                safeDecode(model.preferenceId);
+                safeDecode(model.clientIp);
+                return model;
             }
         }
         catch (const std::exception& ex)
@@ -271,7 +200,16 @@ namespace omnisphere::repositories
             auto dt = conn->FetchPrepared(sql, { omnisphere::types::MakeSQLParam(referenceCode) });
             if (!dt.IsEmpty())
             {
-                return omnisphere::types::FromDataRow<omnisphere::models::MercadoPagoTransaction>(dt[0]);
+                auto model = omnisphere::types::FromDataRow<omnisphere::models::MercadoPagoTransaction>(dt[0]);
+                auto safeDecode = [](std::optional<std::string>& opt) {
+                    if (opt.has_value() && !opt->empty()) {
+                        try { *opt = omnisphere::utils::Base64::Decode(*opt); } catch (...) {}
+                    }
+                };
+                safeDecode(model.clabe);
+                safeDecode(model.preferenceId);
+                safeDecode(model.clientIp);
+                return model;
             }
         }
         catch (const std::exception& ex)

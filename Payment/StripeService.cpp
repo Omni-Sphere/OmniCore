@@ -66,7 +66,6 @@ namespace omnisphere::services
         {
             auto decryptVal = [](const std::string& val) -> std::string {
                 if (val.empty()) return "";
-                if (val.rfind("pk_", 0) == 0 || val.rfind("sk_", 0) == 0 || val.rfind("whsec_", 0) == 0) return val;
                 try {
                     return omnisphere::utils::Base64::Decode(val);
                 } catch (...) {
@@ -82,10 +81,27 @@ namespace omnisphere::services
         return s;
     }
 
-    bool StripeService::SaveSettings(const omnisphere::models::StripeSettings& settings) const
+    bool StripeService::SaveSettings(const omnisphere::models::StripeSettings& settings, const std::vector<std::string>& mutationFields) const
     {
         if (!m_repository) return false;
-        return m_repository->SaveSettings(settings);
+
+        omnisphere::models::StripeSettings toSave = settings;
+
+        // Codificación directa de credenciales obligatorias
+        toSave.publishableKey = omnisphere::utils::Base64::Encode(toSave.publishableKey);
+        toSave.secretKey = omnisphere::utils::Base64::Encode(toSave.secretKey);
+        toSave.webhookSecretKey = omnisphere::utils::Base64::Encode(toSave.webhookSecretKey);
+
+        // Validación en el servicio para decidir la operación del repositorio
+        auto existing = m_repository->GetSettings({"Entry"});
+        if (existing.IsEmpty())
+        {
+            return m_repository->Create(toSave, mutationFields);
+        }
+        else
+        {
+            return m_repository->Update(toSave, mutationFields);
+        }
     }
 
     StripeCheckoutResult StripeService::CreateCheckoutSession(

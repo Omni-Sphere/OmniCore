@@ -47,7 +47,6 @@ namespace omnisphere::services
         {
             auto decryptVal = [](const std::string& val) -> std::string {
                 if (val.empty()) return "";
-                if (val.rfind("APP_USR-", 0) == 0 || val.rfind("TEST-", 0) == 0) return val;
                 try {
                     return omnisphere::utils::Base64::Decode(val);
                 } catch (...) {
@@ -61,10 +60,27 @@ namespace omnisphere::services
         return s;
     }
 
-    bool MercadoPagoService::SaveSettings(const omnisphere::models::MercadoPagoSettings& settings) const
+    bool MercadoPagoService::SaveSettings(const omnisphere::models::MercadoPagoSettings& settings, const std::vector<std::string>& mutationFields) const
     {
         if (!m_repository) return false;
-        return m_repository->SaveSettings(settings);
+
+        omnisphere::models::MercadoPagoSettings toSave = settings;
+
+        // Codificación directa de credenciales obligatorias
+        toSave.publicKey = omnisphere::utils::Base64::Encode(toSave.publicKey);
+        toSave.accessToken = omnisphere::utils::Base64::Encode(toSave.accessToken);
+        toSave.webhookSecretKey = omnisphere::utils::Base64::Encode(toSave.webhookSecretKey);
+
+        // Validación en el servicio para decidir la operación del repositorio
+        auto existing = m_repository->GetSettings({"Entry"});
+        if (existing.IsEmpty())
+        {
+            return m_repository->Create(toSave, mutationFields);
+        }
+        else
+        {
+            return m_repository->Update(toSave, mutationFields);
+        }
     }
 
     std::string MercadoPagoService::ExecuteHttpsRequest(

@@ -42,7 +42,7 @@ namespace omnisphere::services
         explicit MercadoPagoService(std::shared_ptr<omnisphere::repositories::MercadoPagoRepository> repository);
 
         std::optional<omnisphere::models::MercadoPagoSettings> GetSettings(bool decryptKeys = false) const;
-        bool SaveSettings(const omnisphere::models::MercadoPagoSettings& settings) const;
+        bool SaveSettings(const omnisphere::models::MercadoPagoSettings& settings, const std::vector<std::string>& mutationFields = {}) const;
 
         // Checkout API (Cobro directo con token generado por front en formulario propio)
         MercadoPagoPaymentResult CreatePayment(

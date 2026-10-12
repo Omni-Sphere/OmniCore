@@ -52,7 +52,7 @@ namespace omnisphere::services
         explicit StripeService(std::shared_ptr<omnisphere::repositories::StripeRepository> repository);
 
         std::optional<omnisphere::models::StripeSettings> GetSettings(bool decryptKeys = false) const;
-        bool SaveSettings(const omnisphere::models::StripeSettings& settings) const;
+        bool SaveSettings(const omnisphere::models::StripeSettings& settings, const std::vector<std::string>& mutationFields = {}) const;
 
         StripeCheckoutResult CreateCheckoutSession(
             const omnisphere::models::SecurityContext& ctx,
