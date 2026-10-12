@@ -101,7 +101,7 @@ namespace omnisphere::services
         }
         else
         {
-            toSave.code = existing[0]["Code"].Get<std::string>();
+            toSave.code = existing[0]["Code"].GetOptional<std::string>().value_or("DEFAULT");
             return m_repository->Update(toSave, mutationFields);
         }
     }
