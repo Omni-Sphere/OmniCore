@@ -93,13 +93,15 @@ namespace omnisphere::services
         toSave.webhookSecretKey = omnisphere::utils::Base64::Encode(toSave.webhookSecretKey);
 
         // Validación en el servicio para decidir la operación del repositorio
-        auto existing = m_repository->GetSettings({"Entry"});
+        auto existing = m_repository->GetSettings({"Entry", "Code"});
         if (existing.IsEmpty())
         {
+            if (toSave.code.empty()) toSave.code = "DEFAULT";
             return m_repository->Create(toSave, mutationFields);
         }
         else
         {
+            toSave.code = existing[0]["Code"].Get<std::string>();
             return m_repository->Update(toSave, mutationFields);
         }
     }
