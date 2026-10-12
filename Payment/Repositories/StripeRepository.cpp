@@ -83,6 +83,12 @@ namespace omnisphere::repositories
                 std::string finalCurrency = settings.currency.empty() ? getExisting("Currency") : settings.currency;
                 if (finalCurrency.empty()) finalCurrency = "mxn";
 
+                bool finalIsActive = settings.isActive;
+                if (finalPublishableKey.empty() || finalSecretKey.empty())
+                {
+                    finalIsActive = false;
+                }
+
                 std::vector<omnisphere::types::ColumnValue> updateCols = {
                     {"\"Name\"", omnisphere::types::MakeSQLParam(finalName)},
                     {"\"PublishableKey\"", omnisphere::types::MakeSQLParam(finalPublishableKey)},
@@ -93,7 +99,7 @@ namespace omnisphere::repositories
                     {"\"WebhookPath\"", omnisphere::types::MakeSQLParam(finalWebhookPath)},
                     {"\"Currency\"", omnisphere::types::MakeSQLParam(finalCurrency)},
                     {"\"IsTestMode\"", omnisphere::types::MakeSQLParam(settings.isTestMode)},
-                    {"\"IsActive\"", omnisphere::types::MakeSQLParam(settings.isActive)},
+                    {"\"IsActive\"", omnisphere::types::MakeSQLParam(finalIsActive)},
                     {"\"LastUpdatedBy\"", omnisphere::types::MakeSQLParam(settings.createdBy)}
                 };
 
@@ -107,6 +113,12 @@ namespace omnisphere::repositories
                 std::string finalCheckoutEndpoint = settings.checkoutEndpoint.empty() ? "/checkout/sessions" : settings.checkoutEndpoint;
                 std::string finalWebhookPath = settings.webhookPath.empty() ? "/api/v1/stripe/webhook" : settings.webhookPath;
                 std::string finalCurrency = settings.currency.empty() ? "mxn" : settings.currency;
+
+                bool finalIsActive = settings.isActive;
+                if (encPublishableKey.empty() || encSecretKey.empty())
+                {
+                    finalIsActive = false;
+                }
 
                 std::vector<std::string> cols = {
                     "\"Code\"", "\"Name\"", "\"PublishableKey\"", "\"SecretKey\"",
@@ -125,10 +137,9 @@ namespace omnisphere::repositories
                     omnisphere::types::MakeSQLParam(finalWebhookPath),
                     omnisphere::types::MakeSQLParam(finalCurrency),
                     omnisphere::types::MakeSQLParam(settings.isTestMode),
-                    omnisphere::types::MakeSQLParam(settings.isActive),
+                    omnisphere::types::MakeSQLParam(finalIsActive),
                     omnisphere::types::MakeSQLParam(settings.createdBy)
                 };
-
                 return conn->RunPrepared(sql, params);
             }
         }

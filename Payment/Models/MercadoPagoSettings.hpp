@@ -17,7 +17,7 @@ namespace omnisphere::models
         std::string webhookPath = "/api/v1/mercadopago/webhook";
         std::string currency = "mxn";
         bool isTestMode = true;
-        bool isActive = true;
+        bool isActive = false;
         std::string createdBy = "SYSTEM";
         std::optional<std::string> createDate;
         std::optional<std::string> lastUpdatedBy;
