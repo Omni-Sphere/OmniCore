@@ -33,15 +33,18 @@ namespace omnisphere::repositories
     bool StripeRepository::Create(const omnisphere::models::StripeSettings& settings, const std::vector<std::string>& mutationFields) const
     {
         if (!m_dbPool) return false;
+        std::string queryStr;
         try
         {
             auto conn = m_dbPool->Acquire();
             auto insertResult = omnisphere::types::BuildInsertQuery("\"StripeSettings\"", 0, settings, mutationFields);
+            queryStr = insertResult.Query;
             return conn->RunPrepared(insertResult.Query, insertResult.Parameters);
         }
         catch (const std::exception& ex)
         {
-            std::cerr << "[StripeRepository::Create Exception] " << ex.what() << std::endl;
+            std::cerr << "[StripeRepository::Create Exception] " << ex.what()
+                      << "\n[SQL Query]: " << queryStr << std::endl;
             return false;
         }
     }
@@ -49,21 +52,28 @@ namespace omnisphere::repositories
     bool StripeRepository::Update(const omnisphere::models::StripeSettings& settings, const std::vector<std::string>& mutationFields) const
     {
         if (!m_dbPool) return false;
+        std::string queryStr;
         try
         {
             auto conn = m_dbPool->Acquire();
             auto cols = omnisphere::types::ExtractUpdateColumns(settings, mutationFields);
+            if (cols.empty())
+            {
+                return true;
+            }
             auto updateResult = omnisphere::types::BuildUpdateQuery(
                 "\"StripeSettings\"",
                 cols,
                 "\"Code\"",
                 omnisphere::types::MakeSQLParam(settings.code.empty() ? "DEFAULT" : settings.code)
             );
+            queryStr = updateResult.Query;
             return conn->RunPrepared(updateResult.Query, updateResult.Parameters);
         }
         catch (const std::exception& ex)
         {
-            std::cerr << "[StripeRepository::Update Exception] " << ex.what() << std::endl;
+            std::cerr << "[StripeRepository::Update Exception] " << ex.what()
+                      << "\n[SQL Query]: " << queryStr << std::endl;
             return false;
         }
     }
@@ -192,19 +202,19 @@ namespace omnisphere::repositories
             }
 
             omnisphere::models::StripeTransaction toSave = tx;
-            if (toSave.clabe.has_value() && !toSave.clabe->empty())
+            if (toSave.clabe)
             {
                 toSave.clabe = omnisphere::utils::Base64::Encode(*toSave.clabe);
             }
-            if (toSave.authorizationCode.has_value() && !toSave.authorizationCode->empty())
+            if (toSave.authorizationCode)
             {
                 toSave.authorizationCode = omnisphere::utils::Base64::Encode(*toSave.authorizationCode);
             }
-            if (toSave.cardFingerprint.has_value() && !toSave.cardFingerprint->empty())
+            if (toSave.cardFingerprint)
             {
                 toSave.cardFingerprint = omnisphere::utils::Base64::Encode(*toSave.cardFingerprint);
             }
-            if (toSave.clientIp.has_value() && !toSave.clientIp->empty())
+            if (toSave.clientIp)
             {
                 toSave.clientIp = omnisphere::utils::Base64::Encode(*toSave.clientIp);
             }

@@ -33,15 +33,18 @@ namespace omnisphere::repositories
     bool MercadoPagoRepository::Create(const omnisphere::models::MercadoPagoSettings& settings, const std::vector<std::string>& mutationFields) const
     {
         if (!m_dbPool) return false;
+        std::string queryStr;
         try
         {
             auto conn = m_dbPool->Acquire();
             auto insertResult = omnisphere::types::BuildInsertQuery("\"MercadoPagoSettings\"", 0, settings, mutationFields);
+            queryStr = insertResult.Query;
             return conn->RunPrepared(insertResult.Query, insertResult.Parameters);
         }
         catch (const std::exception& ex)
         {
-            std::cerr << "[MercadoPagoRepository::Create Exception] " << ex.what() << std::endl;
+            std::cerr << "[MercadoPagoRepository::Create Exception] " << ex.what()
+                      << "\n[SQL Query]: " << queryStr << std::endl;
             return false;
         }
     }
@@ -49,21 +52,28 @@ namespace omnisphere::repositories
     bool MercadoPagoRepository::Update(const omnisphere::models::MercadoPagoSettings& settings, const std::vector<std::string>& mutationFields) const
     {
         if (!m_dbPool) return false;
+        std::string queryStr;
         try
         {
             auto conn = m_dbPool->Acquire();
             auto cols = omnisphere::types::ExtractUpdateColumns(settings, mutationFields);
+            if (cols.empty())
+            {
+                return true;
+            }
             auto updateResult = omnisphere::types::BuildUpdateQuery(
                 "\"MercadoPagoSettings\"",
                 cols,
                 "\"Code\"",
                 omnisphere::types::MakeSQLParam(settings.code.empty() ? "DEFAULT" : settings.code)
             );
+            queryStr = updateResult.Query;
             return conn->RunPrepared(updateResult.Query, updateResult.Parameters);
         }
         catch (const std::exception& ex)
         {
-            std::cerr << "[MercadoPagoRepository::Update Exception] " << ex.what() << std::endl;
+            std::cerr << "[MercadoPagoRepository::Update Exception] " << ex.what()
+                      << "\n[SQL Query]: " << queryStr << std::endl;
             return false;
         }
     }
@@ -90,15 +100,15 @@ namespace omnisphere::repositories
             }
 
             omnisphere::models::MercadoPagoTransaction toSave = tx;
-            if (toSave.clabe.has_value() && !toSave.clabe->empty())
+            if (toSave.clabe)
             {
                 toSave.clabe = omnisphere::utils::Base64::Encode(*toSave.clabe);
             }
-            if (toSave.preferenceId.has_value() && !toSave.preferenceId->empty())
+            if (toSave.preferenceId)
             {
                 toSave.preferenceId = omnisphere::utils::Base64::Encode(*toSave.preferenceId);
             }
-            if (toSave.clientIp.has_value() && !toSave.clientIp->empty())
+            if (toSave.clientIp)
             {
                 toSave.clientIp = omnisphere::utils::Base64::Encode(*toSave.clientIp);
             }
