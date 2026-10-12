@@ -1,5 +1,6 @@
 #pragma once
 #include "Payment/Providers/IPaymentProvider.hpp"
+#include "Payment/MercadoPagoService.hpp"
 #include <OmniData/DatabasePool.hpp>
 #include <memory>
 
@@ -9,9 +10,13 @@ namespace omnisphere::payment
     {
     public:
         explicit MercadoPagoPaymentProvider(std::shared_ptr<omnisphere::data::DatabasePool> dbPool);
+        explicit MercadoPagoPaymentProvider(
+            std::shared_ptr<omnisphere::services::MercadoPagoService> service,
+            std::shared_ptr<omnisphere::data::DatabasePool> dbPool
+        );
 
         std::string GetProviderCode() const override { return "MERCADOPAGO"; }
-        std::string GetDisplayName() const override { return "Mercado Pago / Mercado Libre"; }
+        std::string GetDisplayName() const override { return "Mercado Pago (Tarjetas / SPEI / OXXO)"; }
 
         ProviderPaymentIntentResult CreatePaymentIntent(const omnisphere::models::PayableEntity& entity) override;
         ProviderBankTransferResult CreateBankTransfer(const omnisphere::models::PayableEntity& entity) override;
@@ -25,6 +30,7 @@ namespace omnisphere::payment
         std::optional<PaymentEvent> ParseWebhookEvent(const omnisphere::net::Request& req) const override;
 
     private:
+        std::shared_ptr<omnisphere::services::MercadoPagoService> m_service;
         std::shared_ptr<omnisphere::data::DatabasePool> m_dbPool;
     };
 } // namespace omnisphere::payment

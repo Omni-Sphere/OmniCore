@@ -21,7 +21,7 @@ namespace omnisphere::services
         std::string configuredPath = "/api/v1/stripe/webhook";
         try
         {
-            auto dt = repo->GetSettings();
+            auto dt = repo->GetSettings({"WebhookPath"});
             if (!dt.IsEmpty())
             {
                 const auto& row = dt[0];

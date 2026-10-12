@@ -67,6 +67,8 @@ add_library(OmniCore SHARED
     Payment/Repositories/StripeRepository.cpp
     Payment/StripeWebhookHandler.cpp
     Payment/StripeWebhookRouter.cpp
+    Payment/MercadoPagoService.cpp
+    Payment/Repositories/MercadoPagoRepository.cpp
     Payment/PaymentMethodService.cpp
     Payment/Repositories/PaymentMethodRepository.cpp
     Payment/Transaction/Repositories/PaymentRepository.cpp

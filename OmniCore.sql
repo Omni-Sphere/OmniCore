@@ -619,6 +619,54 @@ CREATE INDEX IF NOT EXISTS "IDX_StripeTransactions_ReservationCode" ON "StripeTr
 CREATE INDEX IF NOT EXISTS "IDX_StripeTransactions_PaymentIntentId" ON "StripeTransactions" ("PaymentIntentId");
 CREATE INDEX IF NOT EXISTS "IDX_StripeTransactions_Clabe" ON "StripeTransactions" ("Clabe");
 
+-- 24.1 MercadoPagoSettings
+CREATE TABLE IF NOT EXISTS "MercadoPagoSettings" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(50) NOT NULL DEFAULT 'DEFAULT' UNIQUE,
+    "Name" VARCHAR(255) NOT NULL DEFAULT 'Mercado Pago Settings',
+    "PublicKey" TEXT,
+    "AccessToken" TEXT,
+    "WebhookSecretKey" TEXT,
+    "ApiBaseUrl" VARCHAR(255) NOT NULL DEFAULT 'https://api.mercadopago.com',
+    "WebhookPath" VARCHAR(255) NOT NULL DEFAULT '/api/v1/mercadopago/webhook',
+    "Currency" VARCHAR(10) NOT NULL DEFAULT 'mxn',
+    "IsTestMode" BOOLEAN NOT NULL DEFAULT true,
+    "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" VARCHAR(50),
+    "UpdateDate" TIMESTAMP
+);
+
+-- 24.2 MercadoPagoTransactions (Auditing & Webhook Correlation)
+CREATE TABLE IF NOT EXISTS "MercadoPagoTransactions" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(50) NOT NULL UNIQUE,
+    "ExternalReference" VARCHAR(50) NOT NULL,
+    "PaymentId" VARCHAR(255) NOT NULL,
+    "PreferenceId" VARCHAR(255),
+    "Amount" NUMERIC(10, 2) NOT NULL,
+    "Currency" VARCHAR(10) NOT NULL DEFAULT 'mxn',
+    "Status" VARCHAR(50) NOT NULL DEFAULT 'pending',
+    "StatusDetail" VARCHAR(255),
+    "PaymentMethodId" VARCHAR(50),
+    "PaymentTypeId" VARCHAR(50),
+    "Installments" INT DEFAULT 1,
+    "TicketUrl" TEXT,
+    "Clabe" VARCHAR(50),
+    "CardBrand" VARCHAR(50),
+    "CardLast4" VARCHAR(10),
+    "ClientIp" VARCHAR(50),
+    "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" VARCHAR(50),
+    "UpdateDate" TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS "IDX_MercadoPagoTransactions_ExternalReference" ON "MercadoPagoTransactions" ("ExternalReference");
+CREATE INDEX IF NOT EXISTS "IDX_MercadoPagoTransactions_PaymentId" ON "MercadoPagoTransactions" ("PaymentId");
+
 -- 25. WhatsAppSettings (Meta Cloud API)
 CREATE TABLE IF NOT EXISTS "WhatsAppSettings" (
     "Entry" SERIAL PRIMARY KEY,
