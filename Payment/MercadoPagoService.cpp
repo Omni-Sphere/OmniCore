@@ -40,9 +40,37 @@ namespace omnisphere::services
     {
         if (!m_repository) return std::nullopt;
         auto dt = m_repository->GetSettings();
-        if (dt.IsEmpty()) return std::nullopt;
+        if (dt.IsEmpty())
+        {
+            omnisphere::models::MercadoPagoSettings emptySettings;
+            emptySettings.entry = 0;
+            emptySettings.code = "";
+            emptySettings.name = "";
+            emptySettings.publicKey = "";
+            emptySettings.accessToken = "";
+            emptySettings.webhookSecretKey = "";
+            emptySettings.apiBaseUrl = "https://api.mercadopago.com";
+            emptySettings.webhookPath = "/api/v1/mercadopago/webhook";
+            emptySettings.currency = "mxn";
+            emptySettings.isTestMode = true;
+            emptySettings.isActive = false;
+            return emptySettings;
+        }
 
-        auto s = omnisphere::types::FromDataRow<omnisphere::models::MercadoPagoSettings>(dt[0]);
+        const auto& row = dt[0];
+        omnisphere::models::MercadoPagoSettings s;
+        s.entry = row.HasColumn("Entry") ? row["Entry"].GetOptional<int>().value_or(0) : 0;
+        s.code = row.HasColumn("Code") ? row["Code"].GetOptional<std::string>().value_or("DEFAULT") : "DEFAULT";
+        s.name = row.HasColumn("Name") ? row["Name"].GetOptional<std::string>().value_or("Mercado Pago Settings") : "Mercado Pago Settings";
+        s.publicKey = row.HasColumn("PublicKey") ? row["PublicKey"].GetOptional<std::string>().value_or("") : "";
+        s.accessToken = row.HasColumn("AccessToken") ? row["AccessToken"].GetOptional<std::string>().value_or("") : "";
+        s.webhookSecretKey = row.HasColumn("WebhookSecretKey") ? row["WebhookSecretKey"].GetOptional<std::string>().value_or("") : "";
+        s.apiBaseUrl = row.HasColumn("ApiBaseUrl") ? row["ApiBaseUrl"].GetOptional<std::string>().value_or("https://api.mercadopago.com") : "https://api.mercadopago.com";
+        s.webhookPath = row.HasColumn("WebhookPath") ? row["WebhookPath"].GetOptional<std::string>().value_or("/api/v1/mercadopago/webhook") : "/api/v1/mercadopago/webhook";
+        s.currency = row.HasColumn("Currency") ? row["Currency"].GetOptional<std::string>().value_or("mxn") : "mxn";
+        s.isTestMode = row.HasColumn("IsTestMode") ? row["IsTestMode"].GetOptional<bool>().value_or(true) : true;
+        s.isActive = row.HasColumn("IsActive") ? row["IsActive"].GetOptional<bool>().value_or(false) : false;
+
         if (decryptKeys)
         {
             auto decryptVal = [](const std::string& val) -> std::string {

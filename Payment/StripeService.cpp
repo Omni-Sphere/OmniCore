@@ -58,9 +58,38 @@ namespace omnisphere::services
     {
         if (!m_repository) return std::nullopt;
         auto dt = m_repository->GetSettings();
-        if (dt.IsEmpty()) return std::nullopt;
+        if (dt.IsEmpty())
+        {
+            omnisphere::models::StripeSettings emptySettings;
+            emptySettings.entry = 0;
+            emptySettings.code = "";
+            emptySettings.name = "";
+            emptySettings.publishableKey = "";
+            emptySettings.secretKey = "";
+            emptySettings.webhookSecretKey = "";
+            emptySettings.apiBaseUrl = "https://api.stripe.com/v1";
+            emptySettings.checkoutEndpoint = "/checkout/sessions";
+            emptySettings.webhookPath = "/api/v1/stripe/webhook";
+            emptySettings.currency = "mxn";
+            emptySettings.isTestMode = true;
+            emptySettings.isActive = false;
+            return emptySettings;
+        }
 
-        auto s = omnisphere::types::FromDataRow<omnisphere::models::StripeSettings>(dt[0]);
+        const auto& row = dt[0];
+        omnisphere::models::StripeSettings s;
+        s.entry = row.HasColumn("Entry") ? row["Entry"].GetOptional<int>().value_or(0) : 0;
+        s.code = row.HasColumn("Code") ? row["Code"].GetOptional<std::string>().value_or("DEFAULT") : "DEFAULT";
+        s.name = row.HasColumn("Name") ? row["Name"].GetOptional<std::string>().value_or("Stripe Payment Settings") : "Stripe Payment Settings";
+        s.publishableKey = row.HasColumn("PublishableKey") ? row["PublishableKey"].GetOptional<std::string>().value_or("") : "";
+        s.secretKey = row.HasColumn("SecretKey") ? row["SecretKey"].GetOptional<std::string>().value_or("") : "";
+        s.webhookSecretKey = row.HasColumn("WebhookSecretKey") ? row["WebhookSecretKey"].GetOptional<std::string>().value_or("") : "";
+        s.apiBaseUrl = row.HasColumn("ApiBaseUrl") ? row["ApiBaseUrl"].GetOptional<std::string>().value_or("https://api.stripe.com/v1") : "https://api.stripe.com/v1";
+        s.checkoutEndpoint = row.HasColumn("CheckoutEndpoint") ? row["CheckoutEndpoint"].GetOptional<std::string>().value_or("/checkout/sessions") : "/checkout/sessions";
+        s.webhookPath = row.HasColumn("WebhookPath") ? row["WebhookPath"].GetOptional<std::string>().value_or("/api/v1/stripe/webhook") : "/api/v1/stripe/webhook";
+        s.currency = row.HasColumn("Currency") ? row["Currency"].GetOptional<std::string>().value_or("mxn") : "mxn";
+        s.isTestMode = row.HasColumn("IsTestMode") ? row["IsTestMode"].GetOptional<bool>().value_or(true) : true;
+        s.isActive = row.HasColumn("IsActive") ? row["IsActive"].GetOptional<bool>().value_or(false) : false;
 
         if (decryptKeys)
         {
