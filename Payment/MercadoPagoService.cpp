@@ -57,19 +57,7 @@ namespace omnisphere::services
             return emptySettings;
         }
 
-        const auto& row = dt[0];
-        omnisphere::models::MercadoPagoSettings s;
-        s.entry = row.HasColumn("Entry") ? row["Entry"].GetOptional<int>().value_or(0) : 0;
-        s.code = row.HasColumn("Code") ? row["Code"].GetOptional<std::string>().value_or("DEFAULT") : "DEFAULT";
-        s.name = row.HasColumn("Name") ? row["Name"].GetOptional<std::string>().value_or("Mercado Pago Settings") : "Mercado Pago Settings";
-        s.publicKey = row.HasColumn("PublicKey") ? row["PublicKey"].GetOptional<std::string>().value_or("") : "";
-        s.accessToken = row.HasColumn("AccessToken") ? row["AccessToken"].GetOptional<std::string>().value_or("") : "";
-        s.webhookSecretKey = row.HasColumn("WebhookSecretKey") ? row["WebhookSecretKey"].GetOptional<std::string>().value_or("") : "";
-        s.apiBaseUrl = row.HasColumn("ApiBaseUrl") ? row["ApiBaseUrl"].GetOptional<std::string>().value_or("https://api.mercadopago.com") : "https://api.mercadopago.com";
-        s.webhookPath = row.HasColumn("WebhookPath") ? row["WebhookPath"].GetOptional<std::string>().value_or("/api/v1/mercadopago/webhook") : "/api/v1/mercadopago/webhook";
-        s.currency = row.HasColumn("Currency") ? row["Currency"].GetOptional<std::string>().value_or("mxn") : "mxn";
-        s.isTestMode = row.HasColumn("IsTestMode") ? row["IsTestMode"].GetOptional<bool>().value_or(true) : true;
-        s.isActive = row.HasColumn("IsActive") ? row["IsActive"].GetOptional<bool>().value_or(false) : false;
+        auto s = omnisphere::types::FromDataRow<omnisphere::models::MercadoPagoSettings>(dt[0]);
 
         if (decryptKeys)
         {
@@ -95,10 +83,15 @@ namespace omnisphere::services
         omnisphere::models::MercadoPagoSettings toSave = settings;
 
         // Validación en el servicio para decidir la operación del repositorio
-        auto existing = m_repository->GetSettings({"Entry", "Code", "PublicKey", "AccessToken", "WebhookSecretKey"});
-        std::string existingPub = !existing.IsEmpty() && existing[0].HasColumn("PublicKey") ? existing[0]["PublicKey"].GetOptional<std::string>().value_or("") : "";
-        std::string existingSec = !existing.IsEmpty() && existing[0].HasColumn("AccessToken") ? existing[0]["AccessToken"].GetOptional<std::string>().value_or("") : "";
-        std::string existingWh = !existing.IsEmpty() && existing[0].HasColumn("WebhookSecretKey") ? existing[0]["WebhookSecretKey"].GetOptional<std::string>().value_or("") : "";
+        auto existingDt = m_repository->GetSettings({"Entry", "Code", "PublicKey", "AccessToken", "WebhookSecretKey"});
+        omnisphere::models::MercadoPagoSettings existingSettings{};
+        if (!existingDt.IsEmpty())
+        {
+            existingSettings = omnisphere::types::FromDataRow<omnisphere::models::MercadoPagoSettings>(existingDt[0]);
+        }
+        std::string existingPub = existingSettings.publicKey;
+        std::string existingSec = existingSettings.accessToken;
+        std::string existingWh = existingSettings.webhookSecretKey;
 
         auto encodeIfNeeded = [](const std::string& input, const std::string& existingVal) -> std::string {
             if (input.empty()) return "";
@@ -110,14 +103,14 @@ namespace omnisphere::services
         toSave.accessToken = encodeIfNeeded(toSave.accessToken, existingSec);
         toSave.webhookSecretKey = encodeIfNeeded(toSave.webhookSecretKey, existingWh);
 
-        if (existing.IsEmpty())
+        if (existingDt.IsEmpty())
         {
             if (toSave.code.empty()) toSave.code = "DEFAULT";
             return m_repository->Create(toSave, mutationFields);
         }
         else
         {
-            toSave.code = existing[0]["Code"].GetOptional<std::string>().value_or("DEFAULT");
+            toSave.code = existingSettings.code.empty() ? "DEFAULT" : existingSettings.code;
             return m_repository->Update(toSave, mutationFields);
         }
     }
