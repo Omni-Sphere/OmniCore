@@ -94,13 +94,22 @@ namespace omnisphere::services
 
         omnisphere::models::MercadoPagoSettings toSave = settings;
 
-        // Codificación directa de credenciales obligatorias
-        toSave.publicKey = omnisphere::utils::Base64::Encode(toSave.publicKey);
-        toSave.accessToken = omnisphere::utils::Base64::Encode(toSave.accessToken);
-        toSave.webhookSecretKey = omnisphere::utils::Base64::Encode(toSave.webhookSecretKey);
-
         // Validación en el servicio para decidir la operación del repositorio
-        auto existing = m_repository->GetSettings({"Entry", "Code"});
+        auto existing = m_repository->GetSettings({"Entry", "Code", "PublicKey", "AccessToken", "WebhookSecretKey"});
+        std::string existingPub = !existing.IsEmpty() && existing[0].HasColumn("PublicKey") ? existing[0]["PublicKey"].GetOptional<std::string>().value_or("") : "";
+        std::string existingSec = !existing.IsEmpty() && existing[0].HasColumn("AccessToken") ? existing[0]["AccessToken"].GetOptional<std::string>().value_or("") : "";
+        std::string existingWh = !existing.IsEmpty() && existing[0].HasColumn("WebhookSecretKey") ? existing[0]["WebhookSecretKey"].GetOptional<std::string>().value_or("") : "";
+
+        auto encodeIfNeeded = [](const std::string& input, const std::string& existingVal) -> std::string {
+            if (input.empty()) return "";
+            if (!existingVal.empty() && input == existingVal) return existingVal;
+            return omnisphere::utils::Base64::Encode(input);
+        };
+
+        toSave.publicKey = encodeIfNeeded(toSave.publicKey, existingPub);
+        toSave.accessToken = encodeIfNeeded(toSave.accessToken, existingSec);
+        toSave.webhookSecretKey = encodeIfNeeded(toSave.webhookSecretKey, existingWh);
+
         if (existing.IsEmpty())
         {
             if (toSave.code.empty()) toSave.code = "DEFAULT";
