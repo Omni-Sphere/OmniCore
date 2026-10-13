@@ -86,6 +86,7 @@ add_library(OmniCore SHARED
     SystemConfig/Repositories/SystemConfig.cpp
     License/Services/LicenseService.cpp
     License/Repositories/LicenseRepository.cpp
+    Integration/IntegrationService.cpp
 )
 
 # --- Resolución de dependencias Omni ---
@@ -229,6 +230,7 @@ set(
     License/Models
     License/Services
     License/Repositories
+    Integration
 )
 
 foreach(DIR ${HEADER_DIRS})

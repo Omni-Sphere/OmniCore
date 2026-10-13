@@ -567,6 +567,39 @@ CREATE INDEX IF NOT EXISTS "IDX_PaymentTransactions_ExpiresAt_Pending" ON "Payme
 CREATE INDEX IF NOT EXISTS "IDX_PaymentTransactions_PaymentIntentId" ON "PaymentTransactions" ("PaymentIntentId");
 CREATE INDEX IF NOT EXISTS "IDX_PaymentTransactions_Clabe" ON "PaymentTransactions" ("Clabe");
 
+-- 18.1 Integrations (Platform Master Catalog of Integrations)
+CREATE TABLE IF NOT EXISTS "Integrations" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(50) NOT NULL UNIQUE,
+    "Name" VARCHAR(100) NOT NULL,
+    "DisplayName" VARCHAR(255) NOT NULL,
+    "Category" VARCHAR(50) NOT NULL DEFAULT 'PAYMENT',
+    "SettingsTable" VARCHAR(100),
+    "LicenseModule" VARCHAR(50),
+    "RequiredColumns" VARCHAR(255),
+    "Description" TEXT,
+    "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" VARCHAR(50),
+    "UpdateDate" TIMESTAMP
+);
+
+INSERT INTO "Integrations" ("Code", "Name", "DisplayName", "Category", "SettingsTable", "LicenseModule", "RequiredColumns", "Description", "IsActive")
+VALUES
+    ('STRIPE', 'Stripe', 'Stripe Payments (Tarjeta / SPEI)', 'PAYMENT', 'StripeSettings', 'MOD_STRIPE', 'PublishableKey,SecretKey', 'Procesamiento de pagos con tarjeta de crédito/débito y transferencias bancarias SPEI.', true),
+    ('MERCADOPAGO', 'Mercado Pago', 'Mercado Pago (Tarjeta / Wallet)', 'PAYMENT', 'MercadoPagoSettings', 'MOD_MERCADOPAGO', 'PublicKey,AccessToken', 'Plataforma de pagos y billetera virtual en América Latina.', true),
+    ('OPENPAY', 'OpenPay', 'OpenPay BBVA (Tarjeta / Paynet)', 'PAYMENT', 'OpenPaySettings', 'MOD_OPENPAY', 'MerchantId,PublicKey,PrivateKey', 'Pasarela de pagos respaldada por BBVA México con soporte para tarjetas y tiendas Paynet.', true),
+    ('WHATSAPP', 'WhatsApp', 'WhatsApp Meta Cloud API', 'MESSAGING', 'WhatsAppSettings', 'MOD_WHATSAPP', 'PhoneId,ApiToken', 'Envío y recepción de notificaciones a través de la API oficial de WhatsApp Cloud.', true)
+ON CONFLICT ("Code") DO UPDATE SET
+    "Name" = EXCLUDED."Name",
+    "DisplayName" = EXCLUDED."DisplayName",
+    "Category" = EXCLUDED."Category",
+    "SettingsTable" = EXCLUDED."SettingsTable",
+    "LicenseModule" = EXCLUDED."LicenseModule",
+    "RequiredColumns" = EXCLUDED."RequiredColumns",
+    "Description" = EXCLUDED."Description";
+
 -- 19. StripeSettings
 CREATE TABLE IF NOT EXISTS "StripeSettings" (
     "Entry" SERIAL PRIMARY KEY,
@@ -1300,7 +1333,7 @@ DECLARE
         'Users', 'Employees', 'Identities', 'Roles', 'Permissions', 'RolePermissions', 'UserPermissions',
         'RoleModules', 'UserModules', 'Departments', 'AuthorizationTemplates', 'AuthorizationStages', 'AuthorizationRules', 
         'AuthorizationRuleUsers', 'AuthorizationRequests', 'AuthorizationDecisions',
-        'PaymentMethods', 'PaymentMethodDetails', 'PaymentTransactions',
+        'PaymentMethods', 'PaymentMethodDetails', 'PaymentTransactions', 'Integrations',
         'StripeSettings', 'EmailSettings', 'SystemConfigs',
         'WhatsAppSettings', 'TwilioSettings', 'CustomMessages', 'CustomButtons',
         'Branches', 'TaxRates', 'UnitOfMeasures', 'Currencies', 'ExchangeRates', 'Series'
