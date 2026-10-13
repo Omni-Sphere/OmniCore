@@ -1,8 +1,7 @@
 #include "License/Services/LicenseService.hpp"
+#include <OmniUtils/Base64.hpp>
 #include <openssl/hmac.h>
 #include <openssl/evp.h>
-#include <openssl/bio.h>
-#include <openssl/buffer.h>
 #include <boost/json.hpp>
 #include <iostream>
 #include <sstream>
@@ -52,66 +51,6 @@ namespace omnisphere::services
         }
     }
 
-    // =========================================================================
-    // Criptografía — Helpers internos
-    // =========================================================================
-
-    std::string LicenseService::Base64UrlEncode(const std::vector<unsigned char>& data)
-    {
-        // Codificar en Base64 estándar primero
-        BIO* b64 = BIO_new(BIO_f_base64());
-        BIO* mem = BIO_new(BIO_s_mem());
-        b64 = BIO_push(b64, mem);
-        BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
-        BIO_write(b64, data.data(), static_cast<int>(data.size()));
-        BIO_flush(b64);
-
-        BUF_MEM* bptr = nullptr;
-        BIO_get_mem_ptr(b64, &bptr);
-        std::string result(bptr->data, bptr->length);
-        BIO_free_all(b64);
-
-        // Convertir a Base64URL: + → -, / → _, quitar =
-        for (auto& c : result) {
-            if (c == '+') c = '-';
-            else if (c == '/') c = '_';
-        }
-        while (!result.empty() && result.back() == '=')
-            result.pop_back();
-
-        return result;
-    }
-
-    std::string LicenseService::Base64UrlEncode(const std::string& data)
-    {
-        return Base64UrlEncode(std::vector<unsigned char>(data.begin(), data.end()));
-    }
-
-    std::string LicenseService::Base64UrlDecode(const std::string& encoded)
-    {
-        // Restaurar Base64 estándar desde Base64URL
-        std::string b64 = encoded;
-        for (auto& c : b64) {
-            if (c == '-') c = '+';
-            else if (c == '_') c = '/';
-        }
-        // Agregar padding
-        while (b64.size() % 4 != 0) b64 += '=';
-
-        BIO* b64bio = BIO_new(BIO_f_base64());
-        BIO* mem    = BIO_new_mem_buf(b64.data(), static_cast<int>(b64.size()));
-        b64bio = BIO_push(b64bio, mem);
-        BIO_set_flags(b64bio, BIO_FLAGS_BASE64_NO_NL);
-
-        std::string decoded(b64.size(), '\0');
-        int len = BIO_read(b64bio, decoded.data(), static_cast<int>(decoded.size()));
-        BIO_free_all(b64bio);
-
-        if (len <= 0) return "";
-        decoded.resize(static_cast<size_t>(len));
-        return decoded;
-    }
-
     std::string LicenseService::ComputeHmac(const std::string& data, const std::string& secret)
     {
         unsigned char digest[EVP_MAX_MD_SIZE];
@@ -125,7 +64,7 @@ namespace omnisphere::services
              digest,
              &digestLen);
 
-        return Base64UrlEncode(std::vector<unsigned char>(digest, digest + digestLen));
+        return omnisphere::utils::Base64::EncodeUrl(std::string(reinterpret_cast<const char*>(digest), digestLen));
     }
 
     // =========================================================================
@@ -153,9 +92,16 @@ namespace omnisphere::services
             issuedAt = buf;
         }
 
+        // Módulos: si no se especifican, licenciar todos los módulos del ecosistema por defecto
+        std::vector<std::string> modules = params.modules;
+        if (modules.empty())
+        {
+            modules = omnisphere::license::AllModules();
+        }
+
         // Construir JSON de módulos
         boost::json::array modulesArr;
-        for (const auto& mod : params.modules)
+        for (const auto& mod : modules)
             modulesArr.push_back(boost::json::value(boost::json::string_view(mod)));
 
         boost::json::object payload;
@@ -166,10 +112,17 @@ namespace omnisphere::services
         payload["modules"] = modulesArr;
 
         std::string payloadJson = boost::json::serialize(payload);
-        std::string encodedPayload = Base64UrlEncode(payloadJson);
+        std::string encodedPayload = omnisphere::utils::Base64::EncodeUrl(payloadJson);
         std::string signature      = ComputeHmac(encodedPayload, masterSecret);
 
-        return "OMNI-" + encodedPayload + "." + signature;
+        std::string apiKey = "OMNI-" + encodedPayload + "." + signature;
+
+        std::cout << "\n===============================================================================\n"
+                  << "[LicenseService::GenerateKey] NUEVA LICENCIA GENERADA (" << modules.size() << " MÓDULOS):\n"
+                  << apiKey << "\n"
+                  << "===============================================================================\n" << std::endl;
+
+        return apiKey;
     }
 
     std::string LicenseService::GenerateKey(const LicenseParams& params) const
@@ -289,7 +242,7 @@ namespace omnisphere::services
             throw LicenseException("Firma de API Key inválida. La clave no fue emitida por OmniSphere Authority o ha sido modificada.");
 
         // Decodificar payload
-        std::string payloadJson = Base64UrlDecode(encodedPayload);
+        std::string payloadJson = omnisphere::utils::Base64::DecodeUrl(encodedPayload);
         omnisphere::models::SystemLicense lic = ParsePayload(payloadJson);
         lic.apiKey = apiKey;
 
@@ -330,6 +283,24 @@ namespace omnisphere::services
         if (!m_repository) return false;
         try
         {
+            // =================================================================
+            // [TEMPORAL] GENERACIÓN DE LICENCIA MAESTRA POR DEFECTO
+            // Comenta este bloque tras copiar y resguardar la API Key.
+            // =================================================================
+            {
+                LicenseParams genParams;
+                genParams.clientName = "OmniSphere Platform";
+                genParams.expiresAt  = "2099-12-31";
+                genParams.modules    = omnisphere::license::AllModules();
+                std::string masterKey = GenerateKey(genParams);
+                std::cout << "\n===============================================================================\n"
+                          << ">>> COPIA Y RESGUARDA ESTA OMNILICENSE API KEY (TODOS LOS MÓDULOS) <<<\n"
+                          << masterKey << "\n"
+                          << "===============================================================================\n" << std::endl;
+                ActivateKey(masterKey);
+            }
+            // =================================================================
+
             auto active = m_repository->GetActive();
             if (!active.has_value())
             {

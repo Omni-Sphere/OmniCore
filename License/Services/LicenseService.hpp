@@ -121,13 +121,6 @@ namespace omnisphere::services
         /// Calcula HMAC-SHA256 con OpenSSL y retorna el resultado en Base64URL
         static std::string ComputeHmac(const std::string& data, const std::string& secret);
 
-        /// Codifica bytes en Base64URL (sin padding '=')
-        static std::string Base64UrlEncode(const std::vector<unsigned char>& data);
-        static std::string Base64UrlEncode(const std::string& data);
-
-        /// Decodifica Base64URL → string
-        static std::string Base64UrlDecode(const std::string& encoded);
-
         /// Parsea el payload JSON y rellena un SystemLicense (sin validar firma)
         static omnisphere::models::SystemLicense ParsePayload(const std::string& payloadJson);
 
