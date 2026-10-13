@@ -587,10 +587,10 @@ CREATE TABLE IF NOT EXISTS "Integrations" (
 
 INSERT INTO "Integrations" ("Code", "Name", "DisplayName", "Category", "SettingsTable", "LicenseModule", "RequiredColumns", "Description", "IsActive")
 VALUES
-    ('STRIPE', 'Stripe', 'Stripe Payments (Tarjeta / SPEI)', 'PAYMENT', 'StripeSettings', 'MOD_STRIPE', 'PublishableKey,SecretKey', 'Procesamiento de pagos con tarjeta de crédito/débito y transferencias bancarias SPEI.', true),
-    ('MERCADOPAGO', 'Mercado Pago', 'Mercado Pago (Tarjeta / Wallet)', 'PAYMENT', 'MercadoPagoSettings', 'MOD_MERCADOPAGO', 'PublicKey,AccessToken', 'Plataforma de pagos y billetera virtual en América Latina.', true),
-    ('OPENPAY', 'OpenPay', 'OpenPay BBVA (Tarjeta / Paynet)', 'PAYMENT', 'OpenPaySettings', 'MOD_OPENPAY', 'MerchantId,PublicKey,PrivateKey', 'Pasarela de pagos respaldada por BBVA México con soporte para tarjetas y tiendas Paynet.', true),
-    ('WHATSAPP', 'WhatsApp', 'WhatsApp Meta Cloud API', 'MESSAGING', 'WhatsAppSettings', 'MOD_WHATSAPP', 'PhoneId,ApiToken', 'Envío y recepción de notificaciones a través de la API oficial de WhatsApp Cloud.', true)
+    ('STRIPE', 'Stripe', 'Stripe Payments (Tarjeta / SPEI)', 'PAYMENT', 'StripeSettings', 'MODULE_STRIPE', 'PublishableKey,SecretKey', 'Procesamiento de pagos con tarjeta de crédito/débito y transferencias bancarias SPEI.', true),
+    ('MERCADOPAGO', 'Mercado Pago', 'Mercado Pago (Tarjeta / Wallet)', 'PAYMENT', 'MercadoPagoSettings', 'MODULE_MERCADOPAGO', 'PublicKey,AccessToken', 'Plataforma de pagos y billetera virtual en América Latina.', true),
+    ('OPENPAY', 'OpenPay', 'OpenPay BBVA (Tarjeta / Paynet)', 'PAYMENT', 'OpenPaySettings', 'MODULE_OPENPAY', 'MerchantId,PublicKey,PrivateKey', 'Pasarela de pagos respaldada por BBVA México con soporte para tarjetas y tiendas Paynet.', true),
+    ('WHATSAPP', 'WhatsApp', 'WhatsApp Meta Cloud API', 'MESSAGING', 'WhatsAppSettings', 'MODULE_WHATSAPP', 'PhoneId,ApiToken', 'Envío y recepción de notificaciones a través de la API oficial de WhatsApp Cloud.', true)
 ON CONFLICT ("Code") DO UPDATE SET
     "Name" = EXCLUDED."Name",
     "DisplayName" = EXCLUDED."DisplayName",
@@ -702,6 +702,28 @@ CREATE TABLE IF NOT EXISTS "MercadoPagoTransactions" (
 
 CREATE INDEX IF NOT EXISTS "IDX_MercadoPagoTransactions_ExternalReference" ON "MercadoPagoTransactions" ("ExternalReference");
 CREATE INDEX IF NOT EXISTS "IDX_MercadoPagoTransactions_PaymentId" ON "MercadoPagoTransactions" ("PaymentId");
+
+-- 24.3 OpenPaySettings (Configuración Nativa de OpenPay)
+CREATE TABLE IF NOT EXISTS "OpenPaySettings" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(50) NOT NULL DEFAULT 'DEFAULT' UNIQUE,
+    "Name" VARCHAR(255) NOT NULL DEFAULT 'OpenPay Settings',
+    "MerchantId" VARCHAR(255),
+    "PublicKey" TEXT,
+    "PrivateKey" TEXT,
+    "WebhookSecretKey" TEXT,
+    "ApiBaseUrl" VARCHAR(255) NOT NULL DEFAULT 'https://sandbox-api.openpay.mx/v1',
+    "IsTestMode" BOOLEAN NOT NULL DEFAULT true,
+    "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" VARCHAR(50),
+    "UpdateDate" TIMESTAMP
+);
+
+INSERT INTO "OpenPaySettings" ("Code", "Name", "IsTestMode", "IsActive", "CreatedBy") VALUES
+('DEFAULT', 'OpenPay Settings', true, true, 'system')
+ON CONFLICT ("Code") DO NOTHING;
 
 -- 25. WhatsAppSettings (Meta Cloud API)
 CREATE TABLE IF NOT EXISTS "WhatsAppSettings" (

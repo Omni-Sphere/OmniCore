@@ -22,19 +22,84 @@ namespace omnisphere::services
         std::vector<omnisphere::models::IntegrationInfo> list;
         if (!m_dbPool) return list;
 
-        auto checkLicense = [](const std::string& moduleCode) -> bool {
-            if (moduleCode.empty()) return true;
-            auto licService = omnisphere::services::LicenseService::GetSharedInstance();
-            if (!licService || !licService->IsLicenseActive()) {
+        auto getCanonicalLicenseModule = [](const std::string& integrationCode) -> std::string {
+            std::string code = integrationCode;
+            std::transform(code.begin(), code.end(), code.begin(), ::toupper);
+            if (code == "STRIPE") return omnisphere::license::MODULE_STRIPE;
+            if (code == "MERCADOPAGO") return omnisphere::license::MODULE_MERCADOPAGO;
+            if (code == "OPENPAY") return omnisphere::license::MODULE_OPENPAY;
+            if (code == "WHATSAPP") return omnisphere::license::MODULE_WHATSAPP;
+            return "";
+        };
+
+        auto checkLicense = [&](const std::string& integrationCode, const std::string& dbModule) -> bool {
+            // 1. Determinar el módulo canónico estricto desde C++ para evitar bypass si alguien altera la base de datos
+            std::string moduleCode = getCanonicalLicenseModule(integrationCode);
+            if (moduleCode.empty() && !dbModule.empty() && dbModule != "true" && dbModule != "false" && dbModule != "1" && dbModule != "0")
+            {
+                moduleCode = dbModule;
+            }
+
+            // Si la integración no requiere ningún módulo de licencia, está permitida
+            if (moduleCode.empty())
+            {
                 return true;
             }
+
+            // 2. Fail-closed: si no hay LicenseService o la licencia no está activa, acceso DENEGADO
+            auto licService = omnisphere::services::LicenseService::GetSharedInstance();
+            if (!licService || !licService->IsLicenseActive())
+            {
+                return false;
+            }
+
+            // 3. Validación criptográfica en RAM con el HMAC token firmado
             return licService->IsModuleLicensed(moduleCode);
         };
 
         try
         {
             auto conn = m_dbPool->Acquire();
-            std::string query = "SELECT \"Code\", \"Name\", \"DisplayName\", \"Category\", \"SettingsTable\", \"LicenseModule\", \"RequiredColumns\" FROM \"Integrations\" WHERE \"IsActive\" = true ORDER BY \"Entry\" ASC";
+
+            // Consulta consolidada única con LEFT JOIN a las tablas de configuración.
+            // Elimina por completo el problema N+1 de ejecutar una consulta secundaria por cada fila.
+            std::string query =
+                "SELECT "
+                "    i.\"Code\", "
+                "    i.\"Name\", "
+                "    i.\"DisplayName\", "
+                "    i.\"Category\", "
+                "    i.\"SettingsTable\", "
+                "    i.\"LicenseModule\", "
+                "    i.\"RequiredColumns\", "
+                "    COALESCE(s.\"IsActive\", mp.\"IsActive\", op.\"IsActive\", wa.\"IsActive\", false) AS \"SettingsActive\", "
+                "    COALESCE(s.\"IsTestMode\", mp.\"IsTestMode\", op.\"IsTestMode\", false) AS \"SettingsTestMode\", "
+                "    CASE "
+                "        WHEN UPPER(i.\"Code\") = 'STRIPE' THEN (s.\"PublishableKey\" IS NOT NULL AND TRIM(s.\"PublishableKey\") != '' AND s.\"SecretKey\" IS NOT NULL AND TRIM(s.\"SecretKey\") != '') "
+                "        WHEN UPPER(i.\"Code\") = 'MERCADOPAGO' THEN (mp.\"PublicKey\" IS NOT NULL AND TRIM(mp.\"PublicKey\") != '' AND mp.\"AccessToken\" IS NOT NULL AND TRIM(mp.\"AccessToken\") != '') "
+                "        WHEN UPPER(i.\"Code\") = 'OPENPAY' THEN (op.\"MerchantId\" IS NOT NULL AND TRIM(op.\"MerchantId\") != '' AND op.\"PublicKey\" IS NOT NULL AND TRIM(op.\"PublicKey\") != '' AND op.\"PrivateKey\" IS NOT NULL AND TRIM(op.\"PrivateKey\") != '') "
+                "        WHEN UPPER(i.\"Code\") = 'WHATSAPP' THEN (wa.\"PhoneId\" IS NOT NULL AND TRIM(wa.\"PhoneId\") != '' AND wa.\"ApiToken\" IS NOT NULL AND TRIM(wa.\"ApiToken\") != '') "
+                "        ELSE true "
+                "    END AS \"IsConfigured\", "
+                "    CASE "
+                "        WHEN UPPER(i.\"Code\") = 'STRIPE' THEN (s.\"HasRow\" = 1) "
+                "        WHEN UPPER(i.\"Code\") = 'MERCADOPAGO' THEN (mp.\"HasRow\" = 1) "
+                "        WHEN UPPER(i.\"Code\") = 'OPENPAY' THEN (op.\"HasRow\" = 1) "
+                "        WHEN UPPER(i.\"Code\") = 'WHATSAPP' THEN (wa.\"HasRow\" = 1) "
+                "        ELSE false "
+                "    END AS \"HasSettings\", "
+                "    CASE "
+                "        WHEN UPPER(i.\"Code\") = 'WHATSAPP' THEN false "
+                "        ELSE true "
+                "    END AS \"HasTestModeSupport\" "
+                "FROM \"Integrations\" i "
+                "LEFT JOIN (SELECT \"IsActive\", \"IsTestMode\", \"PublishableKey\", \"SecretKey\", 1 AS \"HasRow\" FROM \"StripeSettings\" LIMIT 1) s ON UPPER(i.\"Code\") = 'STRIPE' "
+                "LEFT JOIN (SELECT \"IsActive\", \"IsTestMode\", \"PublicKey\", \"AccessToken\", 1 AS \"HasRow\" FROM \"MercadoPagoSettings\" LIMIT 1) mp ON UPPER(i.\"Code\") = 'MERCADOPAGO' "
+                "LEFT JOIN (SELECT \"IsActive\", \"IsTestMode\", \"MerchantId\", \"PublicKey\", \"PrivateKey\", 1 AS \"HasRow\" FROM \"OpenPaySettings\" LIMIT 1) op ON UPPER(i.\"Code\") = 'OPENPAY' "
+                "LEFT JOIN (SELECT \"IsActive\", \"PhoneId\", \"ApiToken\", 1 AS \"HasRow\" FROM \"WhatsAppSettings\" LIMIT 1) wa ON UPPER(i.\"Code\") = 'WHATSAPP' "
+                "WHERE i.\"IsActive\" = true "
+                "ORDER BY i.\"Entry\" ASC";
+
             auto dt = conn->FetchResults(query);
 
             for (size_t i = 0; i < dt.RowsCount(); ++i)
@@ -46,86 +111,51 @@ namespace omnisphere::services
                 item.displayName = row["DisplayName"].GetOptional<std::string>().value_or("");
                 item.category = row["Category"].GetOptional<std::string>().value_or("PAYMENT");
                 std::string settingsTable = row["SettingsTable"].GetOptional<std::string>().value_or("");
-                std::string licenseModule = row["LicenseModule"].GetOptional<std::string>().value_or("");
+                std::string dbLicenseModule = row["LicenseModule"].GetOptional<std::string>().value_or("");
                 std::string requiredCols = row["RequiredColumns"].GetOptional<std::string>().value_or("");
 
-                bool isLicensed = checkLicense(licenseModule);
+                bool isLicensed = checkLicense(item.code, dbLicenseModule);
 
                 if (!settingsTable.empty())
                 {
-                    try
+                    bool hasSettings = row["HasSettings"].GetOptional<bool>().value_or(false);
+                    if (hasSettings)
                     {
-                        std::string settingsSql = "SELECT * FROM \"" + settingsTable + "\" LIMIT 1";
-                        auto settingsDt = conn->FetchResults(settingsSql);
-                        if (!settingsDt.IsEmpty())
+                        bool dbActive = row["SettingsActive"].GetOptional<bool>().value_or(false);
+                        bool hasTestMode = row["HasTestModeSupport"].GetOptional<bool>().value_or(false);
+                        item.isTestMode = hasTestMode ? row["SettingsTestMode"].GetOptional<bool>().value_or(false) : false;
+                        item.isConfigured = row["IsConfigured"].GetOptional<bool>().value_or(false);
+                        item.isActive = dbActive && isLicensed;
+
+                        if (!isLicensed)
                         {
-                            const auto& sRow = settingsDt[0];
-                            bool dbActive = sRow.HasColumn("IsActive") ? sRow["IsActive"].GetOptional<bool>().value_or(false) : false;
-                            item.isTestMode = sRow.HasColumn("IsTestMode") ? sRow["IsTestMode"].GetOptional<bool>().value_or(false) : false;
-
-                            bool configured = true;
-                            if (!requiredCols.empty())
-                            {
-                                std::stringstream ss(requiredCols);
-                                std::string colName;
-                                while (std::getline(ss, colName, ','))
-                                {
-                                    colName.erase(0, colName.find_first_not_of(" \t\r\n"));
-                                    colName.erase(colName.find_last_not_of(" \t\r\n") + 1);
-
-                                    if (!sRow.HasColumn(colName))
-                                    {
-                                        configured = false;
-                                        break;
-                                    }
-                                    auto val = sRow[colName].GetOptional<std::string>().value_or("");
-                                    if (val.empty())
-                                    {
-                                        configured = false;
-                                        break;
-                                    }
-                                }
-                            }
-
-                            item.isConfigured = configured;
-                            item.isActive = dbActive && isLicensed;
-
-                            if (!isLicensed)
-                            {
-                                item.message = "Módulo no incluido en la licencia activa del sistema";
-                            }
-                            else if (!item.isConfigured)
-                            {
-                                item.message = "Faltan credenciales requeridas (" + requiredCols + ")";
-                            }
-                            else if (!item.isActive)
-                            {
-                                item.message = "Deshabilitado en Ajustes de " + item.name;
-                            }
-                            else
-                            {
-                                if (sRow.HasColumn("IsTestMode"))
-                                {
-                                    item.message = item.isTestMode ? "Operativo (Modo Sandbox / Pruebas)" : "Operativo (Producción)";
-                                }
-                                else
-                                {
-                                    item.message = "Operativo";
-                                }
-                            }
+                            item.message = "Módulo no incluido en la licencia activa del sistema";
+                        }
+                        else if (!item.isConfigured)
+                        {
+                            item.message = "Faltan credenciales requeridas (" + requiredCols + ")";
+                        }
+                        else if (!item.isActive)
+                        {
+                            item.message = "Deshabilitado en Ajustes de " + item.name;
                         }
                         else
                         {
-                            item.isActive = false;
-                            item.isConfigured = false;
-                            item.message = "Sin configuración guardada";
+                            if (hasTestMode)
+                            {
+                                item.message = item.isTestMode ? "Operativo (Modo Sandbox / Pruebas)" : "Operativo (Producción)";
+                            }
+                            else
+                            {
+                                item.message = "Operativo";
+                            }
                         }
                     }
-                    catch (const std::exception&)
+                    else
                     {
                         item.isActive = false;
                         item.isConfigured = false;
-                        item.message = "Error al consultar configuración de " + item.name;
+                        item.message = "Sin configuración guardada";
                     }
                 }
                 else
