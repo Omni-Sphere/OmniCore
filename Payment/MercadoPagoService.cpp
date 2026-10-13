@@ -133,57 +133,89 @@ namespace omnisphere::services
         std::string host = "api.mercadopago.com";
         std::string port = "443";
 
-        boost::asio::io_context ioc;
-        ssl::context sslCtx(ssl::context::tlsv12_client);
-        sslCtx.set_default_verify_paths();
-        sslCtx.set_verify_mode(ssl::verify_peer);
+        std::string maskedToken = accessToken.empty() ? "(vacío)" : (
+            accessToken.size() > 14
+                ? accessToken.substr(0, 10) + "..." + accessToken.substr(accessToken.size() - 4) + " (longitud: " + std::to_string(accessToken.size()) + ")"
+                : accessToken + " (longitud: " + std::to_string(accessToken.size()) + ")"
+        );
 
-        tcp::resolver resolver(ioc);
-        beast::ssl_stream<beast::tcp_stream> stream(ioc, sslCtx);
-
-        if (!SSL_set_tlsext_host_name(stream.native_handle(), host.c_str()))
+        try
         {
-            beast::error_code ec{static_cast<int>(::ERR_get_error()), boost::asio::error::get_ssl_category()};
-            throw beast::system_error{ec};
+            boost::asio::io_context ioc;
+            ssl::context sslCtx(ssl::context::tlsv12_client);
+            sslCtx.set_default_verify_paths();
+            sslCtx.set_verify_mode(ssl::verify_peer);
+
+            tcp::resolver resolver(ioc);
+            beast::ssl_stream<beast::tcp_stream> stream(ioc, sslCtx);
+
+            if (!SSL_set_tlsext_host_name(stream.native_handle(), host.c_str()))
+            {
+                beast::error_code ec{static_cast<int>(::ERR_get_error()), boost::asio::error::get_ssl_category()};
+                throw beast::system_error{ec};
+            }
+
+            beast::get_lowest_layer(stream).expires_after(std::chrono::seconds(15));
+            auto const results = resolver.resolve(tcp::v4(), host, port);
+            beast::get_lowest_layer(stream).connect(results);
+            beast::get_lowest_layer(stream).expires_after(std::chrono::seconds(15));
+            stream.handshake(ssl::stream_base::client);
+
+            http::verb httpVerb = http::verb::get;
+            if (method == "POST") httpVerb = http::verb::post;
+            else if (method == "PUT") httpVerb = http::verb::put;
+            else if (method == "DELETE") httpVerb = http::verb::delete_;
+
+            http::request<http::string_body> req{httpVerb, target, 11};
+            req.set(http::field::host, host);
+            req.set(http::field::user_agent, "OmniSphere-C++/1.0");
+            req.set(http::field::content_type, "application/json");
+            req.set(http::field::authorization, "Bearer " + accessToken);
+
+            if (!idempotencyKey.empty())
+            {
+                req.set("X-Idempotency-Key", idempotencyKey);
+            }
+
+            if (!jsonBody.empty())
+            {
+                req.body() = jsonBody;
+                req.prepare_payload();
+            }
+
+            omnisphere::utils::Logger::LogInfo("MercadoPagoService", method + " https://" + host + target);
+            http::write(stream, req);
+
+            beast::flat_buffer buffer;
+            http::response<http::string_body> res;
+            http::read(stream, buffer, res);
+
+            if (res.result_int() >= 400)
+            {
+                std::string errLog = "Error HTTP [" + std::to_string(res.result_int()) + " " + std::string(res.reason()) + "]\n"
+                    + "  -> Petición: " + method + " https://" + host + target + "\n"
+                    + "  -> Token: " + maskedToken + "\n"
+                    + (jsonBody.empty() ? "" : ("  -> Body enviado: " + jsonBody + "\n"))
+                    + "  -> Respuesta Mercado Pago: " + res.body();
+                omnisphere::utils::Logger::LogError("MercadoPagoService", errLog);
+            }
+            else
+            {
+                omnisphere::utils::Logger::LogInfo("MercadoPagoService", "Response status: " + std::to_string(res.result_int()));
+            }
+
+            return res.body();
         }
-
-        beast::get_lowest_layer(stream).expires_after(std::chrono::seconds(15));
-        auto const results = resolver.resolve(tcp::v4(), host, port);
-        beast::get_lowest_layer(stream).connect(results);
-        beast::get_lowest_layer(stream).expires_after(std::chrono::seconds(15));
-        stream.handshake(ssl::stream_base::client);
-
-        http::verb httpVerb = http::verb::get;
-        if (method == "POST") httpVerb = http::verb::post;
-        else if (method == "PUT") httpVerb = http::verb::put;
-        else if (method == "DELETE") httpVerb = http::verb::delete_;
-
-        http::request<http::string_body> req{httpVerb, target, 11};
-        req.set(http::field::host, host);
-        req.set(http::field::user_agent, "OmniSphere-C++/1.0");
-        req.set(http::field::content_type, "application/json");
-        req.set(http::field::authorization, "Bearer " + accessToken);
-
-        if (!idempotencyKey.empty())
+        catch (const std::exception& ex)
         {
-            req.set("X-Idempotency-Key", idempotencyKey);
+            std::string failLog = "Fallo de comunicación en petición HTTPS a Mercado Pago:\n"
+                + std::string("  -> Petición: ") + method + " https://" + host + target + "\n"
+                + "  -> Token: " + maskedToken + "\n"
+                + (jsonBody.empty() ? "" : ("  -> Body enviado: " + jsonBody + "\n"))
+                + "  -> Error: " + ex.what();
+            omnisphere::utils::Logger::LogError("MercadoPagoService", failLog);
+            throw;
         }
-
-        if (!jsonBody.empty())
-        {
-            req.body() = jsonBody;
-            req.prepare_payload();
-        }
-
-        omnisphere::utils::Logger::LogInfo("MercadoPagoService", method + " https://" + host + target);
-        http::write(stream, req);
-
-        beast::flat_buffer buffer;
-        http::response<http::string_body> res;
-        http::read(stream, buffer, res);
-
-        omnisphere::utils::Logger::LogInfo("MercadoPagoService", "Response status: " + std::to_string(res.result_int()));
-        return res.body();
     }
 
     MercadoPagoPaymentResult MercadoPagoService::CreatePayment(
