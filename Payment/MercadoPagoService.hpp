@@ -15,6 +15,8 @@ namespace omnisphere::services
         std::string paymentId;
         std::string status;       // approved, pending, in_process, rejected, etc.
         std::string statusDetail; // accredited, cc_rejected_insufficient_amount, etc.
+        std::string cardBrand;
+        std::string cardLast4;
         std::string ticketUrl;
         std::string clabe;
         std::string errorMessage;
@@ -43,6 +45,20 @@ namespace omnisphere::services
 
         std::optional<omnisphere::models::MercadoPagoSettings> GetSettings(bool decryptKeys = false) const;
         bool SaveSettings(const omnisphere::models::MercadoPagoSettings& settings, const std::vector<std::string>& mutationFields = {}) const;
+
+        // Cobro directo con tarjeta (tokeniza internamente contra MP y procesa el cobro)
+        MercadoPagoPaymentResult ProcessCardPayment(
+            const omnisphere::models::SecurityContext& ctx,
+            const std::string& cardNumber,
+            const std::string& cardholderName,
+            int expirationMonth,
+            int expirationYear,
+            const std::string& securityCode,
+            double amount,
+            const std::string& currency = "mxn",
+            const std::string& customerEmail = "",
+            const std::string& description = ""
+        ) const;
 
         // Checkout API (Cobro directo con token generado por front en formulario propio)
         MercadoPagoPaymentResult CreatePayment(

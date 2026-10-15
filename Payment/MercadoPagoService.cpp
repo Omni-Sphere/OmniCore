@@ -211,6 +211,112 @@ namespace omnisphere::services
         }
     }
 
+    MercadoPagoPaymentResult MercadoPagoService::ProcessCardPayment(
+        const omnisphere::models::SecurityContext& ctx,
+        const std::string& cardNumber,
+        const std::string& cardholderName,
+        int expirationMonth,
+        int expirationYear,
+        const std::string& securityCode,
+        double amount,
+        const std::string& currency,
+        const std::string& customerEmail,
+        const std::string& description
+    ) const
+    {
+        MercadoPagoPaymentResult result;
+        auto settingsOpt = GetSettings(true);
+        if (!settingsOpt.has_value() || !settingsOpt->isActive)
+        {
+            result.errorMessage = "Mercado Pago no está configurado o está inactivo.";
+            return result;
+        }
+
+        const auto& settings = *settingsOpt;
+        if (settings.accessToken.empty())
+        {
+            result.errorMessage = "Access Token de Mercado Pago no configurado.";
+            return result;
+        }
+
+        try
+        {
+            // 1. Limpieza y formato de tarjeta
+            std::string cleanCard = "";
+            for (char c : cardNumber) { if (std::isdigit(static_cast<unsigned char>(c))) cleanCard += c; }
+
+            if (cleanCard.size() >= 4) {
+                result.cardLast4 = cleanCard.substr(cleanCard.size() - 4);
+            }
+
+            std::string detectedBrand = "visa";
+            if (!cleanCard.empty()) {
+                if (cleanCard[0] == '4') detectedBrand = "visa";
+                else if (cleanCard[0] == '5' || (cleanCard.size() >= 2 && cleanCard.substr(0, 2) == "22")) detectedBrand = "master";
+                else if (cleanCard.size() >= 2 && (cleanCard.substr(0, 2) == "34" || cleanCard.substr(0, 2) == "37")) detectedBrand = "amex";
+            }
+            result.cardBrand = detectedBrand;
+
+            // 2. Tokenizar la tarjeta directamente contra Mercado Pago API
+            json::object tokenReq;
+            tokenReq["card_number"] = cleanCard;
+            json::object ch;
+            ch["name"] = cardholderName.empty() ? "Cliente" : cardholderName;
+            tokenReq["cardholder"] = ch;
+            tokenReq["expiration_month"] = expirationMonth;
+            tokenReq["expiration_year"] = expirationYear < 100 ? (2000 + expirationYear) : expirationYear;
+            tokenReq["security_code"] = securityCode;
+
+            std::string tokenBody = json::serialize(tokenReq);
+            std::string tokenRes = ExecuteHttpsRequest("POST", "/v1/card_tokens", settings.accessToken, tokenBody);
+
+            auto parsedToken = json::parse(tokenRes);
+            if (!parsedToken.is_object() || !parsedToken.as_object().contains("id"))
+            {
+                std::string err = "Error al validar la tarjeta en Mercado Pago.";
+                if (parsedToken.is_object())
+                {
+                    auto obj = parsedToken.as_object();
+                    if (obj.contains("message")) err = json::value_to<std::string>(obj["message"]);
+                    else if (obj.contains("cause") && obj["cause"].is_array() && !obj["cause"].as_array().empty())
+                    {
+                        auto c0 = obj["cause"].as_array()[0];
+                        if (c0.is_object() && c0.as_object().contains("description"))
+                            err = json::value_to<std::string>(c0.as_object()["description"]);
+                    }
+                }
+                result.errorMessage = err;
+                return result;
+            }
+
+            auto tokenObj = parsedToken.as_object();
+            std::string token = json::value_to<std::string>(tokenObj["id"]);
+            if (tokenObj.contains("last_four_digits"))
+            {
+                result.cardLast4 = json::value_to<std::string>(tokenObj["last_four_digits"]);
+            }
+
+            // 3. Ejecutar el cobro directo mediante CreatePayment
+            omnisphere::models::PayableEntity entity;
+            entity.entityType = "ROUTE_RESERVATION";
+            entity.entityCode = "PAY-" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+            entity.amount = amount;
+            entity.currency = currency.empty() ? "mxn" : currency;
+            entity.customerName = cardholderName.empty() ? "Cliente" : cardholderName;
+            entity.customerEmail = customerEmail.empty() ? "cliente@omnisphere.com" : customerEmail;
+
+            auto payRes = CreatePayment(ctx, entity, token, detectedBrand, "", 1);
+            payRes.cardBrand = detectedBrand;
+            if (!result.cardLast4.empty()) payRes.cardLast4 = result.cardLast4;
+            return payRes;
+        }
+        catch (const std::exception& ex)
+        {
+            result.errorMessage = std::string("Excepción al procesar tarjeta en Mercado Pago: ") + ex.what();
+            return result;
+        }
+    }
+
     MercadoPagoPaymentResult MercadoPagoService::CreatePayment(
         const omnisphere::models::SecurityContext& ctx,
         const omnisphere::models::PayableEntity& entity,
