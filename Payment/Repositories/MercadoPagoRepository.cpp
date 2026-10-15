@@ -89,8 +89,8 @@ namespace omnisphere::repositories
             omnisphere::repositories::IdentityRepository identityRepo(m_dbPool);
             if (tx.code.empty())
             {
-                tx.code = identityRepo.GetNextCode(conn, "MercadoPagoTransaction", "MPTX");
-                if (tx.code.empty()) tx.code = "MPTX1";
+                tx.code = identityRepo.GetNextCode(conn, "MercadoPagoTransaction", "MPT");
+                if (tx.code.empty()) tx.code = "MPT1";
             }
 
             std::vector<std::string> fieldsToInsert = mutationFields;

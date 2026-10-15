@@ -176,7 +176,32 @@ namespace omnisphere::services
                 req.prepare_payload();
             }
 
-            omnisphere::utils::Logger::LogInfo("MercadoPagoService", method + " https://" + host + target);
+            // Enmascarar números de tarjeta o códigos de seguridad en logs de solicitud
+            std::string logPayload = jsonBody;
+            if (!logPayload.empty())
+            {
+                // Si contiene datos de tarjeta, ofuscar número y cvv
+                try {
+                    auto p = json::parse(logPayload);
+                    if (p.is_object()) {
+                        auto obj = p.as_object();
+                        if (obj.contains("card_number") && obj["card_number"].is_string()) {
+                            std::string cn = json::value_to<std::string>(obj["card_number"]);
+                            std::string last4 = cn.size() >= 4 ? cn.substr(cn.size() - 4) : "XXXX";
+                            obj["card_number"] = "**** **** **** " + last4;
+                        }
+                        if (obj.contains("security_code")) obj["security_code"] = "***";
+                        logPayload = json::serialize(obj);
+                    }
+                } catch (...) {}
+            }
+
+            omnisphere::utils::Logger::LogInfo("MercadoPagoService",
+                "--> " + method + " https://" + host + target + "\n" +
+                "    [Headers] Authorization: Bearer " + maskedToken + 
+                (idempotencyKey.empty() ? "" : (" | X-Idempotency-Key: " + idempotencyKey)) + "\n" +
+                (logPayload.empty() ? "    [Body] (empty)" : ("    [Body] " + logPayload)));
+
             http::write(stream, req);
 
             beast::flat_buffer buffer;
@@ -185,16 +210,19 @@ namespace omnisphere::services
 
             if (res.result_int() >= 400)
             {
-                std::string errLog = "Error HTTP [" + std::to_string(res.result_int()) + " " + std::string(res.reason()) + "]\n"
-                    + "  -> Petición: " + method + " https://" + host + target + "\n"
-                    + "  -> Token: " + maskedToken + "\n"
-                    + (jsonBody.empty() ? "" : ("  -> Body enviado: " + jsonBody + "\n"))
-                    + "  -> Respuesta Mercado Pago: " + res.body();
+                std::string errLog = "<-- HTTP " + std::to_string(res.result_int()) + " " + std::string(res.reason()) + " [ERROR]\n"
+                    + "    [Petición] " + method + " https://" + host + target + "\n"
+                    + "    [Token] " + maskedToken + "\n"
+                    + (logPayload.empty() ? "" : ("    [Body enviado] " + logPayload + "\n"))
+                    + "    [Respuesta Mercado Pago] " + res.body();
                 omnisphere::utils::Logger::LogError("MercadoPagoService", errLog);
             }
             else
             {
-                omnisphere::utils::Logger::LogInfo("MercadoPagoService", "Response status: " + std::to_string(res.result_int()));
+                std::string okLog = "<-- HTTP " + std::to_string(res.result_int()) + " " + std::string(res.reason()) + " [OK]\n"
+                    + "    [Petición] " + method + " https://" + host + target + "\n"
+                    + "    [Respuesta Mercado Pago] " + res.body();
+                omnisphere::utils::Logger::LogInfo("MercadoPagoService", okLog);
             }
 
             return res.body();
