@@ -36,7 +36,8 @@ namespace omnisphere::services
         bool SendNamedNotification(
             const std::string& phoneNumber,
             const std::string& templateName,
-            const std::map<std::string, std::string>& params
+            const std::map<std::string, std::string>& params,
+            const std::string& interpolatedContent = ""
         );
 
         bool SendMessage(

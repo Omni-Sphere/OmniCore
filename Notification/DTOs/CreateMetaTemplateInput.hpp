@@ -13,6 +13,13 @@ namespace omnisphere::dtos
         std::optional<std::string> phoneNumber;
     };
 
+    struct CreateMetaTemplateVariableInput
+    {
+        std::string key;
+        std::string example;
+        std::string dataType = "STRING";
+    };
+
     struct CreateMetaTemplateInput
     {
         std::string name;                 // e.g., "TPL_TRANSFER_REJECTED" or "tpl_transfer_rejected"
@@ -23,6 +30,9 @@ namespace omnisphere::dtos
         std::string headerType = "NONE";   // "NONE", "TEXT"
         std::optional<std::string> headerText;
         std::optional<std::string> footerText;
+        std::vector<CreateMetaTemplateVariableInput> headerVariables;
+        std::vector<CreateMetaTemplateVariableInput> bodyVariables;
+        std::vector<CreateMetaTemplateVariableInput> footerVariables;
         std::vector<CreateMetaTemplateButtonInput> buttons;
     };
 

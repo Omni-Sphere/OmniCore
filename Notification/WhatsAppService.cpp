@@ -479,7 +479,8 @@ namespace omnisphere::services
     bool WhatsAppService::SendNamedNotification(
         const std::string& phoneNumber,
         const std::string& templateName,
-        const std::map<std::string, std::string>& params
+        const std::map<std::string, std::string>& params,
+        const std::string& interpolatedContent
     )
     {
         CheckLicense();
@@ -516,7 +517,7 @@ namespace omnisphere::services
         body["template"] = tmpl;
 
         std::string jsonStr = json::serialize(body);
-        std::string contentStr = "Named Template: " + templateName;
+        std::string contentStr = !interpolatedContent.empty() ? interpolatedContent : ("Named Template: " + templateName);
         return SendRequest(cleanPhone, "TEMPLATE", templateName, contentStr, jsonStr);
     }
 
@@ -848,7 +849,8 @@ namespace omnisphere::services
         bool success = false;
         if (msg.messageType == "TEMPLATE")
         {
-            success = SendNamedNotification(phoneNumber, !msg.bodyTemplate.empty() ? msg.bodyTemplate : messageCode, finalPlaceholders);
+            std::string tmplNameToUse = !msg.metaTemplateId.value_or("").empty() ? msg.code : (!msg.bodyTemplate.empty() ? msg.bodyTemplate : messageCode);
+            success = SendNamedNotification(phoneNumber, tmplNameToUse, finalPlaceholders, bodyText);
         }
         else if (msg.messageType == "INTERACTIVE_BUTTON" && !msg.buttons.empty())
         {
@@ -963,20 +965,71 @@ namespace omnisphere::services
 
         json::array componentsArr;
 
+        // 1. HEADER Component
         if (input.headerType == "TEXT" && input.headerText.has_value() && !input.headerText->empty())
         {
             json::object headerObj;
             headerObj["type"] = "HEADER";
             headerObj["format"] = "TEXT";
-            headerObj["text"] = *input.headerText;
+            std::string hText = *input.headerText;
+
+            // If header variables exist, replace named tokens {{name}} with {{1}}, {{2}} and supply example
+            if (!input.headerVariables.empty())
+            {
+                json::object exampleObj;
+                json::array headerTextArr;
+                int hIdx = 1;
+                for (const auto& hVar : input.headerVariables)
+                {
+                    std::string tokenToFind = "{{" + hVar.key + "}}";
+                    std::string numToken = "{{" + std::to_string(hIdx++) + "}}";
+                    size_t pos = 0;
+                    while ((pos = hText.find(tokenToFind, pos)) != std::string::npos)
+                    {
+                        hText.replace(pos, tokenToFind.length(), numToken);
+                        pos += numToken.length();
+                    }
+                    headerTextArr.push_back(boost::json::string_view(!hVar.example.empty() ? hVar.example : "Ejemplo"));
+                }
+                exampleObj["header_text"] = headerTextArr;
+                headerObj["example"] = exampleObj;
+            }
+            headerObj["text"] = hText;
             componentsArr.push_back(headerObj);
         }
 
+        // 2. BODY Component
         json::object bodyObj;
         bodyObj["type"] = "BODY";
-        bodyObj["text"] = input.bodyText;
+        std::string bText = input.bodyText;
+
+        // If body variables exist, replace named tokens {{name}} with {{1}}, {{2}} and supply example
+        if (!input.bodyVariables.empty())
+        {
+            json::object exampleObj;
+            json::array bodyTextArr;
+            json::array bodySubArr;
+            int bIdx = 1;
+            for (const auto& bVar : input.bodyVariables)
+            {
+                std::string tokenToFind = "{{" + bVar.key + "}}";
+                std::string numToken = "{{" + std::to_string(bIdx++) + "}}";
+                size_t pos = 0;
+                while ((pos = bText.find(tokenToFind, pos)) != std::string::npos)
+                {
+                    bText.replace(pos, tokenToFind.length(), numToken);
+                    pos += numToken.length();
+                }
+                bodySubArr.push_back(boost::json::string_view(!bVar.example.empty() ? bVar.example : "Ejemplo"));
+            }
+            bodyTextArr.push_back(bodySubArr);
+            exampleObj["body_text"] = bodyTextArr;
+            bodyObj["example"] = exampleObj;
+        }
+        bodyObj["text"] = bText;
         componentsArr.push_back(bodyObj);
 
+        // 3. FOOTER Component
         if (input.footerText.has_value() && !input.footerText->empty())
         {
             json::object footerObj;
@@ -985,6 +1038,7 @@ namespace omnisphere::services
             componentsArr.push_back(footerObj);
         }
 
+        // 4. BUTTONS Component
         if (!input.buttons.empty())
         {
             json::object buttonsComponentObj;
@@ -1119,7 +1173,98 @@ namespace omnisphere::services
                         msg.buttons.push_back(cBtn);
                     }
 
+                    int paramOrder = 1;
+                    auto addParams = [&](const std::vector<omnisphere::dtos::CreateMetaTemplateVariableInput>& vars, const std::string& prefixDesc) {
+                        for (const auto& v : vars)
+                        {
+                            omnisphere::models::CustomMessageParameter p;
+                            p.messageCode = msg.code;
+                            p.paramKey = v.key;
+                            p.paramName = v.key;
+                            p.dataType = !v.dataType.empty() ? v.dataType : "STRING";
+                            p.defaultValue = v.example;
+                            p.isRequired = true;
+                            p.description = prefixDesc + v.key;
+                            p.sortOrder = paramOrder++;
+                            p.createdBy = "SYSTEM";
+                            msg.parameters.push_back(p);
+                        }
+                    };
+
+                    addParams(input.headerVariables, "Cabecera: ");
+                    addParams(input.bodyVariables, "Cuerpo: ");
                     m_repository->SaveCustomMessage(msg);
+
+                    // Modular Architecture Persistence in WhatsAppTemplates
+                    omnisphere::models::WhatsAppTemplate wTmpl;
+                    wTmpl.code = input.name;
+                    wTmpl.templateName = input.title.empty() ? input.name : input.title;
+                    wTmpl.language = input.language.empty() ? "es_MX" : input.language;
+                    wTmpl.category = result.metaCategory;
+                    wTmpl.metaTemplateId = result.metaTemplateId;
+                    wTmpl.status = result.metaStatus;
+                    wTmpl.isActive = true;
+                    wTmpl.createdBy = "system";
+
+                    if (input.headerType != "NONE")
+                    {
+                        omnisphere::models::WhatsAppTemplateHeader h;
+                        h.headerType = input.headerType;
+                        h.textContent = input.headerText;
+                        int hIdx = 1;
+                        for (const auto& hv : input.headerVariables)
+                        {
+                            omnisphere::models::WhatsAppTemplateHeaderVariable hVar;
+                            hVar.varName = hv.key;
+                            hVar.varIndex = hIdx++;
+                            hVar.exampleValue = hv.example;
+                            h.variables.push_back(hVar);
+                        }
+                        wTmpl.header = h;
+                    }
+
+                    omnisphere::models::WhatsAppTemplateBody b;
+                    b.bodyText = input.bodyText;
+                    int bIdx = 1;
+                    for (const auto& bv : input.bodyVariables)
+                    {
+                        omnisphere::models::WhatsAppTemplateBodyVariable bVar;
+                        bVar.varName = bv.key;
+                        bVar.varIndex = bIdx++;
+                        bVar.exampleValue = bv.example;
+                        b.variables.push_back(bVar);
+                    }
+                    wTmpl.body = b;
+
+                    if (input.footerText.has_value() && !input.footerText->empty())
+                    {
+                        omnisphere::models::WhatsAppTemplateFooter f;
+                        f.footerText = input.footerText;
+                        int fIdx = 1;
+                        for (const auto& fv : input.footerVariables)
+                        {
+                            omnisphere::models::WhatsAppTemplateFooterVariable fVar;
+                            fVar.varName = fv.key;
+                            fVar.varIndex = fIdx++;
+                            fVar.exampleValue = fv.example;
+                            f.variables.push_back(fVar);
+                        }
+                        wTmpl.footer = f;
+                    }
+
+                    int btnSort = 1;
+                    for (const auto& btn : input.buttons)
+                    {
+                        omnisphere::models::WhatsAppTemplateButton tBtn;
+                        tBtn.buttonType = btn.type;
+                        tBtn.title = btn.text;
+                        if (btn.type == "URL") tBtn.payload = btn.url;
+                        else if (btn.type == "PHONE_NUMBER") tBtn.payload = btn.phoneNumber;
+                        tBtn.sortOrder = btnSort++;
+                        wTmpl.buttons.push_back(tBtn);
+                    }
+
+                    m_repository->SaveWhatsAppTemplate(wTmpl);
                 }
             }
             else

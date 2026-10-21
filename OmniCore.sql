@@ -787,18 +787,41 @@ CREATE INDEX IF NOT EXISTS "IDX_WhatsAppMessages_ConversationEntry" ON "WhatsApp
 CREATE INDEX IF NOT EXISTS "IDX_WhatsAppMessages_Code" ON "WhatsAppMessages" ("Code");
 CREATE INDEX IF NOT EXISTS "IDX_WhatsAppMessages_WhatsAppId" ON "WhatsAppMessages" ("WhatsAppId");
 
--- 28. WhatsAppTemplates (Plantillas Oficiales Meta Cloud API)
+-- =============================================================================
+-- 28. WhatsApp Templates Modular Architecture (Meta Cloud API)
+-- =============================================================================
+
+-- Migration / Cleanup of legacy columns or tables
+DO $$
+BEGIN
+    -- Drop obsolete tables if they exist
+    DROP TABLE IF EXISTS "CustomAttachments" CASCADE;
+    
+    -- Alter WhatsAppTemplates to support MetaTemplateId, MetaStatus, RejectReason, Category
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'WhatsAppTemplates') THEN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'WhatsAppTemplates' AND column_name = 'MetaTemplateId') THEN
+            ALTER TABLE "WhatsAppTemplates" ADD COLUMN "MetaTemplateId" VARCHAR(100);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'WhatsAppTemplates' AND column_name = 'RejectReason') THEN
+            ALTER TABLE "WhatsAppTemplates" ADD COLUMN "RejectReason" TEXT;
+        END IF;
+        -- Drop legacy column ButtonsJson if it exists
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'WhatsAppTemplates' AND column_name = 'ButtonsJson') THEN
+            ALTER TABLE "WhatsAppTemplates" DROP COLUMN "ButtonsJson";
+        END IF;
+    END IF;
+END $$;
+
+-- 28.1 WhatsAppTemplates (Master)
 CREATE TABLE IF NOT EXISTS "WhatsAppTemplates" (
     "Entry" SERIAL PRIMARY KEY,
     "Code" VARCHAR(50) NOT NULL UNIQUE,
     "TemplateName" VARCHAR(100) NOT NULL,
     "Language" VARCHAR(10) NOT NULL DEFAULT 'es_MX',
     "Category" VARCHAR(50) NOT NULL DEFAULT 'UTILITY',
-    "HeaderType" VARCHAR(20) NOT NULL DEFAULT 'NONE',
-    "BodyTemplate" TEXT NOT NULL,
-    "FooterText" VARCHAR(255),
-    "ButtonsJson" TEXT,
-    "Status" VARCHAR(50) NOT NULL DEFAULT 'APPROVED',
+    "MetaTemplateId" VARCHAR(100),
+    "Status" VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+    "RejectReason" TEXT,
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
     "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -807,6 +830,102 @@ CREATE TABLE IF NOT EXISTS "WhatsAppTemplates" (
 );
 
 CREATE INDEX IF NOT EXISTS "IDX_WhatsAppTemplates_TemplateName" ON "WhatsAppTemplates" ("TemplateName");
+CREATE INDEX IF NOT EXISTS "IDX_WhatsAppTemplates_Code" ON "WhatsAppTemplates" ("Code");
+CREATE INDEX IF NOT EXISTS "IDX_WhatsAppTemplates_MetaTemplateId" ON "WhatsAppTemplates" ("MetaTemplateId");
+
+-- 28.2 WhatsAppTemplateHeaders (1:1 por plantilla)
+CREATE TABLE IF NOT EXISTS "WhatsAppTemplateHeaders" (
+    "Entry" SERIAL PRIMARY KEY,
+    "TemplateEntry" INT NOT NULL REFERENCES "WhatsAppTemplates"("Entry") ON DELETE CASCADE,
+    "HeaderType" VARCHAR(20) NOT NULL DEFAULT 'NONE', -- 'NONE', 'TEXT', 'IMAGE', 'DOCUMENT', 'VIDEO'
+    "TextContent" TEXT,
+    "MediaUrl" TEXT,
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "UQ_TemplateHeader_TemplateEntry" UNIQUE ("TemplateEntry")
+);
+
+CREATE INDEX IF NOT EXISTS "IDX_WhatsAppTemplateHeaders_TemplateEntry" ON "WhatsAppTemplateHeaders" ("TemplateEntry");
+
+-- 28.3 WhatsAppTemplateHeaderVariables (1:N variables del Header)
+CREATE TABLE IF NOT EXISTS "WhatsAppTemplateHeaderVariables" (
+    "Entry" SERIAL PRIMARY KEY,
+    "HeaderEntry" INT NOT NULL REFERENCES "WhatsAppTemplateHeaders"("Entry") ON DELETE CASCADE,
+    "VarName" VARCHAR(50) NOT NULL,
+    "VarIndex" INT NOT NULL DEFAULT 1,
+    "ExampleValue" VARCHAR(255),
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "UQ_TemplateHeaderVar" UNIQUE ("HeaderEntry", "VarIndex")
+);
+
+CREATE INDEX IF NOT EXISTS "IDX_WhatsAppTemplateHeaderVars_HeaderEntry" ON "WhatsAppTemplateHeaderVariables" ("HeaderEntry");
+
+-- 28.4 WhatsAppTemplateBodies (1:1 por plantilla)
+CREATE TABLE IF NOT EXISTS "WhatsAppTemplateBodies" (
+    "Entry" SERIAL PRIMARY KEY,
+    "TemplateEntry" INT NOT NULL REFERENCES "WhatsAppTemplates"("Entry") ON DELETE CASCADE,
+    "BodyText" TEXT NOT NULL,
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "UQ_TemplateBody_TemplateEntry" UNIQUE ("TemplateEntry")
+);
+
+CREATE INDEX IF NOT EXISTS "IDX_WhatsAppTemplateBodies_TemplateEntry" ON "WhatsAppTemplateBodies" ("TemplateEntry");
+
+-- 28.5 WhatsAppTemplateBodyVariables (1:N variables del Body)
+CREATE TABLE IF NOT EXISTS "WhatsAppTemplateBodyVariables" (
+    "Entry" SERIAL PRIMARY KEY,
+    "BodyEntry" INT NOT NULL REFERENCES "WhatsAppTemplateBodies"("Entry") ON DELETE CASCADE,
+    "VarName" VARCHAR(50) NOT NULL,
+    "VarIndex" INT NOT NULL DEFAULT 1,
+    "ExampleValue" VARCHAR(255),
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "UQ_TemplateBodyVar" UNIQUE ("BodyEntry", "VarIndex")
+);
+
+CREATE INDEX IF NOT EXISTS "IDX_WhatsAppTemplateBodyVars_BodyEntry" ON "WhatsAppTemplateBodyVariables" ("BodyEntry");
+
+-- 28.6 WhatsAppTemplateFooters (1:1 por plantilla)
+CREATE TABLE IF NOT EXISTS "WhatsAppTemplateFooters" (
+    "Entry" SERIAL PRIMARY KEY,
+    "TemplateEntry" INT NOT NULL REFERENCES "WhatsAppTemplates"("Entry") ON DELETE CASCADE,
+    "FooterText" TEXT,
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "UQ_TemplateFooter_TemplateEntry" UNIQUE ("TemplateEntry")
+);
+
+CREATE INDEX IF NOT EXISTS "IDX_WhatsAppTemplateFooters_TemplateEntry" ON "WhatsAppTemplateFooters" ("TemplateEntry");
+
+-- 28.7 WhatsAppTemplateFooterVariables (1:N variables del Footer si aplica)
+CREATE TABLE IF NOT EXISTS "WhatsAppTemplateFooterVariables" (
+    "Entry" SERIAL PRIMARY KEY,
+    "FooterEntry" INT NOT NULL REFERENCES "WhatsAppTemplateFooters"("Entry") ON DELETE CASCADE,
+    "VarName" VARCHAR(50) NOT NULL,
+    "VarIndex" INT NOT NULL DEFAULT 1,
+    "ExampleValue" VARCHAR(255),
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "UQ_TemplateFooterVar" UNIQUE ("FooterEntry", "VarIndex")
+);
+
+CREATE INDEX IF NOT EXISTS "IDX_WhatsAppTemplateFooterVars_FooterEntry" ON "WhatsAppTemplateFooterVariables" ("FooterEntry");
+
+-- 28.8 WhatsAppTemplateButtons (1:N botones interactivos de la plantilla)
+CREATE TABLE IF NOT EXISTS "WhatsAppTemplateButtons" (
+    "Entry" SERIAL PRIMARY KEY,
+    "TemplateEntry" INT NOT NULL REFERENCES "WhatsAppTemplates"("Entry") ON DELETE CASCADE,
+    "ButtonType" VARCHAR(30) NOT NULL DEFAULT 'QUICK_REPLY', -- 'QUICK_REPLY', 'URL', 'PHONE_NUMBER'
+    "Title" VARCHAR(100) NOT NULL,
+    "Payload" TEXT, -- URL, Teléfono o ID
+    "SortOrder" INT NOT NULL DEFAULT 1,
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS "IDX_WhatsAppTemplateButtons_TemplateEntry" ON "WhatsAppTemplateButtons" ("TemplateEntry");
 
 -- 29. CustomMessages (Motor Dinámico de Plantillas de Mensajes)
 CREATE TABLE IF NOT EXISTS "CustomMessages" (

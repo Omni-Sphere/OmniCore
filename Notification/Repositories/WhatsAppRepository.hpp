@@ -5,6 +5,7 @@
 #include "Notification/Models/CustomMessage.hpp"
 #include "Notification/Models/CustomButton.hpp"
 #include "Notification/Models/CustomMessageParameter.hpp"
+#include "Notification/Models/WhatsAppTemplate.hpp"
 #include <OmniData/DatabasePool.hpp>
 #include <OmniData/DataTable.hpp>
 #include <memory>
@@ -31,7 +32,7 @@ namespace omnisphere::repositories
         bool IsMessageProcessed(const std::string& wamidCode) const;
         bool HasRecentWelcomeCard(const std::string& phone, int minutesWindow = 30) const;
 
-        // Dynamic Custom Messages Engine
+        // Dynamic Custom Messages Engine (Backward compatibility)
         std::optional<omnisphere::models::CustomMessage> GetCustomMessageByCode(const std::string& code) const;
         std::vector<omnisphere::models::CustomMessage> GetAllCustomMessages() const;
         std::vector<omnisphere::models::CustomButton> GetButtonsForMessage(int messageEntry) const;
@@ -40,6 +41,12 @@ namespace omnisphere::repositories
         bool SaveCustomMessage(const omnisphere::models::CustomMessage& msg) const;
         bool UpdateMetaTemplateStatus(const std::string& metaTemplateId, const std::string& templateName, const std::string& metaStatus, const std::string& rejectReason = "") const;
         bool SaveButtonsForMessage(int messageEntry, const std::string& messageCode, const std::vector<omnisphere::models::CustomButton>& buttons) const;
+        bool SaveParametersForMessage(const std::string& messageCode, const std::vector<omnisphere::models::CustomMessageParameter>& parameters) const;
+
+        // Modular WhatsAppTemplates Architecture
+        std::optional<omnisphere::models::WhatsAppTemplate> GetWhatsAppTemplateByCode(const std::string& code, const std::vector<std::string>& requestedFields = {}) const;
+        std::vector<omnisphere::models::WhatsAppTemplate> GetAllWhatsAppTemplates(const std::vector<std::string>& requestedFields = {}) const;
+        bool SaveWhatsAppTemplate(const omnisphere::models::WhatsAppTemplate& tmpl) const;
 
     private:
         std::shared_ptr<omnisphere::data::DatabasePool> m_dbPool;
