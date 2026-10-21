@@ -1147,56 +1147,9 @@ namespace omnisphere::services
 
                 if (m_repository)
                 {
-                    omnisphere::models::CustomMessage msg;
-                    msg.code = input.name;
-                    msg.title = input.title.empty() ? input.name : input.title;
-                    msg.messageType = "TEMPLATE";
-                    msg.headerType = input.headerType;
-                    msg.headerContent = input.headerText;
-                    msg.bodyTemplate = input.bodyText;
-                    msg.footerText = input.footerText;
-                    msg.metaTemplateId = result.metaTemplateId;
-                    msg.metaStatus = result.metaStatus;
-                    msg.metaCategory = result.metaCategory;
-                    msg.isActive = true;
-
-                    int sortIdx = 1;
-                    for (const auto& btn : input.buttons)
-                    {
-                        omnisphere::models::CustomButton cBtn;
-                        cBtn.buttonId = "btn_" + std::to_string(sortIdx);
-                        cBtn.title = btn.text;
-                        cBtn.actionType = btn.type;
-                        if (btn.type == "URL") cBtn.actionPayload = btn.url;
-                        else if (btn.type == "PHONE_NUMBER") cBtn.actionPayload = btn.phoneNumber;
-                        cBtn.sortOrder = sortIdx++;
-                        msg.buttons.push_back(cBtn);
-                    }
-
-                    int paramOrder = 1;
-                    auto addParams = [&](const std::vector<omnisphere::dtos::CreateMetaTemplateVariableInput>& vars, const std::string& prefixDesc) {
-                        for (const auto& v : vars)
-                        {
-                            omnisphere::models::CustomMessageParameter p;
-                            p.messageCode = msg.code;
-                            p.paramKey = v.key;
-                            p.paramName = v.key;
-                            p.dataType = !v.dataType.empty() ? v.dataType : "STRING";
-                            p.defaultValue = v.example;
-                            p.isRequired = true;
-                            p.description = prefixDesc + v.key;
-                            p.sortOrder = paramOrder++;
-                            p.createdBy = "SYSTEM";
-                            msg.parameters.push_back(p);
-                        }
-                    };
-
-                    addParams(input.headerVariables, "Cabecera: ");
-                    addParams(input.bodyVariables, "Cuerpo: ");
-                    m_repository->SaveCustomMessage(msg);
-
                     // Modular Architecture Persistence in WhatsAppTemplates
                     omnisphere::models::WhatsAppTemplate wTmpl;
+
                     wTmpl.code = input.name;
                     wTmpl.templateName = input.title.empty() ? input.name : input.title;
                     wTmpl.language = input.language.empty() ? "es_MX" : input.language;
