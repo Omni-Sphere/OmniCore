@@ -776,6 +776,13 @@ CREATE TABLE IF NOT EXISTS "WhatsAppMessages" (
     "TemplateName" VARCHAR(255),
     "Content" TEXT,
     "MediaUrl" TEXT,
+    "MediaId" VARCHAR(100),
+    "MediaMimeType" VARCHAR(100),
+    "MediaFileName" VARCHAR(255),
+    "ContextWhatsAppId" VARCHAR(255),
+    "MessageTimestamp" TIMESTAMP,
+    "DeliveredDate" TIMESTAMP,
+    "ReadDate" TIMESTAMP,
     "Status" VARCHAR(50) NOT NULL DEFAULT 'SENT',
     "ResponsePayload" TEXT,
     "ErrorMessage" TEXT,
@@ -786,6 +793,8 @@ CREATE TABLE IF NOT EXISTS "WhatsAppMessages" (
 CREATE INDEX IF NOT EXISTS "IDX_WhatsAppMessages_ConversationEntry" ON "WhatsAppMessages" ("ConversationEntry");
 CREATE INDEX IF NOT EXISTS "IDX_WhatsAppMessages_Code" ON "WhatsAppMessages" ("Code");
 CREATE INDEX IF NOT EXISTS "IDX_WhatsAppMessages_WhatsAppId" ON "WhatsAppMessages" ("WhatsAppId");
+CREATE INDEX IF NOT EXISTS "IDX_WhatsAppMessages_ContextWhatsAppId" ON "WhatsAppMessages" ("ContextWhatsAppId");
+CREATE INDEX IF NOT EXISTS "IDX_WhatsAppMessages_MessageTimestamp" ON "WhatsAppMessages" ("MessageTimestamp");
 
 -- =============================================================================
 -- 28. WhatsApp Templates Modular Architecture (Meta Cloud API)

@@ -16,8 +16,14 @@ namespace omnisphere::notification
         std::string messageText;
         std::string buttonPayload;
         std::string buttonTitle;
-        std::string messageType; // "text", "button", "interactive", "quick_reply", etc.
+        std::string messageType; // "text", "image", "document", "audio", "video", "button", "interactive", etc.
         std::string wamid;
+        std::string mediaUrl;
+        std::string mediaId;
+        std::string mimeType;
+        std::string filename;
+        std::string contextWamid;
+        std::string timestamp;
         std::string traceContext;
         std::string rawPayload;
         std::shared_ptr<omnisphere::data::DatabasePool> dbPool;
@@ -31,6 +37,12 @@ namespace omnisphere::notification
         buttonTitle,
         messageType,
         wamid,
+        mediaUrl,
+        mediaId,
+        mimeType,
+        filename,
+        contextWamid,
+        timestamp,
         traceContext,
         rawPayload
     ))

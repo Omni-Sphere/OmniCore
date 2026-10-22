@@ -257,7 +257,8 @@ namespace omnisphere::repositories
 
             std::vector<std::string> cols = {
                 "\"Code\"", "\"WhatsAppId\"", "\"ConversationEntry\"", "\"SenderType\"", "\"MessageType\"",
-                "\"TemplateName\"", "\"Content\"", "\"MediaUrl\"", "\"Status\"",
+                "\"TemplateName\"", "\"Content\"", "\"MediaUrl\"", "\"MediaId\"", "\"MediaMimeType\"", "\"MediaFileName\"",
+                "\"ContextWhatsAppId\"", "\"MessageTimestamp\"", "\"Status\"",
                 "\"ResponsePayload\"", "\"ErrorMessage\"", "\"SentBy\""
             };
             std::string sql = omnisphere::types::BuildInsertQuery("\"WhatsAppMessages\"", cols);
@@ -271,6 +272,11 @@ namespace omnisphere::repositories
                 omnisphere::types::MakeSQLParam(msg.templateName),
                 omnisphere::types::MakeSQLParam(msg.content),
                 omnisphere::types::MakeSQLParam(msg.mediaUrl),
+                omnisphere::types::MakeSQLParam(msg.mediaId),
+                omnisphere::types::MakeSQLParam(msg.mediaMimeType),
+                omnisphere::types::MakeSQLParam(msg.mediaFileName),
+                omnisphere::types::MakeSQLParam(msg.contextWhatsAppId),
+                omnisphere::types::MakeSQLParam(msg.messageTimestamp),
                 omnisphere::types::MakeSQLParam(msg.status),
                 omnisphere::types::MakeSQLParam(msg.responsePayload),
                 omnisphere::types::MakeSQLParam(msg.errorMessage),
@@ -286,11 +292,14 @@ namespace omnisphere::repositories
 
             if (msg.content.has_value() && !msg.content.value().empty())
             {
-                std::vector<omnisphere::types::ColumnValue> updateCols = {
-                    {"\"LastMessageText\"", omnisphere::types::MakeSQLParam(msg.content.value())}
+                std::string convSql = "UPDATE \"WhatsAppConversations\" SET \"LastMessageText\" = ?, \"LastMessageDate\" = CURRENT_TIMESTAMP, \"UnreadCount\" = \"UnreadCount\" + ? WHERE \"Entry\" = ?";
+                int unreadInc = (msg.senderType == "INBOUND") ? 1 : 0;
+                std::vector<omnisphere::types::SQLParam> convParams = {
+                    omnisphere::types::MakeSQLParam(msg.content.value()),
+                    omnisphere::types::MakeSQLParam(unreadInc),
+                    omnisphere::types::MakeSQLParam(msg.conversationEntry)
                 };
-                auto updateQuery = omnisphere::types::BuildUpdateQuery("\"WhatsAppConversations\"", updateCols, "\"Entry\"", omnisphere::types::MakeSQLParam(msg.conversationEntry));
-                if (!conn->RunPrepared(updateQuery.Query, updateQuery.Parameters))
+                if (!conn->RunPrepared(convSql, convParams))
                 {
                     conn->RollbackTransaction();
                     return false;
@@ -315,9 +324,25 @@ namespace omnisphere::repositories
         try
         {
             conn->BeginTransaction();
-            std::string sql = "UPDATE \"WhatsAppMessages\" SET \"Status\" = ?, \"ResponsePayload\" = ? WHERE \"WhatsAppId\" = ? OR \"Code\" = ?";
+            std::string upperStatus = newStatus;
+            std::transform(upperStatus.begin(), upperStatus.end(), upperStatus.begin(), ::toupper);
+
+            std::string sql;
+            if (upperStatus == "DELIVERED")
+            {
+                sql = "UPDATE \"WhatsAppMessages\" SET \"Status\" = ?, \"DeliveredDate\" = CURRENT_TIMESTAMP, \"ResponsePayload\" = ? WHERE \"WhatsAppId\" = ? OR \"Code\" = ?";
+            }
+            else if (upperStatus == "READ")
+            {
+                sql = "UPDATE \"WhatsAppMessages\" SET \"Status\" = ?, \"ReadDate\" = CURRENT_TIMESTAMP, \"ResponsePayload\" = ? WHERE \"WhatsAppId\" = ? OR \"Code\" = ?";
+            }
+            else
+            {
+                sql = "UPDATE \"WhatsAppMessages\" SET \"Status\" = ?, \"ResponsePayload\" = ? WHERE \"WhatsAppId\" = ? OR \"Code\" = ?";
+            }
+
             std::vector<omnisphere::types::SQLParam> params = {
-                omnisphere::types::MakeSQLParam(newStatus),
+                omnisphere::types::MakeSQLParam(upperStatus),
                 omnisphere::types::MakeSQLParam(responsePayload),
                 omnisphere::types::MakeSQLParam(wamidCode),
                 omnisphere::types::MakeSQLParam(wamidCode)

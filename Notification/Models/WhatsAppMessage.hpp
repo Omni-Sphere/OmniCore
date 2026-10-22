@@ -16,6 +16,13 @@ namespace omnisphere::models
         std::optional<std::string> templateName;
         std::optional<std::string> content;
         std::optional<std::string> mediaUrl;
+        std::optional<std::string> mediaId;
+        std::optional<std::string> mediaMimeType;
+        std::optional<std::string> mediaFileName;
+        std::optional<std::string> contextWhatsAppId;
+        std::optional<std::string> messageTimestamp;
+        std::optional<std::string> deliveredDate;
+        std::optional<std::string> readDate;
         std::string status = "SENT";         // "SENT" | "DELIVERED" | "READ" | "FAILED" | "RECEIVED"
         std::optional<std::string> responsePayload;
         std::optional<std::string> errorMessage;
@@ -33,6 +40,13 @@ namespace omnisphere::models
         templateName,
         content,
         mediaUrl,
+        mediaId,
+        mediaMimeType,
+        mediaFileName,
+        contextWhatsAppId,
+        messageTimestamp,
+        deliveredDate,
+        readDate,
         status,
         responsePayload,
         errorMessage,

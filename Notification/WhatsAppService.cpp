@@ -13,6 +13,8 @@
 #include <boost/beast/version.hpp>
 #include <boost/json.hpp>
 #include <iostream>
+#include <fstream>
+#include <filesystem>
 #include <ctime>
 
 namespace beast = boost::beast;
@@ -20,6 +22,7 @@ namespace http = beast::http;
 namespace net = boost::asio;
 namespace ssl = net::ssl;
 namespace json = boost::json;
+namespace fs = std::filesystem;
 using tcp = net::ip::tcp;
 
 namespace omnisphere::services
@@ -1383,6 +1386,189 @@ namespace omnisphere::services
         }
 
         return false;
+    }
+
+    std::string WhatsAppService::DownloadMedia(
+        const std::string& mediaId,
+        const std::string& mimeType,
+        const std::string& suggestedFilename
+    )
+    {
+        if (mediaId.empty()) return "";
+
+        std::string cleanToken = CleanString(m_config.token);
+        std::string cleanApiVersion = CleanString(m_config.apiVersion.empty() ? "v24.0" : m_config.apiVersion);
+
+        if (cleanToken.empty())
+        {
+            auto settings = GetSettings({"ApiToken", "ApiVersion"});
+            cleanToken = CleanString(settings.apiToken);
+            if (m_config.apiVersion.empty()) cleanApiVersion = CleanString(settings.apiVersion.empty() ? "v24.0" : settings.apiVersion);
+        }
+
+        if (cleanToken.empty())
+        {
+            omnisphere::utils::Logger::LogError("WhatsAppService", "DownloadMedia: Falta ApiToken configurado");
+            return "";
+        }
+
+        try
+        {
+            // 1. Obtener la URL temporal de descarga consultando GET /{mediaId}
+            std::string host = "graph.facebook.com";
+            std::string port = "443";
+            std::string target = "/" + cleanApiVersion + "/" + mediaId;
+
+            boost::asio::io_context ioc;
+            ssl::context ctx(ssl::context::tlsv12_client);
+            ctx.set_default_verify_paths();
+            ctx.set_verify_mode(ssl::verify_peer);
+
+            tcp::resolver resolver(ioc);
+            beast::ssl_stream<beast::tcp_stream> stream(ioc, ctx);
+
+            if (!SSL_set_tlsext_host_name(stream.native_handle(), host.c_str()))
+            {
+                return "";
+            }
+
+            beast::get_lowest_layer(stream).expires_after(std::chrono::seconds(15));
+            auto const results = resolver.resolve(tcp::v4(), host, port);
+            beast::get_lowest_layer(stream).connect(results);
+            beast::get_lowest_layer(stream).expires_after(std::chrono::seconds(15));
+            stream.handshake(ssl::stream_base::client);
+
+            http::request<http::string_body> req{http::verb::get, target, 11};
+            req.set(http::field::host, host);
+            req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+            req.set(http::field::authorization, "Bearer " + cleanToken);
+            req.prepare_payload();
+
+            http::write(stream, req);
+
+            beast::flat_buffer buffer;
+            http::response<http::dynamic_body> res;
+            http::read(stream, buffer, res);
+
+            std::string metaResp = beast::buffers_to_string(res.body().data());
+            beast::error_code ec;
+            stream.shutdown(ec);
+
+            std::string downloadUrl = "";
+            auto parsed = json::parse(metaResp);
+            if (parsed.is_object() && parsed.as_object().contains("url"))
+            {
+                downloadUrl = std::string(parsed.as_object().at("url").as_string());
+            }
+
+            if (downloadUrl.empty())
+            {
+                omnisphere::utils::Logger::LogError("WhatsAppService", "DownloadMedia: Meta no devolvió downloadUrl. Respuesta: " + metaResp);
+                return "";
+            }
+
+            // 2. Parsear host y target de downloadUrl (ej: https://lookaside.fbsbx.com/whatsapp_business/attachments/...)
+            std::string cdnHost = "";
+            std::string cdnTarget = "";
+            std::string prefix = "https://";
+            size_t protoPos = downloadUrl.find(prefix);
+            if (protoPos != std::string::npos)
+            {
+                size_t hostStart = protoPos + prefix.length();
+                size_t slashPos = downloadUrl.find('/', hostStart);
+                if (slashPos != std::string::npos)
+                {
+                    cdnHost = downloadUrl.substr(hostStart, slashPos - hostStart);
+                    cdnTarget = downloadUrl.substr(slashPos);
+                }
+            }
+
+            if (cdnHost.empty() || cdnTarget.empty())
+            {
+                omnisphere::utils::Logger::LogError("WhatsAppService", "DownloadMedia: URL de descarga inválida: " + downloadUrl);
+                return "";
+            }
+
+            // 3. Descargar el binario del archivo
+            boost::asio::io_context cdnIoc;
+            ssl::context cdnCtx(ssl::context::tlsv12_client);
+            cdnCtx.set_default_verify_paths();
+            cdnCtx.set_verify_mode(ssl::verify_peer);
+
+            tcp::resolver cdnResolver(cdnIoc);
+            beast::ssl_stream<beast::tcp_stream> cdnStream(cdnIoc, cdnCtx);
+
+            if (!SSL_set_tlsext_host_name(cdnStream.native_handle(), cdnHost.c_str()))
+            {
+                return "";
+            }
+
+            beast::get_lowest_layer(cdnStream).expires_after(std::chrono::seconds(30));
+            auto const cdnResults = cdnResolver.resolve(tcp::v4(), cdnHost, "443");
+            beast::get_lowest_layer(cdnStream).connect(cdnResults);
+            beast::get_lowest_layer(cdnStream).expires_after(std::chrono::seconds(30));
+            cdnStream.handshake(ssl::stream_base::client);
+
+            http::request<http::empty_body> cdnReq{http::verb::get, cdnTarget, 11};
+            cdnReq.set(http::field::host, cdnHost);
+            cdnReq.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+            cdnReq.set(http::field::authorization, "Bearer " + cleanToken);
+
+            http::write(cdnStream, cdnReq);
+
+            beast::flat_buffer cdnBuffer;
+            http::response<http::string_body> cdnRes;
+            http::read(cdnStream, cdnBuffer, cdnRes);
+
+            beast::error_code cdnEc;
+            cdnStream.shutdown(cdnEc);
+
+            if (cdnRes.result() != http::status::ok)
+            {
+                omnisphere::utils::Logger::LogError("WhatsAppService", "DownloadMedia: Falló la descarga binaria (HTTP " + std::to_string(cdnRes.result_int()) + ")");
+                return "";
+            }
+
+            // 4. Determinar extensión adecuada
+            std::string ext = ".bin";
+            if (!suggestedFilename.empty() && suggestedFilename.find('.') != std::string::npos)
+            {
+                ext = suggestedFilename.substr(suggestedFilename.rfind('.'));
+            }
+            else if (mimeType.find("jpeg") != std::string::npos || mimeType.find("jpg") != std::string::npos) ext = ".jpg";
+            else if (mimeType.find("png") != std::string::npos) ext = ".png";
+            else if (mimeType.find("pdf") != std::string::npos) ext = ".pdf";
+            else if (mimeType.find("audio") != std::string::npos || mimeType.find("ogg") != std::string::npos) ext = ".ogg";
+            else if (mimeType.find("mp4") != std::string::npos || mimeType.find("video") != std::string::npos) ext = ".mp4";
+            else if (mimeType.find("webp") != std::string::npos) ext = ".webp";
+
+            // 5. Guardar en directorio ./uploads/whatsapp/
+            std::string uploadDir = "./uploads/whatsapp";
+            std::error_code fsEc;
+            fs::create_directories(uploadDir, fsEc);
+
+            std::string outFilename = "wa_" + mediaId + "_" + std::to_string(std::time(nullptr)) + ext;
+            std::string diskPath = uploadDir + "/" + outFilename;
+
+            std::ofstream outFile(diskPath, std::ios::binary);
+            if (!outFile.is_open())
+            {
+                omnisphere::utils::Logger::LogError("WhatsAppService", "DownloadMedia: No se pudo abrir archivo para escritura: " + diskPath);
+                return "";
+            }
+
+            outFile.write(cdnRes.body().data(), cdnRes.body().size());
+            outFile.close();
+
+            std::string relativeUrl = "/uploads/whatsapp/" + outFilename;
+            omnisphere::utils::Logger::LogInfo("WhatsAppService", "DownloadMedia: Archivo guardado con éxito -> " + relativeUrl);
+            return relativeUrl;
+        }
+        catch (const std::exception& ex)
+        {
+            omnisphere::utils::Logger::LogError("WhatsAppService", "DownloadMedia Exception: " + std::string(ex.what()));
+            return "";
+        }
     }
 } // namespace omnisphere::services
 

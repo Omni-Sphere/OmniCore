@@ -84,6 +84,12 @@ namespace omnisphere::services
 
         bool SyncTemplatesFromMeta();
 
+        std::string DownloadMedia(
+            const std::string& mediaId,
+            const std::string& mimeType = "",
+            const std::string& suggestedFilename = ""
+        );
+
         bool HasRecentWelcomeCard(const std::string& phoneNumber, int minutesWindow = 30) const;
 
 

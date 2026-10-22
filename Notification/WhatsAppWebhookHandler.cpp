@@ -138,10 +138,88 @@ namespace omnisphere::services
             std::string bodyText = "";
             std::string buttonPayload = "";
             std::string buttonTitle = "";
+            std::string mediaId = "";
+            std::string mimeType = "";
+            std::string filename = "";
+            std::string mediaUrl = "";
+            std::string contextWamid = "";
+            std::string messageTimestamp = "";
+
+            if (mObj.contains("timestamp"))
+            {
+                messageTimestamp = json::value_to<std::string>(mObj["timestamp"]);
+            }
+
+            if (mObj.contains("context") && mObj.at("context").is_object())
+            {
+                auto ctxObj = mObj.at("context").as_object();
+                if (ctxObj.contains("id")) contextWamid = std::string(ctxObj.at("id").as_string());
+            }
+
+            omnisphere::services::WhatsAppService waService(m_dbPool);
 
             if (mObj.contains("text") && mObj.at("text").is_object())
             {
                 bodyText = std::string(mObj.at("text").as_object().at("body").as_string());
+            }
+            else if (mObj.contains("image") && mObj.at("image").is_object())
+            {
+                auto imgObj = mObj.at("image").as_object();
+                if (imgObj.contains("id")) mediaId = std::string(imgObj.at("id").as_string());
+                if (imgObj.contains("mime_type")) mimeType = std::string(imgObj.at("mime_type").as_string());
+                if (imgObj.contains("caption")) bodyText = std::string(imgObj.at("caption").as_string());
+                if (bodyText.empty()) bodyText = "[Imagen]";
+                if (!mediaId.empty())
+                {
+                    mediaUrl = waService.DownloadMedia(mediaId, mimeType, "comprobante.jpg");
+                }
+            }
+            else if (mObj.contains("document") && mObj.at("document").is_object())
+            {
+                auto docObj = mObj.at("document").as_object();
+                if (docObj.contains("id")) mediaId = std::string(docObj.at("id").as_string());
+                if (docObj.contains("filename")) filename = std::string(docObj.at("filename").as_string());
+                if (docObj.contains("mime_type")) mimeType = std::string(docObj.at("mime_type").as_string());
+                if (docObj.contains("caption")) bodyText = std::string(docObj.at("caption").as_string());
+                if (bodyText.empty()) bodyText = "[Documento: " + (!filename.empty() ? filename : "archivo.pdf") + "]";
+                if (!mediaId.empty())
+                {
+                    mediaUrl = waService.DownloadMedia(mediaId, mimeType, filename);
+                }
+            }
+            else if (mObj.contains("audio") && mObj.at("audio").is_object())
+            {
+                auto audObj = mObj.at("audio").as_object();
+                if (audObj.contains("id")) mediaId = std::string(audObj.at("id").as_string());
+                if (audObj.contains("mime_type")) mimeType = std::string(audObj.at("mime_type").as_string());
+                bodyText = "[Audio / Nota de voz]";
+                if (!mediaId.empty())
+                {
+                    mediaUrl = waService.DownloadMedia(mediaId, mimeType, "audio.ogg");
+                }
+            }
+            else if (mObj.contains("video") && mObj.at("video").is_object())
+            {
+                auto vidObj = mObj.at("video").as_object();
+                if (vidObj.contains("id")) mediaId = std::string(vidObj.at("id").as_string());
+                if (vidObj.contains("mime_type")) mimeType = std::string(vidObj.at("mime_type").as_string());
+                if (vidObj.contains("caption")) bodyText = std::string(vidObj.at("caption").as_string());
+                if (bodyText.empty()) bodyText = "[Video]";
+                if (!mediaId.empty())
+                {
+                    mediaUrl = waService.DownloadMedia(mediaId, mimeType, "video.mp4");
+                }
+            }
+            else if (mObj.contains("sticker") && mObj.at("sticker").is_object())
+            {
+                auto stkObj = mObj.at("sticker").as_object();
+                if (stkObj.contains("id")) mediaId = std::string(stkObj.at("id").as_string());
+                if (stkObj.contains("mime_type")) mimeType = std::string(stkObj.at("mime_type").as_string());
+                bodyText = "[Sticker]";
+                if (!mediaId.empty())
+                {
+                    mediaUrl = waService.DownloadMedia(mediaId, mimeType, "sticker.webp");
+                }
             }
             else if (mObj.contains("button") && mObj.at("button").is_object())
             {
@@ -200,17 +278,37 @@ namespace omnisphere::services
                 msg.senderType = "INBOUND";
                 msg.messageType = msgType;
                 msg.content = bodyText;
+                if (!mediaUrl.empty()) msg.mediaUrl = mediaUrl;
+                if (!mediaId.empty()) msg.mediaId = mediaId;
+                if (!mimeType.empty()) msg.mediaMimeType = mimeType;
+                if (!filename.empty()) msg.mediaFileName = filename;
+                if (!contextWamid.empty()) msg.contextWhatsAppId = contextWamid;
+                if (!messageTimestamp.empty())
+                {
+                    try
+                    {
+                        time_t tSec = std::stoll(messageTimestamp);
+                        std::tm tmBuf{};
+                        gmtime_r(&tSec, &tmBuf);
+                        char buf[32];
+                        std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tmBuf);
+                        msg.messageTimestamp = std::string(buf);
+                    }
+                    catch (...)
+                    {
+                        msg.messageTimestamp = messageTimestamp;
+                    }
+                }
                 msg.status = "RECEIVED";
                 msg.responsePayload = rawBody;
                 msg.sentBy = 0;
                 m_repo->LogMessage(msg);
                 omnisphere::utils::Logger::LogInfo("WhatsAppWebhookHandler",
-                    req.TraceContext() + " Inbound Message Logged to DB (WAMID: " + wamid + ", From: " + fromPhone + ", Body: '" + bodyText + "')");
+                    req.TraceContext() + " Inbound Message Logged to DB (WAMID: " + wamid + ", From: " + fromPhone + ", Type: " + msgType + ", MediaUrl: '" + mediaUrl + "', Body: '" + bodyText + "')");
 
                 // Marcar el mensaje como LEÍDO en la Cloud API de Meta (doble palomita azul para el cliente)
                 if (!wamid.empty())
                 {
-                    omnisphere::services::WhatsAppService waService(m_dbPool);
                     waService.MarkAsRead(wamid);
                 }
 
@@ -223,6 +321,12 @@ namespace omnisphere::services
                 hookEvent.buttonTitle = buttonTitle;
                 hookEvent.messageType = msgType;
                 hookEvent.wamid = wamid;
+                hookEvent.mediaUrl = mediaUrl;
+                hookEvent.mediaId = mediaId;
+                hookEvent.mimeType = mimeType;
+                hookEvent.filename = filename;
+                hookEvent.contextWamid = contextWamid;
+                hookEvent.timestamp = messageTimestamp;
                 hookEvent.traceContext = req.TraceContext();
                 hookEvent.rawPayload = req.Body();
                 hookEvent.dbPool = m_dbPool;
