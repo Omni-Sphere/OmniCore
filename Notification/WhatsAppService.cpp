@@ -994,7 +994,7 @@ namespace omnisphere::services
                 exampleObj["header_text"] = headerTextArr;
                 headerObj["example"] = exampleObj;
             }
-            headerObj["text"] = hText;
+            headerObj["text"] = DecodeUnicodeEscapes(hText);
             componentsArr.push_back(headerObj);
         }
 
@@ -1026,7 +1026,7 @@ namespace omnisphere::services
             exampleObj["body_text"] = bodyTextArr;
             bodyObj["example"] = exampleObj;
         }
-        bodyObj["text"] = bText;
+        bodyObj["text"] = DecodeUnicodeEscapes(bText);
         componentsArr.push_back(bodyObj);
 
         // 3. FOOTER Component
@@ -1034,9 +1034,10 @@ namespace omnisphere::services
         {
             json::object footerObj;
             footerObj["type"] = "FOOTER";
-            footerObj["text"] = *input.footerText;
+            footerObj["text"] = DecodeUnicodeEscapes(*input.footerText);
             componentsArr.push_back(footerObj);
         }
+
 
         // 4. BUTTONS Component
         if (!input.buttons.empty())
