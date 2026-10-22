@@ -805,12 +805,25 @@ BEGIN
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'WhatsAppTemplates' AND column_name = 'RejectReason') THEN
             ALTER TABLE "WhatsAppTemplates" ADD COLUMN "RejectReason" TEXT;
         END IF;
-        -- Drop legacy column ButtonsJson if it exists
+        -- Drop legacy columns if they exist
         IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'WhatsAppTemplates' AND column_name = 'ButtonsJson') THEN
             ALTER TABLE "WhatsAppTemplates" DROP COLUMN "ButtonsJson";
         END IF;
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'WhatsAppTemplates' AND column_name = 'BodyTemplate') THEN
+            ALTER TABLE "WhatsAppTemplates" DROP COLUMN "BodyTemplate";
+        END IF;
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'WhatsAppTemplates' AND column_name = 'HeaderContent') THEN
+            ALTER TABLE "WhatsAppTemplates" DROP COLUMN "HeaderContent";
+        END IF;
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'WhatsAppTemplates' AND column_name = 'FooterText') THEN
+            ALTER TABLE "WhatsAppTemplates" DROP COLUMN "FooterText";
+        END IF;
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'WhatsAppTemplates' AND column_name = 'HeaderType') THEN
+            ALTER TABLE "WhatsAppTemplates" DROP COLUMN "HeaderType";
+        END IF;
     END IF;
 END $$;
+
 
 -- 28.1 WhatsAppTemplates (Master)
 CREATE TABLE IF NOT EXISTS "WhatsAppTemplates" (
