@@ -790,6 +790,15 @@ CREATE TABLE IF NOT EXISTS "WhatsAppMessages" (
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Migraciones incrementales si la tabla ya existía previamente
+ALTER TABLE "WhatsAppMessages" ADD COLUMN IF NOT EXISTS "MediaId" VARCHAR(100);
+ALTER TABLE "WhatsAppMessages" ADD COLUMN IF NOT EXISTS "MediaMimeType" VARCHAR(100);
+ALTER TABLE "WhatsAppMessages" ADD COLUMN IF NOT EXISTS "MediaFileName" VARCHAR(255);
+ALTER TABLE "WhatsAppMessages" ADD COLUMN IF NOT EXISTS "ContextWhatsAppId" VARCHAR(255);
+ALTER TABLE "WhatsAppMessages" ADD COLUMN IF NOT EXISTS "MessageTimestamp" TIMESTAMP;
+ALTER TABLE "WhatsAppMessages" ADD COLUMN IF NOT EXISTS "DeliveredDate" TIMESTAMP;
+ALTER TABLE "WhatsAppMessages" ADD COLUMN IF NOT EXISTS "ReadDate" TIMESTAMP;
+
 CREATE INDEX IF NOT EXISTS "IDX_WhatsAppMessages_ConversationEntry" ON "WhatsAppMessages" ("ConversationEntry");
 CREATE INDEX IF NOT EXISTS "IDX_WhatsAppMessages_Code" ON "WhatsAppMessages" ("Code");
 CREATE INDEX IF NOT EXISTS "IDX_WhatsAppMessages_WhatsAppId" ON "WhatsAppMessages" ("WhatsAppId");
