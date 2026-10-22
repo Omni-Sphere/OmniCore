@@ -833,7 +833,7 @@ namespace omnisphere::repositories
         try
         {
             auto conn = m_dbPool->Acquire();
-            auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::WhatsAppTemplate>(requestedFields);
+            auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::WhatsAppTemplate>({});
             std::vector<omnisphere::types::Condition> conditions = {
                 {"", "\"Code\"", "=", "?"}
             };
@@ -914,7 +914,7 @@ namespace omnisphere::repositories
         try
         {
             auto conn = m_dbPool->Acquire();
-            auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::WhatsAppTemplate>(requestedFields);
+            auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::WhatsAppTemplate>({});
             auto qp = omnisphere::types::BuildQueryParts(selectFields, {});
             std::string sql = "SELECT " + qp.SelectClause + " FROM \"WhatsAppTemplates\" ORDER BY \"Entry\" DESC";
             std::vector<omnisphere::types::SQLParam> emptyParams;
