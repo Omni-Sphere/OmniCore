@@ -82,7 +82,10 @@ namespace omnisphere::services
             const omnisphere::dtos::CreateMetaTemplateInput& input
         );
 
+        bool SyncTemplatesFromMeta();
+
         bool HasRecentWelcomeCard(const std::string& phoneNumber, int minutesWindow = 30) const;
+
 
         void SetLicenseService(std::shared_ptr<omnisphere::services::LicenseService> licenseService);
         std::string GetLastErrorMessage() const { return m_lastError; }

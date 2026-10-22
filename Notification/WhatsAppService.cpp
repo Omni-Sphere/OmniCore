@@ -1237,4 +1237,152 @@ namespace omnisphere::services
 
         return result;
     }
+
+    bool WhatsAppService::SyncTemplatesFromMeta()
+    {
+        if (!m_repository) return false;
+
+        std::string cleanWabaId = CleanString(m_config.businessAccountId);
+        std::string cleanToken = CleanString(m_config.token);
+        std::string cleanApiVersion = CleanString(m_config.apiVersion.empty() ? "v24.0" : m_config.apiVersion);
+
+        if (cleanWabaId.empty() || cleanToken.empty())
+        {
+            auto settings = GetSettings({"BusinessAccountId", "ApiToken", "ApiVersion"});
+            if (cleanWabaId.empty()) cleanWabaId = CleanString(settings.businessAccountId);
+            if (cleanToken.empty()) cleanToken = CleanString(settings.apiToken);
+            if (m_config.apiVersion.empty()) cleanApiVersion = CleanString(settings.apiVersion.empty() ? "v24.0" : settings.apiVersion);
+        }
+
+        if (cleanWabaId.empty() || cleanToken.empty())
+        {
+            omnisphere::utils::Logger::LogError("WhatsAppService", "SyncTemplatesFromMeta: Falta BusinessAccountId o ApiToken");
+            return false;
+        }
+
+        try
+        {
+            std::string host = "graph.facebook.com";
+            std::string port = "443";
+            std::string target = "/" + cleanApiVersion + "/" + cleanWabaId + "/message_templates?limit=100";
+
+            boost::asio::io_context ioc;
+            ssl::context ctx(ssl::context::tlsv12_client);
+            ctx.set_default_verify_paths();
+            ctx.set_verify_mode(ssl::verify_peer);
+
+            tcp::resolver resolver(ioc);
+            beast::ssl_stream<beast::tcp_stream> stream(ioc, ctx);
+
+            if (!SSL_set_tlsext_host_name(stream.native_handle(), host.c_str()))
+            {
+                return false;
+            }
+
+            beast::get_lowest_layer(stream).expires_after(std::chrono::seconds(15));
+            auto const results = resolver.resolve(tcp::v4(), host, port);
+            beast::get_lowest_layer(stream).connect(results);
+            beast::get_lowest_layer(stream).expires_after(std::chrono::seconds(15));
+            stream.handshake(ssl::stream_base::client);
+
+            http::request<http::string_body> req{http::verb::get, target, 11};
+            req.set(http::field::host, host);
+            req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+            req.set(http::field::authorization, "Bearer " + cleanToken);
+            req.prepare_payload();
+
+            http::write(stream, req);
+
+            beast::flat_buffer buffer;
+            http::response<http::dynamic_body> res;
+            http::read(stream, buffer, res);
+
+            std::string responseBodyStr = beast::buffers_to_string(res.body().data());
+            beast::error_code ec;
+            stream.shutdown(ec);
+
+            if (res.result() == http::status::ok)
+            {
+                auto parsed = json::parse(responseBodyStr);
+                if (parsed.is_object() && parsed.as_object().contains("data") && parsed.as_object().at("data").is_array())
+                {
+                    auto templatesArr = parsed.as_object().at("data").as_array();
+                    for (const auto& item : templatesArr)
+                    {
+                        if (!item.is_object()) continue;
+                        auto obj = item.as_object();
+                        std::string tName = obj.contains("name") ? std::string(obj.at("name").as_string()) : "";
+                        if (tName.empty()) continue;
+
+                        omnisphere::models::WhatsAppTemplate wTmpl;
+                        wTmpl.code = tName;
+                        wTmpl.templateName = tName;
+                        if (obj.contains("language")) wTmpl.language = std::string(obj.at("language").as_string());
+                        if (obj.contains("category")) wTmpl.category = std::string(obj.at("category").as_string());
+                        if (obj.contains("status")) wTmpl.status = std::string(obj.at("status").as_string());
+                        if (obj.contains("id")) wTmpl.metaTemplateId = std::string(obj.at("id").as_string());
+                        wTmpl.isActive = true;
+                        wTmpl.createdBy = "meta_sync";
+
+                        if (obj.contains("components") && obj.at("components").is_array())
+                        {
+                            for (const auto& c : obj.at("components").as_array())
+                            {
+                                if (!c.is_object()) continue;
+                                auto cObj = c.as_object();
+                                std::string type = cObj.contains("type") ? std::string(cObj.at("type").as_string()) : "";
+
+                                if (type == "HEADER")
+                                {
+                                    omnisphere::models::WhatsAppTemplateHeader h;
+                                    std::string format = cObj.contains("format") ? std::string(cObj.at("format").as_string()) : "TEXT";
+                                    h.headerType = format;
+                                    if (cObj.contains("text")) h.textContent = std::string(cObj.at("text").as_string());
+                                    wTmpl.header = h;
+                                }
+                                else if (type == "BODY")
+                                {
+                                    omnisphere::models::WhatsAppTemplateBody b;
+                                    if (cObj.contains("text")) b.bodyText = std::string(cObj.at("text").as_string());
+                                    wTmpl.body = b;
+                                }
+                                else if (type == "FOOTER")
+                                {
+                                    omnisphere::models::WhatsAppTemplateFooter f;
+                                    if (cObj.contains("text")) f.footerText = std::string(cObj.at("text").as_string());
+                                    wTmpl.footer = f;
+                                }
+                                else if (type == "BUTTONS" && cObj.contains("buttons") && cObj.at("buttons").is_array())
+                                {
+                                    int bOrder = 1;
+                                    for (const auto& btnVal : cObj.at("buttons").as_array())
+                                    {
+                                        if (!btnVal.is_object()) continue;
+                                        auto btnObj = btnVal.as_object();
+                                        omnisphere::models::WhatsAppTemplateButton btn;
+                                        if (btnObj.contains("type")) btn.buttonType = std::string(btnObj.at("type").as_string());
+                                        if (btnObj.contains("text")) btn.title = std::string(btnObj.at("text").as_string());
+                                        if (btnObj.contains("url")) btn.payload = std::string(btnObj.at("url").as_string());
+                                        else if (btnObj.contains("phone_number")) btn.payload = std::string(btnObj.at("phone_number").as_string());
+                                        btn.sortOrder = bOrder++;
+                                        wTmpl.buttons.push_back(btn);
+                                    }
+                                }
+                            }
+                        }
+
+                        m_repository->SaveWhatsAppTemplate(wTmpl);
+                    }
+                    return true;
+                }
+            }
+        }
+        catch (const std::exception& ex)
+        {
+            omnisphere::utils::Logger::LogError("WhatsAppService", "SyncTemplatesFromMeta Exception: " + std::string(ex.what()));
+        }
+
+        return false;
+    }
 } // namespace omnisphere::services
+
