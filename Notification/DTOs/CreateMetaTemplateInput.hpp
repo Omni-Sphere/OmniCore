@@ -27,7 +27,7 @@ namespace omnisphere::dtos
         std::string category = "UTILITY"; // "UTILITY", "MARKETING", "AUTHENTICATION"
         std::string language = "es_MX";
         std::string bodyText;             // e.g., "Hola {{1}}, tu reservación {{2}} ha sido cancelada."
-        std::string headerType = "NONE";   // "NONE", "TEXT"
+        std::string headerType = "NONE";   // "NONE", "TEXT", "IMAGE", "VIDEO", "DOCUMENT", "LOCATION"
         std::optional<std::string> headerText;
         std::optional<std::string> footerText;
         std::vector<CreateMetaTemplateVariableInput> headerVariables;

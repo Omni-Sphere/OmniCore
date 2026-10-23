@@ -13,6 +13,17 @@
 
 namespace omnisphere::services
 {
+    struct WhatsAppMediaHeader
+    {
+        std::string type;     // "IMAGE", "VIDEO", "DOCUMENT", "LOCATION"
+        std::string mediaUrl; // URL segura generada internamente
+        std::string filename; // Nombre del archivo (ej. "Boleto_RSV123.pdf")
+        double latitude = 0.0;
+        double longitude = 0.0;
+        std::string locationName;
+        std::string locationAddress;
+    };
+
     class WhatsAppService
     {
     public:
@@ -33,11 +44,19 @@ namespace omnisphere::services
             const std::vector<std::string>& params
         );
 
+        bool SendNotification(
+            const std::string& phoneNumber,
+            const std::string& templateName,
+            const std::vector<std::string>& params,
+            const std::optional<WhatsAppMediaHeader>& mediaHeader
+        );
+
         bool SendNamedNotification(
             const std::string& phoneNumber,
             const std::string& templateName,
             const std::map<std::string, std::string>& params,
-            const std::string& interpolatedContent = ""
+            const std::string& interpolatedContent = "",
+            const std::optional<WhatsAppMediaHeader>& mediaHeader = std::nullopt
         );
 
         bool SendMessage(

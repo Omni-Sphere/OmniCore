@@ -441,49 +441,14 @@ namespace omnisphere::services
         const std::vector<std::string>& params
     )
     {
-        CheckLicense();
-        std::string cleanPhone = SanitizePhoneNumber(phoneNumber);
-        json::object body;
-        body["messaging_product"] = "whatsapp";
-        body["to"] = cleanPhone;
-        body["type"] = "template";
-
-        json::object tmpl;
-        tmpl["name"] = templateName;
-        json::object lang;
-        lang["code"] = (templateName == "ticket_confirmation") ? "en" : "es_MX";
-        tmpl["language"] = lang;
-
-        if (!params.empty())
-        {
-            json::array components;
-            json::object bodyComp;
-            bodyComp["type"] = "body";
-            json::array parameters;
-            for (const auto& p : params)
-            {
-                json::object paramObj;
-                paramObj["type"] = "text";
-                paramObj["text"] = p;
-                parameters.push_back(paramObj);
-            }
-            bodyComp["parameters"] = parameters;
-            components.push_back(bodyComp);
-            tmpl["components"] = components;
-        }
-        
-        body["template"] = tmpl;
-
-        std::string jsonStr = json::serialize(body);
-        std::string contentStr = "Template: " + templateName;
-        return SendRequest(cleanPhone, "TEMPLATE", templateName, contentStr, jsonStr);
+        return SendNotification(phoneNumber, templateName, params, std::nullopt);
     }
 
-    bool WhatsAppService::SendNamedNotification(
+    bool WhatsAppService::SendNotification(
         const std::string& phoneNumber,
         const std::string& templateName,
-        const std::map<std::string, std::string>& params,
-        const std::string& interpolatedContent
+        const std::vector<std::string>& params,
+        const std::optional<WhatsAppMediaHeader>& mediaHeader
     )
     {
         CheckLicense();
@@ -499,9 +464,181 @@ namespace omnisphere::services
         lang["code"] = (templateName == "ticket_confirmation") ? "en" : "es_MX";
         tmpl["language"] = lang;
 
+        json::array components;
+
+        // 1. Header Component (Media: IMAGE, VIDEO, DOCUMENT, LOCATION)
+        if (mediaHeader.has_value())
+        {
+            json::object headerComp;
+            headerComp["type"] = "header";
+            json::array parameters;
+
+            std::string hType = mediaHeader->type;
+            if (hType == "IMAGE")
+            {
+                json::object paramObj;
+                paramObj["type"] = "image";
+                json::object imgObj;
+                imgObj["link"] = mediaHeader->mediaUrl;
+                paramObj["image"] = imgObj;
+                parameters.push_back(paramObj);
+            }
+            else if (hType == "VIDEO")
+            {
+                json::object paramObj;
+                paramObj["type"] = "video";
+                json::object vidObj;
+                vidObj["link"] = mediaHeader->mediaUrl;
+                paramObj["video"] = vidObj;
+                parameters.push_back(paramObj);
+            }
+            else if (hType == "DOCUMENT")
+            {
+                json::object paramObj;
+                paramObj["type"] = "document";
+                json::object docObj;
+                docObj["link"] = mediaHeader->mediaUrl;
+                if (!mediaHeader->filename.empty())
+                {
+                    docObj["filename"] = mediaHeader->filename;
+                }
+                paramObj["document"] = docObj;
+                parameters.push_back(paramObj);
+            }
+            else if (hType == "LOCATION")
+            {
+                json::object paramObj;
+                paramObj["type"] = "location";
+                json::object locObj;
+                locObj["latitude"] = std::to_string(mediaHeader->latitude);
+                locObj["longitude"] = std::to_string(mediaHeader->longitude);
+                if (!mediaHeader->locationName.empty()) locObj["name"] = mediaHeader->locationName;
+                if (!mediaHeader->locationAddress.empty()) locObj["address"] = mediaHeader->locationAddress;
+                paramObj["location"] = locObj;
+                parameters.push_back(paramObj);
+            }
+
+            if (!parameters.empty())
+            {
+                headerComp["parameters"] = parameters;
+                components.push_back(headerComp);
+            }
+        }
+
+        // 2. Body Component (Positional Variables)
         if (!params.empty())
         {
-            json::array components;
+            json::object bodyComp;
+            bodyComp["type"] = "body";
+            json::array parameters;
+            for (const auto& p : params)
+            {
+                json::object paramObj;
+                paramObj["type"] = "text";
+                paramObj["text"] = p;
+                parameters.push_back(paramObj);
+            }
+            bodyComp["parameters"] = parameters;
+            components.push_back(bodyComp);
+        }
+        
+        if (!components.empty())
+        {
+            tmpl["components"] = components;
+        }
+
+        body["template"] = tmpl;
+
+        std::string jsonStr = json::serialize(body);
+        std::string contentStr = "Template: " + templateName;
+        return SendRequest(cleanPhone, "TEMPLATE", templateName, contentStr, jsonStr);
+    }
+
+    bool WhatsAppService::SendNamedNotification(
+        const std::string& phoneNumber,
+        const std::string& templateName,
+        const std::map<std::string, std::string>& params,
+        const std::string& interpolatedContent,
+        const std::optional<WhatsAppMediaHeader>& mediaHeader
+    )
+    {
+        CheckLicense();
+        std::string cleanPhone = SanitizePhoneNumber(phoneNumber);
+        json::object body;
+        body["messaging_product"] = "whatsapp";
+        body["to"] = cleanPhone;
+        body["type"] = "template";
+
+        json::object tmpl;
+        tmpl["name"] = templateName;
+        json::object lang;
+        lang["code"] = (templateName == "ticket_confirmation") ? "en" : "es_MX";
+        tmpl["language"] = lang;
+
+        json::array components;
+
+        // 1. Header Component (Media: IMAGE, VIDEO, DOCUMENT, LOCATION)
+        if (mediaHeader.has_value())
+        {
+            json::object headerComp;
+            headerComp["type"] = "header";
+            json::array parameters;
+
+            std::string hType = mediaHeader->type;
+            if (hType == "IMAGE")
+            {
+                json::object paramObj;
+                paramObj["type"] = "image";
+                json::object imgObj;
+                imgObj["link"] = mediaHeader->mediaUrl;
+                paramObj["image"] = imgObj;
+                parameters.push_back(paramObj);
+            }
+            else if (hType == "VIDEO")
+            {
+                json::object paramObj;
+                paramObj["type"] = "video";
+                json::object vidObj;
+                vidObj["link"] = mediaHeader->mediaUrl;
+                paramObj["video"] = vidObj;
+                parameters.push_back(paramObj);
+            }
+            else if (hType == "DOCUMENT")
+            {
+                json::object paramObj;
+                paramObj["type"] = "document";
+                json::object docObj;
+                docObj["link"] = mediaHeader->mediaUrl;
+                if (!mediaHeader->filename.empty())
+                {
+                    docObj["filename"] = mediaHeader->filename;
+                }
+                paramObj["document"] = docObj;
+                parameters.push_back(paramObj);
+            }
+            else if (hType == "LOCATION")
+            {
+                json::object paramObj;
+                paramObj["type"] = "location";
+                json::object locObj;
+                locObj["latitude"] = std::to_string(mediaHeader->latitude);
+                locObj["longitude"] = std::to_string(mediaHeader->longitude);
+                if (!mediaHeader->locationName.empty()) locObj["name"] = mediaHeader->locationName;
+                if (!mediaHeader->locationAddress.empty()) locObj["address"] = mediaHeader->locationAddress;
+                paramObj["location"] = locObj;
+                parameters.push_back(paramObj);
+            }
+
+            if (!parameters.empty())
+            {
+                headerComp["parameters"] = parameters;
+                components.push_back(headerComp);
+            }
+        }
+
+        // 2. Body Component (Named Variables)
+        if (!params.empty())
+        {
             json::object bodyComp;
             bodyComp["type"] = "body";
             json::array parameters;
@@ -515,8 +652,13 @@ namespace omnisphere::services
             }
             bodyComp["parameters"] = parameters;
             components.push_back(bodyComp);
+        }
+
+        if (!components.empty())
+        {
             tmpl["components"] = components;
         }
+
         body["template"] = tmpl;
 
         std::string jsonStr = json::serialize(body);
@@ -1022,7 +1164,7 @@ namespace omnisphere::services
 
         json::array componentsArr;
 
-        // 1. HEADER Component
+        // 1. HEADER Component (TEXT, IMAGE, VIDEO, DOCUMENT, LOCATION)
         if (input.headerType == "TEXT" && input.headerText.has_value() && !input.headerText->empty())
         {
             json::object headerObj;
@@ -1052,6 +1194,13 @@ namespace omnisphere::services
                 headerObj["example"] = exampleObj;
             }
             headerObj["text"] = DecodeUnicodeEscapes(hText);
+            componentsArr.push_back(headerObj);
+        }
+        else if (input.headerType == "IMAGE" || input.headerType == "VIDEO" || input.headerType == "DOCUMENT" || input.headerType == "LOCATION")
+        {
+            json::object headerObj;
+            headerObj["type"] = "HEADER";
+            headerObj["format"] = input.headerType;
             componentsArr.push_back(headerObj);
         }
 
