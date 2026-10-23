@@ -1161,6 +1161,7 @@ namespace omnisphere::services
         payloadObj["name"] = metaName;
         payloadObj["language"] = input.language.empty() ? "es_MX" : input.language;
         payloadObj["category"] = input.category.empty() ? "UTILITY" : input.category;
+        payloadObj["parameter_format"] = "NAMED";
 
         json::array componentsArr;
 
@@ -1170,30 +1171,22 @@ namespace omnisphere::services
             json::object headerObj;
             headerObj["type"] = "HEADER";
             headerObj["format"] = "TEXT";
-            std::string hText = *input.headerText;
 
-            // If header variables exist, replace named tokens {{name}} with {{1}}, {{2}} and supply example
             if (!input.headerVariables.empty())
             {
                 json::object exampleObj;
-                json::array headerTextArr;
-                int hIdx = 1;
+                json::array namedParamsArr;
                 for (const auto& hVar : input.headerVariables)
                 {
-                    std::string tokenToFind = "{{" + hVar.key + "}}";
-                    std::string numToken = "{{" + std::to_string(hIdx++) + "}}";
-                    size_t pos = 0;
-                    while ((pos = hText.find(tokenToFind, pos)) != std::string::npos)
-                    {
-                        hText.replace(pos, tokenToFind.length(), numToken);
-                        pos += numToken.length();
-                    }
-                    headerTextArr.push_back(boost::json::string_view(!hVar.example.empty() ? hVar.example : "Ejemplo"));
+                    json::object paramObj;
+                    paramObj["param_name"] = hVar.key;
+                    paramObj["example"] = boost::json::string_view(!hVar.example.empty() ? hVar.example : "Ejemplo");
+                    namedParamsArr.push_back(paramObj);
                 }
-                exampleObj["header_text"] = headerTextArr;
+                exampleObj["header_text_named_params"] = namedParamsArr;
                 headerObj["example"] = exampleObj;
             }
-            headerObj["text"] = DecodeUnicodeEscapes(hText);
+            headerObj["text"] = DecodeUnicodeEscapes(*input.headerText);
             componentsArr.push_back(headerObj);
         }
         else if (input.headerType == "IMAGE" || input.headerType == "VIDEO" || input.headerType == "DOCUMENT" || input.headerType == "LOCATION")
@@ -1207,32 +1200,22 @@ namespace omnisphere::services
         // 2. BODY Component
         json::object bodyObj;
         bodyObj["type"] = "BODY";
-        std::string bText = input.bodyText;
 
-        // If body variables exist, replace named tokens {{name}} with {{1}}, {{2}} and supply example
         if (!input.bodyVariables.empty())
         {
             json::object exampleObj;
-            json::array bodyTextArr;
-            json::array bodySubArr;
-            int bIdx = 1;
+            json::array namedParamsArr;
             for (const auto& bVar : input.bodyVariables)
             {
-                std::string tokenToFind = "{{" + bVar.key + "}}";
-                std::string numToken = "{{" + std::to_string(bIdx++) + "}}";
-                size_t pos = 0;
-                while ((pos = bText.find(tokenToFind, pos)) != std::string::npos)
-                {
-                    bText.replace(pos, tokenToFind.length(), numToken);
-                    pos += numToken.length();
-                }
-                bodySubArr.push_back(boost::json::string_view(!bVar.example.empty() ? bVar.example : "Ejemplo"));
+                json::object paramObj;
+                paramObj["param_name"] = bVar.key;
+                paramObj["example"] = boost::json::string_view(!bVar.example.empty() ? bVar.example : "Ejemplo");
+                namedParamsArr.push_back(paramObj);
             }
-            bodyTextArr.push_back(bodySubArr);
-            exampleObj["body_text"] = bodyTextArr;
+            exampleObj["body_text_named_params"] = namedParamsArr;
             bodyObj["example"] = exampleObj;
         }
-        bodyObj["text"] = DecodeUnicodeEscapes(bText);
+        bodyObj["text"] = DecodeUnicodeEscapes(input.bodyText);
         componentsArr.push_back(bodyObj);
 
         // 3. FOOTER Component
