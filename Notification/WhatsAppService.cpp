@@ -1381,12 +1381,17 @@ namespace omnisphere::services
             metaDeleted = true;
         }
 
+        bool dbDeleted = false;
         if (m_repository)
         {
-            m_repository->DeleteWhatsAppTemplate(cleanCode);
+            dbDeleted = m_repository->DeleteWhatsAppTemplate(cleanCode);
+            if (!dbDeleted)
+            {
+                omnisphere::utils::Logger::LogError("WhatsAppService", "DeleteMetaTemplate: Falló la eliminación de la plantilla en la base de datos local para el código [" + cleanCode + "]");
+            }
         }
 
-        return metaDeleted;
+        return metaDeleted && dbDeleted;
     }
 
     bool WhatsAppService::SyncTemplatesFromMeta()

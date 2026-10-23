@@ -646,10 +646,10 @@ namespace omnisphere::repositories
         try
         {
             conn->BeginTransaction();
-            std::string sql1 =
-                "UPDATE \"CustomMessages\" SET "
-                "  \"MetaStatus\" = ?, "
-                "  \"MetaRejectReason\" = ?, "
+            std::string sql =
+                "UPDATE \"WhatsAppTemplates\" SET "
+                "  \"Status\" = ?, "
+                "  \"RejectReason\" = ?, "
                 "  \"MetaTemplateId\" = COALESCE(NULLIF(?, ''), \"MetaTemplateId\"), "
                 "  \"UpdateDate\" = CURRENT_TIMESTAMP "
                 "WHERE (\"MetaTemplateId\" IS NOT NULL AND \"MetaTemplateId\" = ?) "
@@ -664,18 +664,7 @@ namespace omnisphere::repositories
                 omnisphere::types::MakeSQLParam(templateName),
                 omnisphere::types::MakeSQLParam(templateName)
             };
-            conn->RunPrepared(sql1, params);
-
-            std::string sql2 =
-                "UPDATE \"WhatsAppTemplates\" SET "
-                "  \"Status\" = ?, "
-                "  \"RejectReason\" = ?, "
-                "  \"MetaTemplateId\" = COALESCE(NULLIF(?, ''), \"MetaTemplateId\"), "
-                "  \"UpdateDate\" = CURRENT_TIMESTAMP "
-                "WHERE (\"MetaTemplateId\" IS NOT NULL AND \"MetaTemplateId\" = ?) "
-                "   OR \"Code\" = ? "
-                "   OR LOWER(\"Code\") = LOWER(?)";
-            conn->RunPrepared(sql2, params);
+            conn->RunPrepared(sql, params);
 
             conn->CommitTransaction();
             return true;
@@ -1216,28 +1205,17 @@ namespace omnisphere::repositories
         {
             conn->BeginTransaction();
 
-            // 1. Eliminar de CustomMessages y sus botones/parámetros asociados
-            auto cmDt = conn->FetchPrepared("SELECT \"Entry\" FROM \"CustomMessages\" WHERE \"Code\" = ? OR LOWER(\"Code\") = LOWER(?)",
+            // Eliminar de WhatsAppTemplates (en cascada elimina Headers, Bodies, Footers, Buttons y Variables)
+            bool ok = conn->RunPrepared("DELETE FROM \"WhatsAppTemplates\" WHERE \"Code\" = ? OR LOWER(\"Code\") = LOWER(?)",
                 { omnisphere::types::MakeSQLParam(code), omnisphere::types::MakeSQLParam(code) });
-            for (size_t i = 0; i < cmDt.RowsCount(); ++i)
+
+            if (ok)
             {
-                int cmEntry = cmDt[i]["Entry"].GetOptional<int>().value_or(0);
-                if (cmEntry > 0)
-                {
-                    conn->RunPrepared("DELETE FROM \"CustomButtons\" WHERE \"MessageEntry\" = ?", { omnisphere::types::MakeSQLParam(cmEntry) });
-                }
+                conn->CommitTransaction();
+                return true;
             }
-            conn->RunPrepared("DELETE FROM \"CustomMessageParameters\" WHERE \"MessageCode\" = ? OR LOWER(\"MessageCode\") = LOWER(?)",
-                { omnisphere::types::MakeSQLParam(code), omnisphere::types::MakeSQLParam(code) });
-            conn->RunPrepared("DELETE FROM \"CustomMessages\" WHERE \"Code\" = ? OR LOWER(\"Code\") = LOWER(?)",
-                { omnisphere::types::MakeSQLParam(code), omnisphere::types::MakeSQLParam(code) });
-
-            // 2. Eliminar de WhatsAppTemplates (en cascada elimina Headers, Bodies, Footers, Buttons y Variables)
-            conn->RunPrepared("DELETE FROM \"WhatsAppTemplates\" WHERE \"Code\" = ? OR LOWER(\"Code\") = LOWER(?)",
-                { omnisphere::types::MakeSQLParam(code), omnisphere::types::MakeSQLParam(code) });
-
-            conn->CommitTransaction();
-            return true;
+            conn->RollbackTransaction();
+            return false;
         }
         catch (const std::exception& ex)
         {
