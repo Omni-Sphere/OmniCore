@@ -524,6 +524,60 @@ namespace omnisphere::services
         return SendRequest(cleanPhone, "TEMPLATE", templateName, contentStr, jsonStr);
     }
 
+    static std::string EncodeToUnicodeEscapes(const std::string& input)
+    {
+        std::string result;
+        result.reserve(input.size() * 2);
+
+        for (size_t i = 0; i < input.size();)
+        {
+            unsigned char c = static_cast<unsigned char>(input[i]);
+            if (c < 0x80)
+            {
+                result += static_cast<char>(c);
+                i += 1;
+            }
+            else if ((c & 0xE0) == 0xC0 && i + 1 < input.size())
+            {
+                // 2-byte UTF-8
+                uint32_t cp = ((c & 0x1F) << 6) | (static_cast<unsigned char>(input[i + 1]) & 0x3F);
+                char hexBuf[10];
+                std::snprintf(hexBuf, sizeof(hexBuf), "\\u%04X", cp);
+                result += hexBuf;
+                i += 2;
+            }
+            else if ((c & 0xF0) == 0xE0 && i + 2 < input.size())
+            {
+                // 3-byte UTF-8
+                uint32_t cp = ((c & 0x0F) << 12) |
+                              ((static_cast<unsigned char>(input[i + 1]) & 0x3F) << 6) |
+                              (static_cast<unsigned char>(input[i + 2]) & 0x3F);
+                char hexBuf[10];
+                std::snprintf(hexBuf, sizeof(hexBuf), "\\u%04X", cp);
+                result += hexBuf;
+                i += 3;
+            }
+            else if ((c & 0xF8) == 0xF0 && i + 3 < input.size())
+            {
+                // 4-byte UTF-8 (Emojis y caracteres suplementarios >= 0x10000)
+                uint32_t cp = ((c & 0x07) << 18) |
+                              ((static_cast<unsigned char>(input[i + 1]) & 0x3F) << 12) |
+                              ((static_cast<unsigned char>(input[i + 2]) & 0x3F) << 6) |
+                              (static_cast<unsigned char>(input[i + 3]) & 0x3F);
+                char hexBuf[12];
+                std::snprintf(hexBuf, sizeof(hexBuf), "\\u%05X", cp);
+                result += hexBuf;
+                i += 4;
+            }
+            else
+            {
+                result += static_cast<char>(c);
+                i += 1;
+            }
+        }
+        return result;
+    }
+
     static std::string DecodeUnicodeEscapes(const std::string& input)
     {
         std::string result;
@@ -1055,18 +1109,18 @@ namespace omnisphere::services
                 if (btn.type == "QUICK_REPLY")
                 {
                     btnObj["type"] = "QUICK_REPLY";
-                    btnObj["text"] = btn.text;
+                    btnObj["text"] = DecodeUnicodeEscapes(btn.text);
                 }
                 else if (btn.type == "URL")
                 {
                     btnObj["type"] = "URL";
-                    btnObj["text"] = btn.text;
+                    btnObj["text"] = DecodeUnicodeEscapes(btn.text);
                     btnObj["url"] = btn.url.value_or("");
                 }
                 else if (btn.type == "PHONE_NUMBER")
                 {
                     btnObj["type"] = "PHONE_NUMBER";
-                    btnObj["text"] = btn.text;
+                    btnObj["text"] = DecodeUnicodeEscapes(btn.text);
                     btnObj["phone_number"] = btn.phoneNumber.value_or("");
                 }
                 metaButtonsArr.push_back(btnObj);
@@ -1151,11 +1205,11 @@ namespace omnisphere::services
 
                 if (m_repository)
                 {
-                    // Modular Architecture Persistence in WhatsAppTemplates
+                    // Modular Architecture Persistence in WhatsAppTemplates (codificado con escapes Unicode)
                     omnisphere::models::WhatsAppTemplate wTmpl;
 
                     wTmpl.code = input.name;
-                    wTmpl.templateName = input.title.empty() ? input.name : input.title;
+                    wTmpl.templateName = input.title.empty() ? input.name : EncodeToUnicodeEscapes(input.title);
                     wTmpl.language = input.language.empty() ? "es_MX" : input.language;
                     wTmpl.category = result.metaCategory;
                     wTmpl.metaTemplateId = result.metaTemplateId;
@@ -1167,28 +1221,28 @@ namespace omnisphere::services
                     {
                         omnisphere::models::WhatsAppTemplateHeader h;
                         h.headerType = input.headerType;
-                        h.textContent = input.headerText;
+                        h.textContent = input.headerText.has_value() ? std::make_optional(EncodeToUnicodeEscapes(*input.headerText)) : std::nullopt;
                         int hIdx = 1;
                         for (const auto& hv : input.headerVariables)
                         {
                             omnisphere::models::WhatsAppTemplateHeaderVariable hVar;
                             hVar.varName = hv.key;
                             hVar.varIndex = hIdx++;
-                            hVar.exampleValue = hv.example;
+                            hVar.exampleValue = !hv.example.empty() ? std::make_optional(EncodeToUnicodeEscapes(hv.example)) : std::nullopt;
                             h.variables.push_back(hVar);
                         }
                         wTmpl.header = h;
                     }
 
                     omnisphere::models::WhatsAppTemplateBody b;
-                    b.bodyText = input.bodyText;
+                    b.bodyText = EncodeToUnicodeEscapes(input.bodyText);
                     int bIdx = 1;
                     for (const auto& bv : input.bodyVariables)
                     {
                         omnisphere::models::WhatsAppTemplateBodyVariable bVar;
                         bVar.varName = bv.key;
                         bVar.varIndex = bIdx++;
-                        bVar.exampleValue = bv.example;
+                        bVar.exampleValue = !bv.example.empty() ? std::make_optional(EncodeToUnicodeEscapes(bv.example)) : std::nullopt;
                         b.variables.push_back(bVar);
                     }
                     wTmpl.body = b;
@@ -1196,14 +1250,14 @@ namespace omnisphere::services
                     if (input.footerText.has_value() && !input.footerText->empty())
                     {
                         omnisphere::models::WhatsAppTemplateFooter f;
-                        f.footerText = input.footerText;
+                        f.footerText = EncodeToUnicodeEscapes(*input.footerText);
                         int fIdx = 1;
                         for (const auto& fv : input.footerVariables)
                         {
                             omnisphere::models::WhatsAppTemplateFooterVariable fVar;
                             fVar.varName = fv.key;
                             fVar.varIndex = fIdx++;
-                            fVar.exampleValue = fv.example;
+                            fVar.exampleValue = !fv.example.empty() ? std::make_optional(EncodeToUnicodeEscapes(fv.example)) : std::nullopt;
                             f.variables.push_back(fVar);
                         }
                         wTmpl.footer = f;
@@ -1214,7 +1268,7 @@ namespace omnisphere::services
                     {
                         omnisphere::models::WhatsAppTemplateButton tBtn;
                         tBtn.buttonType = btn.type;
-                        tBtn.title = btn.text;
+                        tBtn.title = EncodeToUnicodeEscapes(btn.text);
                         if (btn.type == "URL") tBtn.payload = btn.url;
                         else if (btn.type == "PHONE_NUMBER") tBtn.payload = btn.phoneNumber;
                         tBtn.sortOrder = btnSort++;
