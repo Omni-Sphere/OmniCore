@@ -82,6 +82,8 @@ namespace omnisphere::services
             const omnisphere::dtos::CreateMetaTemplateInput& input
         );
 
+        bool DeleteMetaTemplate(const std::string& templateCode);
+
         bool SyncTemplatesFromMeta();
 
         std::string DownloadMedia(

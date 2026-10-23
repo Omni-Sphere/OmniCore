@@ -1295,6 +1295,100 @@ namespace omnisphere::services
         return result;
     }
 
+    bool WhatsAppService::DeleteMetaTemplate(const std::string& templateCode)
+    {
+        std::string cleanCode = CleanString(templateCode);
+        if (cleanCode.empty() || cleanCode == "hello_world")
+        {
+            omnisphere::utils::Logger::LogWarning("WhatsAppService", "DeleteMetaTemplate: No se puede eliminar plantilla vacía o plantilla base del sistema (hello_world)");
+            return false;
+        }
+
+        std::string cleanWabaId = CleanString(m_config.businessAccountId);
+        std::string cleanToken = CleanString(m_config.token);
+        std::string cleanApiVersion = CleanString(m_config.apiVersion.empty() ? "v24.0" : m_config.apiVersion);
+
+        if (cleanWabaId.empty() || cleanToken.empty())
+        {
+            auto settings = GetSettings({"BusinessAccountId", "ApiToken", "ApiVersion"});
+            if (cleanWabaId.empty()) cleanWabaId = CleanString(settings.businessAccountId);
+            if (cleanToken.empty()) cleanToken = CleanString(settings.apiToken);
+            if (m_config.apiVersion.empty()) cleanApiVersion = CleanString(settings.apiVersion.empty() ? "v24.0" : settings.apiVersion);
+        }
+
+        bool metaDeleted = false;
+
+        if (!cleanWabaId.empty() && !cleanToken.empty())
+        {
+            try
+            {
+                std::string host = "graph.facebook.com";
+                std::string port = "443";
+                std::string target = "/" + cleanApiVersion + "/" + cleanWabaId + "/message_templates?name=" + cleanCode;
+
+                boost::asio::io_context ioc;
+                ssl::context ctx(ssl::context::tlsv12_client);
+                ctx.set_default_verify_paths();
+                ctx.set_verify_mode(ssl::verify_peer);
+
+                tcp::resolver resolver(ioc);
+                beast::ssl_stream<beast::tcp_stream> stream(ioc, ctx);
+
+                if (SSL_set_tlsext_host_name(stream.native_handle(), host.c_str()))
+                {
+                    beast::get_lowest_layer(stream).expires_after(std::chrono::seconds(15));
+                    auto const results = resolver.resolve(tcp::v4(), host, port);
+                    beast::get_lowest_layer(stream).connect(results);
+                    beast::get_lowest_layer(stream).expires_after(std::chrono::seconds(15));
+                    stream.handshake(ssl::stream_base::client);
+
+                    http::request<http::empty_body> req{http::verb::delete_, target, 11};
+                    req.set(http::field::host, host);
+                    req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+                    req.set(http::field::authorization, "Bearer " + cleanToken);
+
+                    http::write(stream, req);
+
+                    beast::flat_buffer buffer;
+                    http::response<http::dynamic_body> res;
+                    http::read(stream, buffer, res);
+
+                    std::string responseBodyStr = beast::buffers_to_string(res.body().data());
+                    beast::error_code ec;
+                    stream.shutdown(ec);
+
+                    if (res.result() == http::status::ok)
+                    {
+                        metaDeleted = true;
+                        omnisphere::utils::Logger::LogInfo("WhatsAppService", "Meta Template DELETE SUCCESS: " + cleanCode + " -> " + responseBodyStr);
+                    }
+                    else
+                    {
+                        omnisphere::utils::Logger::LogWarning("WhatsAppService", "Meta Template DELETE returned HTTP " + std::to_string(res.result_int()) + ": " + responseBodyStr);
+                        // Si Meta ya la había eliminado o no existe en Meta (404/error), procedemos a eliminarla de la BD local
+                        metaDeleted = true;
+                    }
+                }
+            }
+            catch (const std::exception& ex)
+            {
+                omnisphere::utils::Logger::LogError("WhatsAppService", "DeleteMetaTemplate HTTP Exception: " + std::string(ex.what()));
+            }
+        }
+        else
+        {
+            // Sin credenciales de Meta configuradas, se procede al menos en la base de datos local
+            metaDeleted = true;
+        }
+
+        if (m_repository)
+        {
+            m_repository->DeleteWhatsAppTemplate(cleanCode);
+        }
+
+        return metaDeleted;
+    }
+
     bool WhatsAppService::SyncTemplatesFromMeta()
     {
         if (!m_repository) return false;

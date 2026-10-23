@@ -47,6 +47,7 @@ namespace omnisphere::repositories
         std::optional<omnisphere::models::WhatsAppTemplate> GetWhatsAppTemplateByCode(const std::string& code, const std::vector<std::string>& requestedFields = {}) const;
         std::vector<omnisphere::models::WhatsAppTemplate> GetAllWhatsAppTemplates(const std::vector<std::string>& requestedFields = {}) const;
         bool SaveWhatsAppTemplate(const omnisphere::models::WhatsAppTemplate& tmpl) const;
+        bool DeleteWhatsAppTemplate(const std::string& code) const;
 
     private:
         std::shared_ptr<omnisphere::data::DatabasePool> m_dbPool;
