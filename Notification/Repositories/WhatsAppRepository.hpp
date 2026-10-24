@@ -6,6 +6,7 @@
 #include "Notification/Models/CustomButton.hpp"
 #include "Notification/Models/CustomMessageParameter.hpp"
 #include "Notification/Models/WhatsAppTemplate.hpp"
+#include "Notification/DTOs/UpdateWhatsAppTemplateInput.hpp"
 #include <OmniData/DatabasePool.hpp>
 #include <OmniData/DataTable.hpp>
 #include <memory>
@@ -47,6 +48,7 @@ namespace omnisphere::repositories
         std::optional<omnisphere::models::WhatsAppTemplate> GetWhatsAppTemplateByCode(const std::string& code, const std::vector<std::string>& requestedFields = {}) const;
         std::vector<omnisphere::models::WhatsAppTemplate> GetAllWhatsAppTemplates(const std::vector<std::string>& requestedFields = {}) const;
         bool SaveWhatsAppTemplate(const omnisphere::models::WhatsAppTemplate& tmpl) const;
+        bool UpdateWhatsAppTemplate(const omnisphere::dtos::UpdateWhatsAppTemplateInput& input, const std::vector<std::string>& mutationFields = {}) const;
         bool DeleteWhatsAppTemplate(const std::string& code) const;
 
     private:

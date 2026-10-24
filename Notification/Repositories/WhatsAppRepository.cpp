@@ -1205,6 +1205,209 @@ namespace omnisphere::repositories
         }
     }
 
+    bool WhatsAppRepository::UpdateWhatsAppTemplate(
+        const omnisphere::dtos::UpdateWhatsAppTemplateInput& input,
+        const std::vector<std::string>& mutationFields
+    ) const
+    {
+        if (!m_dbPool || input.Code.empty()) return false;
+        auto conn = m_dbPool->Acquire();
+        try
+        {
+            conn->BeginTransaction();
+
+            // 1. Extraer columnas a actualizar en la tabla principal WhatsAppTemplates
+            std::vector<omnisphere::types::ColumnValue> updateCols =
+                omnisphere::types::ExtractUpdateColumns(input, mutationFields);
+
+            bool hasLastUpdatedBy = false;
+            bool hasUpdateDate = false;
+            for (const auto& c : updateCols)
+            {
+                if (c.Column == "\"LastUpdatedBy\"") hasLastUpdatedBy = true;
+                if (c.Column == "\"UpdateDate\"") hasUpdateDate = true;
+            }
+
+            if (!hasLastUpdatedBy)
+            {
+                updateCols.push_back({"\"LastUpdatedBy\"", omnisphere::types::MakeSQLParam(input.LastUpdatedBy.empty() ? "system" : input.LastUpdatedBy)});
+            }
+            if (!hasUpdateDate)
+            {
+                auto now = std::chrono::system_clock::now();
+                auto in_time_t = std::chrono::system_clock::to_time_t(now);
+                char buf[32];
+                std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", std::gmtime(&in_time_t));
+                updateCols.push_back({"\"UpdateDate\"", omnisphere::types::MakeSQLParam(input.UpdateDate.value_or(std::string(buf)))});
+            }
+
+            auto updateResult = omnisphere::types::BuildUpdateQuery(
+                "\"WhatsAppTemplates\"",
+                updateCols,
+                "\"Code\"",
+                omnisphere::types::MakeSQLParam(input.Code)
+            );
+
+            // Ejecutar actualización principal devolviendo Entry
+            auto updateDt = conn->FetchPrepared(
+                updateResult.Query + " RETURNING \"Entry\"",
+                updateResult.Parameters
+            );
+
+            if (updateDt.IsEmpty())
+            {
+                conn->RollbackTransaction();
+                return false;
+            }
+
+            int templateEntry = updateDt[0]["Entry"].GetOptional<int>().value_or(0);
+
+            // 2. Header y variables
+            if (input.HeaderType.has_value() || input.HeaderText.has_value() || input.HeaderVariables.has_value())
+            {
+                conn->RunPrepared("DELETE FROM \"WhatsAppTemplateHeaders\" WHERE \"TemplateEntry\" = ?", { omnisphere::types::MakeSQLParam(templateEntry) });
+
+                std::string hType = input.HeaderType.value_or("NONE");
+                if (hType != "NONE")
+                {
+                    std::vector<std::string> cols = { "\"TemplateEntry\"", "\"HeaderType\"", "\"TextContent\"", "\"CreatedBy\"" };
+                    std::string sql = omnisphere::types::BuildInsertQuery("\"WhatsAppTemplateHeaders\"", cols);
+                    std::vector<omnisphere::types::SQLParam> params = {
+                        omnisphere::types::MakeSQLParam(templateEntry),
+                        omnisphere::types::MakeSQLParam(hType),
+                        omnisphere::types::MakeSQLParam(input.HeaderText.value_or("")),
+                        omnisphere::types::MakeSQLParam(input.LastUpdatedBy.empty() ? "system" : input.LastUpdatedBy)
+                    };
+                    auto hDt = conn->FetchPrepared(sql + " RETURNING \"Entry\"", params);
+
+                    if (!hDt.IsEmpty() && input.HeaderVariables.has_value())
+                    {
+                        int hEntry = hDt[0]["Entry"].GetOptional<int>().value_or(0);
+                        int hvIdx = 1;
+                        for (const auto& hv : *input.HeaderVariables)
+                        {
+                            std::vector<std::string> vCols = { "\"HeaderEntry\"", "\"VarName\"", "\"VarIndex\"", "\"ExampleValue\"", "\"CreatedBy\"" };
+                            std::string vSql = omnisphere::types::BuildInsertQuery("\"WhatsAppTemplateHeaderVariables\"", vCols);
+                            std::vector<omnisphere::types::SQLParam> vParams = {
+                                omnisphere::types::MakeSQLParam(hEntry),
+                                omnisphere::types::MakeSQLParam(hv.key),
+                                omnisphere::types::MakeSQLParam(hvIdx++),
+                                omnisphere::types::MakeSQLParam(hv.example),
+                                omnisphere::types::MakeSQLParam(input.LastUpdatedBy.empty() ? "system" : input.LastUpdatedBy)
+                            };
+                            conn->RunPrepared(vSql, vParams);
+                        }
+                    }
+                }
+            }
+
+            // 3. Body y variables
+            if (input.BodyText.has_value() || input.BodyVariables.has_value())
+            {
+                conn->RunPrepared("DELETE FROM \"WhatsAppTemplateBodies\" WHERE \"TemplateEntry\" = ?", { omnisphere::types::MakeSQLParam(templateEntry) });
+
+                if (input.BodyText.has_value() && !input.BodyText->empty())
+                {
+                    std::vector<std::string> cols = { "\"TemplateEntry\"", "\"BodyText\"", "\"CreatedBy\"" };
+                    std::string sql = omnisphere::types::BuildInsertQuery("\"WhatsAppTemplateBodies\"", cols);
+                    std::vector<omnisphere::types::SQLParam> params = {
+                        omnisphere::types::MakeSQLParam(templateEntry),
+                        omnisphere::types::MakeSQLParam(*input.BodyText),
+                        omnisphere::types::MakeSQLParam(input.LastUpdatedBy.empty() ? "system" : input.LastUpdatedBy)
+                    };
+                    auto bDt = conn->FetchPrepared(sql + " RETURNING \"Entry\"", params);
+
+                    if (!bDt.IsEmpty() && input.BodyVariables.has_value())
+                    {
+                        int bEntry = bDt[0]["Entry"].GetOptional<int>().value_or(0);
+                        int bvIdx = 1;
+                        for (const auto& bv : *input.BodyVariables)
+                        {
+                            std::vector<std::string> vCols = { "\"BodyEntry\"", "\"VarName\"", "\"VarIndex\"", "\"ExampleValue\"", "\"CreatedBy\"" };
+                            std::string vSql = omnisphere::types::BuildInsertQuery("\"WhatsAppTemplateBodyVariables\"", vCols);
+                            std::vector<omnisphere::types::SQLParam> vParams = {
+                                omnisphere::types::MakeSQLParam(bEntry),
+                                omnisphere::types::MakeSQLParam(bv.key),
+                                omnisphere::types::MakeSQLParam(bvIdx++),
+                                omnisphere::types::MakeSQLParam(bv.example),
+                                omnisphere::types::MakeSQLParam(input.LastUpdatedBy.empty() ? "system" : input.LastUpdatedBy)
+                            };
+                            conn->RunPrepared(vSql, vParams);
+                        }
+                    }
+                }
+            }
+
+            // 4. Footer y variables
+            if (input.FooterText.has_value() || input.FooterVariables.has_value())
+            {
+                conn->RunPrepared("DELETE FROM \"WhatsAppTemplateFooters\" WHERE \"TemplateEntry\" = ?", { omnisphere::types::MakeSQLParam(templateEntry) });
+
+                if (input.FooterText.has_value() && !input.FooterText->empty())
+                {
+                    std::vector<std::string> cols = { "\"TemplateEntry\"", "\"FooterText\"", "\"CreatedBy\"" };
+                    std::string sql = omnisphere::types::BuildInsertQuery("\"WhatsAppTemplateFooters\"", cols);
+                    std::vector<omnisphere::types::SQLParam> params = {
+                        omnisphere::types::MakeSQLParam(templateEntry),
+                        omnisphere::types::MakeSQLParam(*input.FooterText),
+                        omnisphere::types::MakeSQLParam(input.LastUpdatedBy.empty() ? "system" : input.LastUpdatedBy)
+                    };
+                    auto fDt = conn->FetchPrepared(sql + " RETURNING \"Entry\"", params);
+
+                    if (!fDt.IsEmpty() && input.FooterVariables.has_value())
+                    {
+                        int fEntry = fDt[0]["Entry"].GetOptional<int>().value_or(0);
+                        int fvIdx = 1;
+                        for (const auto& fv : *input.FooterVariables)
+                        {
+                            std::vector<std::string> vCols = { "\"FooterEntry\"", "\"VarName\"", "\"VarIndex\"", "\"ExampleValue\"", "\"CreatedBy\"" };
+                            std::string vSql = omnisphere::types::BuildInsertQuery("\"WhatsAppTemplateFooterVariables\"", vCols);
+                            std::vector<omnisphere::types::SQLParam> vParams = {
+                                omnisphere::types::MakeSQLParam(fEntry),
+                                omnisphere::types::MakeSQLParam(fv.key),
+                                omnisphere::types::MakeSQLParam(fvIdx++),
+                                omnisphere::types::MakeSQLParam(fv.example),
+                                omnisphere::types::MakeSQLParam(input.LastUpdatedBy.empty() ? "system" : input.LastUpdatedBy)
+                            };
+                            conn->RunPrepared(vSql, vParams);
+                        }
+                    }
+                }
+            }
+
+            // 5. Botones
+            if (input.Buttons.has_value())
+            {
+                conn->RunPrepared("DELETE FROM \"WhatsAppTemplateButtons\" WHERE \"TemplateEntry\" = ?", { omnisphere::types::MakeSQLParam(templateEntry) });
+
+                int btnIdx = 1;
+                for (const auto& btn : *input.Buttons)
+                {
+                    std::vector<std::string> cols = { "\"TemplateEntry\"", "\"ButtonType\"", "\"Title\"", "\"Payload\"", "\"SortOrder\"", "\"CreatedBy\"" };
+                    std::string sql = omnisphere::types::BuildInsertQuery("\"WhatsAppTemplateButtons\"", cols);
+                    std::vector<omnisphere::types::SQLParam> params = {
+                        omnisphere::types::MakeSQLParam(templateEntry),
+                        omnisphere::types::MakeSQLParam(btn.type),
+                        omnisphere::types::MakeSQLParam(btn.text),
+                        omnisphere::types::MakeSQLParam(btn.url.has_value() ? *btn.url : (btn.phoneNumber.has_value() ? *btn.phoneNumber : "")),
+                        omnisphere::types::MakeSQLParam(btnIdx++),
+                        omnisphere::types::MakeSQLParam(input.LastUpdatedBy.empty() ? "system" : input.LastUpdatedBy)
+                    };
+                    conn->RunPrepared(sql, params);
+                }
+            }
+
+            conn->CommitTransaction();
+            return true;
+        }
+        catch (const std::exception& ex)
+        {
+            conn->RollbackTransaction();
+            std::cerr << "[WhatsAppRepository::UpdateWhatsAppTemplate Exception] " << ex.what() << std::endl;
+            return false;
+        }
+    }
+
     bool WhatsAppRepository::DeleteWhatsAppTemplate(const std::string& code) const
     {
         if (!m_dbPool || code.empty()) return false;

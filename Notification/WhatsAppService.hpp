@@ -1,6 +1,7 @@
 #pragma once
 #include "Notification/DTOs/WhatsAppConfig.hpp"
 #include "Notification/DTOs/CreateMetaTemplateInput.hpp"
+#include "Notification/DTOs/UpdateWhatsAppTemplateInput.hpp"
 #include "Notification/Repositories/WhatsAppRepository.hpp"
 #include "Notification/Models/WhatsAppSettings.hpp"
 #include "Notification/Models/CustomMessage.hpp"
@@ -99,6 +100,11 @@ namespace omnisphere::services
 
         omnisphere::dtos::CreateMetaTemplateResult CreateMetaTemplate(
             const omnisphere::dtos::CreateMetaTemplateInput& input
+        );
+
+        bool UpdateWhatsAppTemplate(
+            const omnisphere::dtos::UpdateWhatsAppTemplateInput& input,
+            const std::vector<std::string>& mutationFields = {}
         );
 
         bool DeleteMetaTemplate(const std::string& templateCode);

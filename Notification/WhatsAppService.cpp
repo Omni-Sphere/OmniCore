@@ -1442,6 +1442,38 @@ namespace omnisphere::services
         return result;
     }
 
+    bool WhatsAppService::UpdateWhatsAppTemplate(
+        const omnisphere::dtos::UpdateWhatsAppTemplateInput& input,
+        const std::vector<std::string>& mutationFields
+    )
+    {
+        if (!m_repository) return false;
+        std::string cleanCode = CleanString(input.Code);
+        if (cleanCode.empty()) return false;
+
+        omnisphere::dtos::UpdateWhatsAppTemplateInput cleanInput = input;
+        cleanInput.Code = cleanCode;
+
+        if (input.TemplateName.has_value() && !input.TemplateName->empty())
+        {
+            cleanInput.TemplateName = EncodeToUnicodeEscapes(*input.TemplateName);
+        }
+        if (input.BodyText.has_value() && !input.BodyText->empty())
+        {
+            cleanInput.BodyText = EncodeToUnicodeEscapes(*input.BodyText);
+        }
+        if (input.HeaderText.has_value() && !input.HeaderText->empty())
+        {
+            cleanInput.HeaderText = EncodeToUnicodeEscapes(*input.HeaderText);
+        }
+        if (input.FooterText.has_value() && !input.FooterText->empty())
+        {
+            cleanInput.FooterText = EncodeToUnicodeEscapes(*input.FooterText);
+        }
+
+        return m_repository->UpdateWhatsAppTemplate(cleanInput, mutationFields);
+    }
+
     bool WhatsAppService::DeleteMetaTemplate(const std::string& templateCode)
     {
         std::string cleanCode = CleanString(templateCode);
