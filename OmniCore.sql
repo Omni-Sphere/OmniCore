@@ -593,7 +593,8 @@ VALUES
     ('STRIPE', 'Stripe', 'Stripe Payments (Tarjeta / SPEI)', 'PAYMENT', 'StripeSettings', 'MODULE_STRIPE', 'PublishableKey,SecretKey', 'Procesamiento de pagos con tarjeta de crédito/débito y transferencias bancarias SPEI.', true),
     ('MERCADOPAGO', 'Mercado Pago', 'Mercado Pago (Tarjeta / Wallet)', 'PAYMENT', 'MercadoPagoSettings', 'MODULE_MERCADOPAGO', 'PublicKey,AccessToken', 'Plataforma de pagos y billetera virtual en América Latina.', true),
     ('OPENPAY', 'OpenPay', 'OpenPay BBVA (Tarjeta / Paynet)', 'PAYMENT', 'OpenPaySettings', 'MODULE_OPENPAY', 'MerchantId,PublicKey,PrivateKey', 'Pasarela de pagos respaldada por BBVA México con soporte para tarjetas y tiendas Paynet.', true),
-    ('WHATSAPP', 'WhatsApp', 'WhatsApp Meta Cloud API', 'MESSAGING', 'WhatsAppSettings', 'MODULE_WHATSAPP', 'PhoneId,ApiToken', 'Envío y recepción de notificaciones a través de la API oficial de WhatsApp Cloud.', true)
+    ('WHATSAPP', 'WhatsApp', 'WhatsApp Meta Cloud API', 'MESSAGING', 'WhatsAppSettings', 'MODULE_WHATSAPP', 'PhoneId,ApiToken', 'Envío y recepción de notificaciones a través de la API oficial de WhatsApp Cloud.', true),
+    ('TICKETMASTER', 'Ticketmaster', 'Ticketmaster Discovery API v2', 'EVENTS', 'TicketmasterSettings', 'MODULE_EVENTS', 'ApiKey,ApiBaseUrl', 'Descubrimiento y sincronización automatizada de eventos, recintos (venues) y destinos.', true)
 ON CONFLICT ("Code") DO UPDATE SET
     "Name" = EXCLUDED."Name",
     "DisplayName" = EXCLUDED."DisplayName",
@@ -602,6 +603,29 @@ ON CONFLICT ("Code") DO UPDATE SET
     "LicenseModule" = EXCLUDED."LicenseModule",
     "RequiredColumns" = EXCLUDED."RequiredColumns",
     "Description" = EXCLUDED."Description";
+
+-- 18.2 TicketmasterSettings
+CREATE TABLE IF NOT EXISTS "TicketmasterSettings" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(50) NOT NULL DEFAULT 'DEFAULT' UNIQUE,
+    "Name" VARCHAR(255) NOT NULL DEFAULT 'Ticketmaster Discovery Settings',
+    "ApiKey" TEXT,
+    "ApiSecret" TEXT,
+    "ApiBaseUrl" VARCHAR(255) NOT NULL DEFAULT 'https://app.ticketmaster.com',
+    "ApiVersion" VARCHAR(10) NOT NULL DEFAULT 'v2',
+    "DefaultCountryCode" VARCHAR(5) NOT NULL DEFAULT 'MX',
+    "DefaultCity" VARCHAR(100),
+    "DefaultClassification" VARCHAR(100) DEFAULT 'Music',
+    "AutoCreateRoutes" BOOLEAN NOT NULL DEFAULT false,
+    "DefaultOriginPointCode" VARCHAR(50) DEFAULT 'DEP1',
+    "SyncIntervalMinutes" INT NOT NULL DEFAULT 1440,
+    "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "LastSyncDate" TIMESTAMP,
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
+    "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" VARCHAR(50),
+    "UpdateDate" TIMESTAMP
+);
 
 -- 19. StripeSettings
 CREATE TABLE IF NOT EXISTS "StripeSettings" (

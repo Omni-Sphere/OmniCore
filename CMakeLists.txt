@@ -87,6 +87,8 @@ add_library(OmniCore SHARED
     License/Services/LicenseService.cpp
     License/Repositories/LicenseRepository.cpp
     Integration/IntegrationService.cpp
+    Integration/Repositories/TicketmasterRepository.cpp
+    Integration/TicketmasterSettingsService.cpp
 )
 
 # --- Resolución de dependencias Omni ---
