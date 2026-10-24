@@ -506,6 +506,8 @@ CREATE TABLE IF NOT EXISTS "PaymentMethods" (
     CONSTRAINT "CHK_PaymentMethods_IsActive" CHECK ("IsActive" IN (true, false))
 );
 
+ALTER TABLE "PaymentMethods" ADD COLUMN IF NOT EXISTS "WhatsAppTemplateCode" VARCHAR(100);
+
 CREATE UNIQUE INDEX IF NOT EXISTS "UQ_PaymentMethods_Name_Active" ON "PaymentMethods" (LOWER(TRIM("Name"))) WHERE "IsActive" = true AND "IsCanceled" = false;
 
 INSERT INTO "PaymentMethods" ("Code", "Name", "Type", "UsesCommission", "CommissionRate", "CreatedBy") VALUES
