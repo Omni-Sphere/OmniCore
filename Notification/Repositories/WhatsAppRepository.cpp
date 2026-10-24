@@ -1011,7 +1011,7 @@ namespace omnisphere::repositories
             conn->BeginTransaction();
             int templateEntry = 0;
 
-            auto existingDt = conn->FetchPrepared("SELECT \"Entry\" FROM \"WhatsAppTemplates\" WHERE \"Code\" = ? LIMIT 1",
+            auto existingDt = conn->FetchPrepared("SELECT \"Entry\", \"TemplateName\" FROM \"WhatsAppTemplates\" WHERE \"Code\" = ? LIMIT 1",
                 { omnisphere::types::MakeSQLParam(tmpl.code) });
 
             if (existingDt.IsEmpty())
@@ -1045,8 +1045,16 @@ namespace omnisphere::repositories
             else
             {
                 templateEntry = existingDt[0]["Entry"].GetOptional<int>().value_or(0);
+                std::string existingTitle = existingDt[0]["TemplateName"].GetOptional<std::string>().value_or("");
+                std::string finalTitle = tmpl.templateName;
+                // Si la sincronización de Meta trae como título solo el Code técnico, pero en la BD ya tenemos un título descriptivo personalizado, conservamos el título descriptivo
+                if ((finalTitle.empty() || finalTitle == tmpl.code) && !existingTitle.empty() && existingTitle != tmpl.code)
+                {
+                    finalTitle = existingTitle;
+                }
+
                 std::vector<omnisphere::types::ColumnValue> updateCols = {
-                    {"\"TemplateName\"", omnisphere::types::MakeSQLParam(tmpl.templateName)},
+                    {"\"TemplateName\"", omnisphere::types::MakeSQLParam(finalTitle)},
                     {"\"Language\"", omnisphere::types::MakeSQLParam(tmpl.language)},
                     {"\"Category\"", omnisphere::types::MakeSQLParam(tmpl.category)},
                     {"\"MetaTemplateId\"", omnisphere::types::MakeSQLParam(tmpl.metaTemplateId.value_or(""))},

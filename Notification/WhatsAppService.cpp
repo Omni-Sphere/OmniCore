@@ -243,14 +243,24 @@ namespace omnisphere::services
                     }
                 }
 
+                // Si Meta envía un mensaje explicativo directo al usuario (ej. plantilla en proceso de eliminación)
+                std::string userTitle;
+                std::string userMsg;
+                if (errObj.contains("error_user_title") && errObj.at("error_user_title").is_string()) {
+                    userTitle = std::string(errObj.at("error_user_title").as_string());
+                }
+                if (errObj.contains("error_user_msg") && errObj.at("error_user_msg").is_string()) {
+                    userMsg = std::string(errObj.at("error_user_msg").as_string());
+                }
+                if (!userMsg.empty()) {
+                    return !userTitle.empty() ? (userTitle + ": " + userMsg) : userMsg;
+                }
+
                 if (code == 131058 || msg.find("Public Test Numbers") != std::string::npos) {
                     return "La plantilla de prueba por defecto (hello_world) solo puede enviarse desde números de prueba de Meta. Configura una plantilla aprobada para tu número real.";
                 }
                 if (code == 132001 || msg.find("does not exist") != std::string::npos || details.find("does not exist") != std::string::npos) {
                     return "La plantilla solicitada no está registrada o aprobada en Meta WhatsApp para el idioma configurado.";
-                }
-                if (code == 100 || details.find("Parameter") != std::string::npos) {
-                    return "Los parámetros enviados no coinciden con las variables de la plantilla aprobada en Meta.";
                 }
                 if (code == 190 || msg.find("OAuth") != std::string::npos || msg.find("token") != std::string::npos) {
                     return "El Token de Acceso (ApiToken) de Meta WhatsApp expiró o es inválido. Por favor actualízalo en la configuración.";
@@ -260,6 +270,11 @@ namespace omnisphere::services
                 }
                 if (code == 131047) {
                     return "Han transcurrido más de 24 horas desde la última interacción del usuario. Se debe iniciar la conversación enviando una plantilla aprobada.";
+                }
+                if (code == 100) {
+                    if (!details.empty()) return details;
+                    if (!msg.empty() && msg != "Invalid parameter") return msg;
+                    return "Parámetros inválidos en la plantilla enviada a Meta.";
                 }
 
                 if (!msg.empty()) return msg;
