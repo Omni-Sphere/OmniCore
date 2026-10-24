@@ -496,6 +496,7 @@ CREATE TABLE IF NOT EXISTS "PaymentMethods" (
     "CommissionRate" NUMERIC(5, 2) NOT NULL DEFAULT 0.00,
     "UsesIntegration" BOOLEAN NOT NULL DEFAULT false,
     "IntegrationProvider" VARCHAR(50),
+    "WhatsAppTemplateCode" VARCHAR(100),
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
     "IsCanceled" BOOLEAN NOT NULL DEFAULT false,
     "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',

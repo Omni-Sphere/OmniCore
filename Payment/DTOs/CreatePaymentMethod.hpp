@@ -15,6 +15,7 @@ namespace omnisphere::dtos
         double CommissionRate = 0.0;
         bool UsesIntegration = false;
         std::optional<std::string> IntegrationProvider;
+        std::optional<std::string> WhatsAppTemplateCode;
         bool IsActive = true;
         std::string CreatedBy = "SYSTEM";
         std::optional<std::string> CreateDate;
@@ -24,6 +25,6 @@ namespace omnisphere::dtos
 
     BOOST_DESCRIBE_STRUCT(CreatePaymentMethodInput, (), (
         Code, Name, Type, UsesCommission, CommissionRate,
-        UsesIntegration, IntegrationProvider, IsActive, CreatedBy, CreateDate
+        UsesIntegration, IntegrationProvider, WhatsAppTemplateCode, IsActive, CreatedBy, CreateDate
     ))
 } // namespace omnisphere::dtos

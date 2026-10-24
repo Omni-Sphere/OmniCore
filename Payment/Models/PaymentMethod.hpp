@@ -16,6 +16,7 @@ namespace omnisphere::models
         double commissionRate = 0.0;
         bool usesIntegration = false;
         std::optional<std::string> integrationProvider; // STRIPE, OPENPAY, MERCADOPAGO
+        std::optional<std::string> whatsAppTemplateCode; // Código de plantilla de WhatsApp asociada
         bool isActive = true;
         std::string createdBy = "SYSTEM";
         std::string createDate;
@@ -27,7 +28,7 @@ namespace omnisphere::models
 
     BOOST_DESCRIBE_STRUCT(PaymentMethod, (), (
         entry, code, name, type, usesCommission, commissionRate,
-        usesIntegration, integrationProvider,
+        usesIntegration, integrationProvider, whatsAppTemplateCode,
         isActive, createdBy, createDate, lastUpdatedBy, updateDate
     ))
 } // namespace omnisphere::models
