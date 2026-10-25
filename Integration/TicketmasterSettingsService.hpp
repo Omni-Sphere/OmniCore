@@ -9,6 +9,13 @@
 
 namespace omnisphere::services
 {
+    struct TicketmasterTestIntegrationResult
+    {
+        bool isConfigured = false;
+        bool isFunctional = false;
+        std::string message;
+    };
+
     class TicketmasterSettingsService
     {
     private:
@@ -21,5 +28,6 @@ namespace omnisphere::services
 
         std::optional<omnisphere::models::TicketmasterSettings> GetSettings(bool decryptKeys = false) const;
         bool SaveSettings(const omnisphere::models::TicketmasterSettings& settings, const std::vector<std::string>& mutationFields = {}) const;
+        TicketmasterTestIntegrationResult TestIntegration() const;
     };
 }
