@@ -16,6 +16,18 @@ namespace omnisphere::services
         std::string message;
     };
 
+    struct TicketmasterVenue
+    {
+        std::string id;
+        std::string name;
+        std::string city;
+        std::string address;
+        std::string postalCode;
+        std::string url;
+        bool existsInDatabase = false;
+        std::string existingVenueCode;
+    };
+
     class TicketmasterSettingsService
     {
     private:
@@ -29,5 +41,6 @@ namespace omnisphere::services
         std::optional<omnisphere::models::TicketmasterSettings> GetSettings(bool decryptKeys = false) const;
         bool SaveSettings(const omnisphere::models::TicketmasterSettings& settings, const std::vector<std::string>& mutationFields = {}) const;
         TicketmasterTestIntegrationResult TestIntegration() const;
+        std::vector<TicketmasterVenue> PreviewVenues(const std::string& city = "Ciudad de México", const std::string& countryCode = "MX", int size = 20) const;
     };
 }

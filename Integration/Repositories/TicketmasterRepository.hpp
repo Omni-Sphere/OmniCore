@@ -20,5 +20,6 @@ namespace omnisphere::repositories
         omnisphere::types::DataTable GetSettings(const std::vector<std::string>& fields = {}) const;
         bool Create(const omnisphere::models::TicketmasterSettings& settings, const std::vector<std::string>& mutationFields = {}) const;
         bool Update(const omnisphere::models::TicketmasterSettings& settings, const std::vector<std::string>& mutationFields = {}) const;
+        std::vector<std::pair<std::string, std::string>> GetExistingVenues() const; // returns pair<Name, Code>
     };
 }

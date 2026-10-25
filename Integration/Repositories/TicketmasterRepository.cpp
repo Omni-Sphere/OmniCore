@@ -93,4 +93,28 @@ namespace omnisphere::repositories
             return false;
         }
     }
+
+    std::vector<std::pair<std::string, std::string>> TicketmasterRepository::GetExistingVenues() const
+    {
+        std::vector<std::pair<std::string, std::string>> result;
+        if (!m_dbPool) return result;
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            std::string sql = "SELECT \"Name\", \"Code\" FROM \"Venues\" WHERE \"IsActive\" = true AND \"IsCanceled\" = false";
+            std::vector<omnisphere::types::SQLParam> params;
+            auto dt = conn->FetchPrepared(sql, params);
+            for (size_t i = 0; i < dt.RowsCount(); ++i)
+            {
+                std::string name = dt[i]["Name"].As<std::string>();
+                std::string code = dt[i]["Code"].As<std::string>();
+                result.emplace_back(name, code);
+            }
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[TicketmasterRepository::GetExistingVenues Exception] " << ex.what() << std::endl;
+        }
+        return result;
+    }
 }

@@ -6,7 +6,12 @@
 #include <boost/asio/ssl.hpp>
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
+#include <boost/json.hpp>
+#include <algorithm>
+#include <cctype>
+#include <iomanip>
 #include <iostream>
+#include <sstream>
 
 namespace omnisphere::services
 {
@@ -199,5 +204,191 @@ namespace omnisphere::services
         }
 
         return res;
+    }
+
+    static std::string NormalizeString(const std::string& input)
+    {
+        std::string out;
+        for (char c : input)
+        {
+            if (std::isalnum(static_cast<unsigned char>(c)))
+            {
+                out += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            }
+        }
+        return out;
+    }
+
+    static std::string UrlEncode(const std::string& value)
+    {
+        std::ostringstream escaped;
+        escaped.fill('0');
+        escaped << std::hex;
+        for (char c : value)
+        {
+            if (std::isalnum(static_cast<unsigned char>(c)) || c == '-' || c == '_' || c == '.' || c == '~')
+            {
+                escaped << c;
+            }
+            else if (c == ' ')
+            {
+                escaped << "%20";
+            }
+            else
+            {
+                escaped << '%' << std::setw(2) << ((int)static_cast<unsigned char>(c));
+            }
+        }
+        return escaped.str();
+    }
+
+    std::vector<TicketmasterVenue> TicketmasterSettingsService::PreviewVenues(
+        const std::string& city,
+        const std::string& countryCode,
+        int size) const
+    {
+        std::vector<TicketmasterVenue> results;
+        auto settingsOpt = GetSettings(true);
+        if (!settingsOpt.has_value() || settingsOpt->apiKey.empty())
+        {
+            return results;
+        }
+
+        auto settings = settingsOpt.value();
+        std::string host = "app.ticketmaster.com";
+        std::string baseUrl = settings.apiBaseUrl;
+        auto schemePos = baseUrl.find("://");
+        if (schemePos != std::string::npos) baseUrl = baseUrl.substr(schemePos + 3);
+        auto slashPos = baseUrl.find('/');
+        if (slashPos != std::string::npos) host = baseUrl.substr(0, slashPos);
+        else if (!baseUrl.empty()) host = baseUrl;
+
+        std::string version = settings.apiVersion.empty() ? "v2" : settings.apiVersion;
+        std::string targetCity = !city.empty() ? city : settings.defaultCity.value_or("Ciudad de México");
+        std::string targetCountry = !countryCode.empty() ? countryCode : (!settings.defaultCountryCode.empty() ? settings.defaultCountryCode : "MX");
+        int targetSize = (size <= 0 || size > 50) ? 20 : size;
+
+        std::string target = "/discovery/" + version + "/venues.json?apikey=" + settings.apiKey +
+                             "&countryCode=" + targetCountry +
+                             "&city=" + UrlEncode(targetCity) +
+                             "&size=" + std::to_string(targetSize) +
+                             "&sort=relevance,desc";
+
+        std::string responseBody;
+        try
+        {
+            boost::asio::io_context ioc;
+            boost::asio::ssl::context sslCtx(boost::asio::ssl::context::tlsv12_client);
+            sslCtx.set_default_verify_paths();
+
+            boost::asio::ip::tcp::resolver resolver(ioc);
+            boost::asio::ssl::stream<boost::asio::ip::tcp::socket> stream(ioc, sslCtx);
+
+            if (!SSL_set_tlsext_host_name(stream.native_handle(), host.c_str()))
+            {
+                return results;
+            }
+
+            auto const endpoints = resolver.resolve(host, "443");
+            boost::asio::connect(stream.next_layer(), endpoints.begin(), endpoints.end());
+            stream.handshake(boost::asio::ssl::stream_base::client);
+
+            boost::beast::http::request<boost::beast::http::empty_body> req{boost::beast::http::verb::get, target, 11};
+            req.set(boost::beast::http::field::host, host);
+            req.set(boost::beast::http::field::user_agent, "OmniSphere-C++/1.0");
+            req.set(boost::beast::http::field::accept, "application/json");
+            req.prepare_payload();
+
+            boost::beast::http::write(stream, req);
+
+            boost::beast::flat_buffer buffer;
+            boost::beast::http::response<boost::beast::http::dynamic_body> response;
+            boost::beast::http::read(stream, buffer, response);
+
+            if (response.result_int() == 200)
+            {
+                responseBody = boost::beast::buffers_to_string(response.body().data());
+            }
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[TicketmasterSettingsService::PreviewVenues HTTP Exception] " << ex.what() << std::endl;
+            return results;
+        }
+
+        if (responseBody.empty()) return results;
+
+        // Leer lugares ya registrados en nuestra base de datos para comparar / unir
+        auto existingVenues = m_repository ? m_repository->GetExistingVenues() : std::vector<std::pair<std::string, std::string>>{};
+
+        try
+        {
+            auto jsonVal = boost::json::parse(responseBody);
+            if (!jsonVal.is_object()) return results;
+            auto const& obj = jsonVal.as_object();
+            if (!obj.contains("_embedded") || !obj.at("_embedded").is_object()) return results;
+
+            auto const& embedded = obj.at("_embedded").as_object();
+            if (!embedded.contains("venues") || !embedded.at("venues").is_array()) return results;
+
+            auto const& venuesArr = embedded.at("venues").as_array();
+            for (auto const& itemVal : venuesArr)
+            {
+                if (!itemVal.is_object()) continue;
+                auto const& vObj = itemVal.as_object();
+
+                TicketmasterVenue tv;
+                if (vObj.contains("id") && vObj.at("id").is_string())
+                    tv.id = std::string(vObj.at("id").as_string());
+                if (vObj.contains("name") && vObj.at("name").is_string())
+                    tv.name = std::string(vObj.at("name").as_string());
+                if (vObj.contains("url") && vObj.at("url").is_string())
+                    tv.url = std::string(vObj.at("url").as_string());
+                if (vObj.contains("postalCode") && vObj.at("postalCode").is_string())
+                    tv.postalCode = std::string(vObj.at("postalCode").as_string());
+
+                if (vObj.contains("city") && vObj.at("city").is_object())
+                {
+                    auto const& cityObj = vObj.at("city").as_object();
+                    if (cityObj.contains("name") && cityObj.at("name").is_string())
+                    {
+                        tv.city = std::string(cityObj.at("name").as_string());
+                    }
+                }
+                if (tv.city.empty()) tv.city = targetCity;
+
+                if (vObj.contains("address") && vObj.at("address").is_object())
+                {
+                    auto const& addrObj = vObj.at("address").as_object();
+                    if (addrObj.contains("line1") && addrObj.at("line1").is_string())
+                    {
+                        tv.address = std::string(addrObj.at("line1").as_string());
+                    }
+                }
+
+                // Comparar contra venues de nuestra base de datos (por similitud de nombre)
+                std::string normTm = NormalizeString(tv.name);
+                for (const auto& [dbName, dbCode] : existingVenues)
+                {
+                    std::string normDb = NormalizeString(dbName);
+                    if (normTm == normDb ||
+                        (!normTm.empty() && normDb.find(normTm) != std::string::npos) ||
+                        (!normDb.empty() && normTm.find(normDb) != std::string::npos))
+                    {
+                        tv.existsInDatabase = true;
+                        tv.existingVenueCode = dbCode;
+                        break;
+                    }
+                }
+
+                results.push_back(tv);
+            }
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[TicketmasterSettingsService::PreviewVenues Parse Exception] " << ex.what() << std::endl;
+        }
+
+        return results;
     }
 }
