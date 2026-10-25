@@ -274,7 +274,15 @@ namespace omnisphere::services
                              "&size=" + std::to_string(targetSize) +
                              "&sort=relevance,desc";
 
+        std::cout << "\n=======================================================\n";
+        std::cout << "[Ticketmaster::PreviewVenues] INICIANDO PETICION EXTERNA\n";
+        std::cout << "Host: " << host << ":443\n";
+        std::cout << "Target: /discovery/" << version << "/venues.json?apikey=***&countryCode=" << targetCountry 
+                  << "&city=" << targetCity << "&size=" << targetSize << "\n";
+        std::cout << "=======================================================\n" << std::endl;
+
         std::string responseBody;
+        int status = 0;
         try
         {
             boost::asio::io_context ioc;
@@ -286,6 +294,7 @@ namespace omnisphere::services
 
             if (!SSL_set_tlsext_host_name(stream.native_handle(), host.c_str()))
             {
+                std::cerr << "[Ticketmaster::PreviewVenues] Error SSL_set_tlsext_host_name para " << host << std::endl;
                 return results;
             }
 
@@ -305,18 +314,27 @@ namespace omnisphere::services
             boost::beast::http::response<boost::beast::http::dynamic_body> response;
             boost::beast::http::read(stream, buffer, response);
 
-            if (response.result_int() == 200)
-            {
-                responseBody = boost::beast::buffers_to_string(response.body().data());
-            }
+            status = static_cast<int>(response.result_int());
+            responseBody = boost::beast::buffers_to_string(response.body().data());
+
+            std::cout << "\n=======================================================\n";
+            std::cout << "[Ticketmaster::PreviewVenues] RESPUESTA RECIBIDA\n";
+            std::cout << "Status HTTP: " << status << "\n";
+            std::cout << "Body Preview (primeros 500 chars):\n" 
+                      << responseBody.substr(0, 500) << "\n";
+            std::cout << "=======================================================\n" << std::endl;
         }
         catch (const std::exception& ex)
         {
-            std::cerr << "[TicketmasterSettingsService::PreviewVenues HTTP Exception] " << ex.what() << std::endl;
+            std::cerr << "[Ticketmaster::PreviewVenues EXCEPCION HTTP] " << ex.what() << std::endl;
             return results;
         }
 
-        if (responseBody.empty()) return results;
+        if (status != 200 || responseBody.empty())
+        {
+            std::cerr << "[Ticketmaster::PreviewVenues] Fallo en la llamada: HTTP Status " << status << std::endl;
+            return results;
+        }
 
         // Leer lugares ya registrados en nuestra base de datos para comparar / unir
         auto existingVenues = m_repository ? m_repository->GetExistingVenues() : std::vector<std::pair<std::string, std::string>>{};
@@ -324,14 +342,27 @@ namespace omnisphere::services
         try
         {
             auto jsonVal = boost::json::parse(responseBody);
-            if (!jsonVal.is_object()) return results;
+            if (!jsonVal.is_object())
+            {
+                std::cerr << "[Ticketmaster::PreviewVenues] El JSON raíz no es un objeto válido" << std::endl;
+                return results;
+            }
             auto const& obj = jsonVal.as_object();
-            if (!obj.contains("_embedded") || !obj.at("_embedded").is_object()) return results;
+            if (!obj.contains("_embedded") || !obj.at("_embedded").is_object())
+            {
+                std::cout << "[Ticketmaster::PreviewVenues] La respuesta no contiene '_embedded' (0 recintos encontrados)" << std::endl;
+                return results;
+            }
 
             auto const& embedded = obj.at("_embedded").as_object();
-            if (!embedded.contains("venues") || !embedded.at("venues").is_array()) return results;
+            if (!embedded.contains("venues") || !embedded.at("venues").is_array())
+            {
+                std::cout << "[Ticketmaster::PreviewVenues] No se encontró el arreglo 'venues' en '_embedded'" << std::endl;
+                return results;
+            }
 
             auto const& venuesArr = embedded.at("venues").as_array();
+            std::cout << "[Ticketmaster::PreviewVenues] Recintos parseados: " << venuesArr.size() << std::endl;
             for (auto const& itemVal : venuesArr)
             {
                 if (!itemVal.is_object()) continue;
