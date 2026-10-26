@@ -206,8 +206,10 @@ namespace omnisphere::services
                 return escaped.str();
             };
 
-            std::string rawSuccUrl = successUrl.empty() ? "https://omni-house.zapto.org/confirmation?session_id={CHECKOUT_SESSION_ID}" : successUrl;
-            std::string rawCancUrl = cancelUrl.empty() ? "https://omni-house.zapto.org/checkout" : cancelUrl;
+            const char* envDomain = std::getenv("DOMAIN");
+            std::string domain = (envDomain && *envDomain) ? std::string(envDomain) : "localhost";
+            std::string rawSuccUrl = successUrl.empty() ? ("https://" + domain + "/confirmation?session_id={CHECKOUT_SESSION_ID}") : successUrl;
+            std::string rawCancUrl = cancelUrl.empty() ? ("https://" + domain + "/checkout") : cancelUrl;
 
             // Form-urlencoded payload para Stripe Checkout API
             std::ostringstream ssPayload;
