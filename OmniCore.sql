@@ -337,6 +337,10 @@ CREATE TABLE IF NOT EXISTS "RouteStops" (
     )
 );
 
+-- Migración idempotente si la tabla RouteStops ya existía en la base de datos con esquema viejo
+ALTER TABLE "RouteStops" ADD COLUMN IF NOT EXISTS "DeparturePointCode" VARCHAR(50);
+ALTER TABLE "RouteStops" ADD COLUMN IF NOT EXISTS "VenueCode" VARCHAR(50);
+
 CREATE INDEX IF NOT EXISTS "IDX_RouteStops_RouteCode_Active" ON "RouteStops" ("RouteCode") WHERE "IsActive" = true AND "IsCanceled" = false;
 CREATE INDEX IF NOT EXISTS "IDX_RouteStops_DeparturePointCode" ON "RouteStops" ("DeparturePointCode") WHERE "IsActive" = true AND "IsCanceled" = false;
 CREATE INDEX IF NOT EXISTS "IDX_RouteStops_VenueCode" ON "RouteStops" ("VenueCode") WHERE "IsActive" = true AND "IsCanceled" = false;
