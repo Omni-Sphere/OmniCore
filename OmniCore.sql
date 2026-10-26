@@ -118,11 +118,7 @@ INSERT INTO "Users" (
 ) VALUES 
 ('system', 'Administrador General del Sistema', 'system@omnisphere.local', true, false, true, false, true, 'system'),
 ('admin', 'System Administrator', 'admin@omnisphere.local', true, false, true, false, true, 'system')
-ON CONFLICT ("Code") DO UPDATE SET
-    "SuperUser" = true,
-    "IsActive" = true,
-    "IsLocked" = false,
-    "ChangePasswordNextLogin" = false;
+ON CONFLICT ("Name") DO NOTHING;
 
 -- 2.1 Employees (Agnostic Master Entity)
 CREATE TABLE IF NOT EXISTS "Employees" (
@@ -328,9 +324,9 @@ CREATE INDEX IF NOT EXISTS "IDX_Routes_Origin_Dest_Active" ON "Routes" ("OriginP
 -- 11. RouteStops
 CREATE TABLE IF NOT EXISTS "RouteStops" (
     "Entry" SERIAL PRIMARY KEY,
-    "Code" VARCHAR(50) NOT NULL,
-    "Name" VARCHAR(255) NOT NULL,
     "RouteCode" VARCHAR(50) NOT NULL,
+    "DeparturePointCode" VARCHAR(50),
+    "VenueCode" VARCHAR(50),
     "Type" "DeparturePointType" NOT NULL,
     "BasePrice" NUMERIC(10, 2) NOT NULL,
     "ArrivalTime" VARCHAR(50),
@@ -341,10 +337,16 @@ CREATE TABLE IF NOT EXISTS "RouteStops" (
     "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "CHK_RouteStops_BasePrice" CHECK ("BasePrice" >= 0),
-    CONSTRAINT "CHK_RouteStops_IsActive" CHECK ("IsActive" IN (true, false))
+    CONSTRAINT "CHK_RouteStops_IsActive" CHECK ("IsActive" IN (true, false)),
+    CONSTRAINT "CHK_RouteStops_Target" CHECK (
+        ("Type" IN ('PICKUP', 'INTERMEDIATE') AND "DeparturePointCode" IS NOT NULL) OR
+        ("Type" = 'DROPOFF' AND ("VenueCode" IS NOT NULL OR "DeparturePointCode" IS NOT NULL))
+    )
 );
 
 CREATE INDEX IF NOT EXISTS "IDX_RouteStops_RouteCode_Active" ON "RouteStops" ("RouteCode") WHERE "IsActive" = true AND "IsCanceled" = false;
+CREATE INDEX IF NOT EXISTS "IDX_RouteStops_DeparturePointCode" ON "RouteStops" ("DeparturePointCode") WHERE "IsActive" = true AND "IsCanceled" = false;
+CREATE INDEX IF NOT EXISTS "IDX_RouteStops_VenueCode" ON "RouteStops" ("VenueCode") WHERE "IsActive" = true AND "IsCanceled" = false;
 CREATE UNIQUE INDEX IF NOT EXISTS "UQ_RouteStops_RouteCode_Pickup_Active" ON "RouteStops" ("RouteCode") WHERE "Type" = 'PICKUP' AND "IsActive" = true AND "IsCanceled" = false;
 CREATE UNIQUE INDEX IF NOT EXISTS "UQ_RouteStops_RouteCode_Dropoff_Active" ON "RouteStops" ("RouteCode") WHERE "Type" = 'DROPOFF' AND "IsActive" = true AND "IsCanceled" = false;
 
