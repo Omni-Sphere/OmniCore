@@ -112,13 +112,26 @@ CREATE INDEX IF NOT EXISTS "IDX_Users_EmployeeCode" ON "Users" ("EmployeeCode");
 CREATE INDEX IF NOT EXISTS "IDX_Users_RoleCode" ON "Users" ("RoleCode");
 
 -- Default System & Administrator SuperUsers
-INSERT INTO "Users" (
-    "Code", "Name", "Email", "SuperUser", "IsLocked", "IsActive",
-    "ChangePasswordNextLogin", "PasswordNeverExpires", "CreatedBy"
-) VALUES 
-('system', 'Administrador General del Sistema', 'system@omnisphere.local', true, false, true, false, true, 'system'),
-('admin', 'System Administrator', 'admin@omnisphere.local', true, false, true, false, true, 'system')
-ON CONFLICT ("Name") DO NOTHING;
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM "Users" WHERE "Code" = 'system' OR "Name" = 'Administrador General del Sistema') THEN
+        INSERT INTO "Users" (
+            "Code", "Name", "Email", "SuperUser", "IsLocked", "IsActive",
+            "ChangePasswordNextLogin", "PasswordNeverExpires", "CreatedBy"
+        ) VALUES (
+            'system', 'Administrador General del Sistema', 'system@omnisphere.local', true, false, true, false, true, 'system'
+        );
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM "Users" WHERE "Code" = 'admin' OR "Name" = 'System Administrator') THEN
+        INSERT INTO "Users" (
+            "Code", "Name", "Email", "SuperUser", "IsLocked", "IsActive",
+            "ChangePasswordNextLogin", "PasswordNeverExpires", "CreatedBy"
+        ) VALUES (
+            'admin', 'System Administrator', 'admin@omnisphere.local', true, false, true, false, true, 'system'
+        );
+    END IF;
+END $$;
 
 -- 2.1 Employees (Agnostic Master Entity)
 CREATE TABLE IF NOT EXISTS "Employees" (
