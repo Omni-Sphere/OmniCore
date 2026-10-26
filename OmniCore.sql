@@ -337,10 +337,6 @@ CREATE TABLE IF NOT EXISTS "RouteStops" (
     )
 );
 
--- Migración idempotente si la tabla RouteStops ya existía en la base de datos con esquema viejo
-ALTER TABLE "RouteStops" ADD COLUMN IF NOT EXISTS "DeparturePointCode" VARCHAR(50);
-ALTER TABLE "RouteStops" ADD COLUMN IF NOT EXISTS "VenueCode" VARCHAR(50);
-
 CREATE INDEX IF NOT EXISTS "IDX_RouteStops_RouteCode_Active" ON "RouteStops" ("RouteCode") WHERE "IsActive" = true AND "IsCanceled" = false;
 CREATE INDEX IF NOT EXISTS "IDX_RouteStops_DeparturePointCode" ON "RouteStops" ("DeparturePointCode") WHERE "IsActive" = true AND "IsCanceled" = false;
 CREATE INDEX IF NOT EXISTS "IDX_RouteStops_VenueCode" ON "RouteStops" ("VenueCode") WHERE "IsActive" = true AND "IsCanceled" = false;
@@ -504,8 +500,6 @@ CREATE TABLE IF NOT EXISTS "PaymentMethods" (
     "UpdateDate" TIMESTAMP,
     CONSTRAINT "CHK_PaymentMethods_IsActive" CHECK ("IsActive" IN (true, false))
 );
-
-ALTER TABLE "PaymentMethods" ADD COLUMN IF NOT EXISTS "WhatsAppTemplateCode" VARCHAR(100);
 
 CREATE UNIQUE INDEX IF NOT EXISTS "UQ_PaymentMethods_Name_Active" ON "PaymentMethods" (LOWER(TRIM("Name"))) WHERE "IsActive" = true AND "IsCanceled" = false;
 
@@ -697,9 +691,6 @@ CREATE TABLE IF NOT EXISTS "MercadoPagoSettings" (
     "UpdateDate" TIMESTAMP
 );
 
-ALTER TABLE "MercadoPagoSettings" ADD COLUMN IF NOT EXISTS "WebhookPath" VARCHAR(255) NOT NULL DEFAULT '/api/v1/mercadopago/webhook';
-ALTER TABLE "MercadoPagoSettings" ADD COLUMN IF NOT EXISTS "Currency" VARCHAR(10) NOT NULL DEFAULT 'mxn';
-
 -- 24.2 MercadoPagoTransactions (Auditing & Webhook Correlation)
 CREATE TABLE IF NOT EXISTS "MercadoPagoTransactions" (
     "Entry" SERIAL PRIMARY KEY,
@@ -816,15 +807,6 @@ CREATE TABLE IF NOT EXISTS "WhatsAppMessages" (
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Migraciones incrementales si la tabla ya existía previamente
-ALTER TABLE "WhatsAppMessages" ADD COLUMN IF NOT EXISTS "MediaId" VARCHAR(100);
-ALTER TABLE "WhatsAppMessages" ADD COLUMN IF NOT EXISTS "MediaMimeType" VARCHAR(100);
-ALTER TABLE "WhatsAppMessages" ADD COLUMN IF NOT EXISTS "MediaFileName" VARCHAR(255);
-ALTER TABLE "WhatsAppMessages" ADD COLUMN IF NOT EXISTS "ContextWhatsAppId" VARCHAR(255);
-ALTER TABLE "WhatsAppMessages" ADD COLUMN IF NOT EXISTS "MessageTimestamp" TIMESTAMP;
-ALTER TABLE "WhatsAppMessages" ADD COLUMN IF NOT EXISTS "DeliveredDate" TIMESTAMP;
-ALTER TABLE "WhatsAppMessages" ADD COLUMN IF NOT EXISTS "ReadDate" TIMESTAMP;
-
 CREATE INDEX IF NOT EXISTS "IDX_WhatsAppMessages_ConversationEntry" ON "WhatsAppMessages" ("ConversationEntry");
 CREATE INDEX IF NOT EXISTS "IDX_WhatsAppMessages_Code" ON "WhatsAppMessages" ("Code");
 CREATE INDEX IF NOT EXISTS "IDX_WhatsAppMessages_WhatsAppId" ON "WhatsAppMessages" ("WhatsAppId");
@@ -834,40 +816,6 @@ CREATE INDEX IF NOT EXISTS "IDX_WhatsAppMessages_MessageTimestamp" ON "WhatsAppM
 -- =============================================================================
 -- 28. WhatsApp Templates Modular Architecture (Meta Cloud API)
 -- =============================================================================
-
--- Migration / Cleanup of legacy columns or tables
-DO $$
-BEGIN
-    -- Drop obsolete tables if they exist
-    DROP TABLE IF EXISTS "CustomAttachments" CASCADE;
-    
-    -- Alter WhatsAppTemplates to support MetaTemplateId, MetaStatus, RejectReason, Category
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'WhatsAppTemplates') THEN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'WhatsAppTemplates' AND column_name = 'MetaTemplateId') THEN
-            ALTER TABLE "WhatsAppTemplates" ADD COLUMN "MetaTemplateId" VARCHAR(100);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'WhatsAppTemplates' AND column_name = 'RejectReason') THEN
-            ALTER TABLE "WhatsAppTemplates" ADD COLUMN "RejectReason" TEXT;
-        END IF;
-        -- Drop legacy columns if they exist
-        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'WhatsAppTemplates' AND column_name = 'ButtonsJson') THEN
-            ALTER TABLE "WhatsAppTemplates" DROP COLUMN "ButtonsJson";
-        END IF;
-        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'WhatsAppTemplates' AND column_name = 'BodyTemplate') THEN
-            ALTER TABLE "WhatsAppTemplates" DROP COLUMN "BodyTemplate";
-        END IF;
-        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'WhatsAppTemplates' AND column_name = 'HeaderContent') THEN
-            ALTER TABLE "WhatsAppTemplates" DROP COLUMN "HeaderContent";
-        END IF;
-        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'WhatsAppTemplates' AND column_name = 'FooterText') THEN
-            ALTER TABLE "WhatsAppTemplates" DROP COLUMN "FooterText";
-        END IF;
-        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'WhatsAppTemplates' AND column_name = 'HeaderType') THEN
-            ALTER TABLE "WhatsAppTemplates" DROP COLUMN "HeaderType";
-        END IF;
-    END IF;
-END $$;
-
 
 -- 28.1 WhatsAppTemplates (Master)
 CREATE TABLE IF NOT EXISTS "WhatsAppTemplates" (
@@ -1255,47 +1203,4 @@ ON CONFLICT ("Code") DO UPDATE SET
 
 -- Access Control & Permissions catalog seeded. No default roles created.
 
--- Migration: Ensure all CreatedBy and LastUpdatedBy columns are VARCHAR(50) on existing databases
-DO $$
-DECLARE
-    tbl text;
-    tables text[] := ARRAY[
-        'Users', 'Employees', 'Identities', 'Roles', 'Permissions', 'RolePermissions', 'UserPermissions',
-        'RoleModules', 'UserModules', 'Departments', 'AuthorizationTemplates', 'AuthorizationStages', 'AuthorizationRules', 
-        'AuthorizationRuleUsers', 'AuthorizationRequests', 'AuthorizationDecisions',
-        'PaymentMethods', 'PaymentMethodDetails', 'PaymentTransactions', 'Integrations',
-        'StripeSettings', 'EmailSettings', 'SystemConfigs',
-        'WhatsAppSettings', 'TwilioSettings', 'CustomMessages', 'CustomButtons',
-        'Branches', 'TaxRates', 'UnitOfMeasures', 'Currencies', 'ExchangeRates', 'Series'
-    ];
-BEGIN
-    FOREACH tbl IN ARRAY tables
-    LOOP
-        IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = tbl) THEN
-            IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = tbl AND column_name = 'CreatedBy' AND data_type != 'character varying') THEN
-                BEGIN
-                    EXECUTE format('ALTER TABLE %I ALTER COLUMN "CreatedBy" DROP DEFAULT', tbl);
-                EXCEPTION WHEN OTHERS THEN NULL;
-                END;
-                EXECUTE format('ALTER TABLE %I ALTER COLUMN "CreatedBy" TYPE VARCHAR(50) USING CASE WHEN "CreatedBy"::TEXT IN (''0'', ''1'', '''', ''SYSTEM'') THEN ''system'' WHEN "CreatedBy" IS NULL THEN ''system'' ELSE LOWER("CreatedBy"::TEXT) END', tbl);
-                EXECUTE format('ALTER TABLE %I ALTER COLUMN "CreatedBy" SET DEFAULT ''system''', tbl);
-                EXECUTE format('ALTER TABLE %I ALTER COLUMN "CreatedBy" SET NOT NULL', tbl);
-            END IF;
-
-            IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = tbl AND column_name = 'LastUpdatedBy' AND data_type != 'character varying') THEN
-                BEGIN
-                    EXECUTE format('ALTER TABLE %I ALTER COLUMN "LastUpdatedBy" DROP DEFAULT', tbl);
-                EXCEPTION WHEN OTHERS THEN NULL;
-                END;
-                EXECUTE format('ALTER TABLE %I ALTER COLUMN "LastUpdatedBy" TYPE VARCHAR(50) USING CASE WHEN "LastUpdatedBy" IS NULL OR "LastUpdatedBy"::TEXT IN (''0'', '''') THEN NULL WHEN "LastUpdatedBy"::TEXT IN (''1'', ''SYSTEM'') THEN ''system'' ELSE LOWER("LastUpdatedBy"::TEXT) END', tbl);
-            END IF;
-
-            BEGIN
-                EXECUTE format('UPDATE %I SET "CreatedBy" = ''system'' WHERE "CreatedBy" = ''SYSTEM''', tbl);
-                EXECUTE format('UPDATE %I SET "LastUpdatedBy" = ''system'' WHERE "LastUpdatedBy" = ''SYSTEM''', tbl);
-            EXCEPTION WHEN OTHERS THEN NULL;
-            END;
-        END IF;
-    END LOOP;
-END $$;
 
