@@ -848,12 +848,9 @@ namespace omnisphere::repositories
         {
             auto conn = m_dbPool->Acquire();
             auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::WhatsAppTemplate>({});
-            std::vector<omnisphere::types::Condition> conditions = {
-                {"", "\"Code\"", "=", "?"}
-            };
-            auto qp = omnisphere::types::BuildQueryParts(selectFields, conditions);
-            std::string sql = "SELECT " + qp.SelectClause + " FROM \"WhatsAppTemplates\" WHERE " + qp.WhereClause + " LIMIT 1";
-            auto dt = conn->FetchPrepared(sql, { omnisphere::types::MakeSQLParam(code) });
+            auto qp = omnisphere::types::BuildQueryParts(selectFields, {});
+            std::string sql = "SELECT " + qp.SelectClause + " FROM \"WhatsAppTemplates\" WHERE \"Code\" = ? OR \"TemplateName\" = ? LIMIT 1";
+            auto dt = conn->FetchPrepared(sql, { omnisphere::types::MakeSQLParam(code), omnisphere::types::MakeSQLParam(code) });
             if (dt.IsEmpty()) return std::nullopt;
 
             auto tmpl = omnisphere::types::FromDataRow<omnisphere::models::WhatsAppTemplate>(dt[0]);
