@@ -165,14 +165,31 @@ namespace omnisphere::services
             filename = target;
         }
 
-        if (filename.empty() || filename.find("..") != std::string::npos || filename.find('/') != std::string::npos || filename.find('\\') != std::string::npos)
+        if (filename.empty() || filename.find("..") != std::string::npos || filename.find('\\') != std::string::npos)
         {
             omnisphere::utils::Logger::LogWarning("FileHandler Security", "Path traversal attack blocked: " + target);
             return omnisphere::net::Response::BadRequest(R"({"error":"Invalid file path"})");
         }
 
-        std::string candidatePath = (fs::path(m_uploadDir) / filename).string();
-        std::ifstream file(candidatePath, std::ios::binary);
+        // Eliminar slash inicial si existe
+        if (!filename.empty() && filename.front() == '/')
+        {
+            filename.erase(0, 1);
+        }
+
+        fs::path baseUploadDir = fs::absolute(m_uploadDir);
+        fs::path candidatePath = fs::weakly_canonical(baseUploadDir / filename);
+
+        // Validar que la ruta canónica permanezca dentro del directorio base de subidas
+        std::string baseStr = baseUploadDir.string();
+        std::string candStr = candidatePath.string();
+        if (candStr.rfind(baseStr, 0) != 0)
+        {
+            omnisphere::utils::Logger::LogWarning("FileHandler Security", "Path traversal attack blocked: " + target);
+            return omnisphere::net::Response::BadRequest(R"({"error":"Invalid file path"})");
+        }
+
+        std::ifstream file(candStr, std::ios::binary);
         if (!file.is_open())
         {
             return omnisphere::net::Response::NotFound(R"({"error":"File not found"})");
