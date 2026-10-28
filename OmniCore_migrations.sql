@@ -1302,3 +1302,37 @@ BEGIN
     END LOOP;
 END $$;
 
+-- =============================================================================
+-- Migration: Agnostic Feedback & Suggestions Module (core_feedback)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS "core_feedback" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(100) NOT NULL,
+    "Name" VARCHAR(255) NOT NULL,
+    "Scope" VARCHAR(50) NOT NULL,
+    "Type" VARCHAR(50) NOT NULL,
+    "Description" TEXT NOT NULL,
+    "Metadata" TEXT,
+    "UserName" VARCHAR(150),
+    "UserEmail" VARCHAR(255),
+    "UserPhone" VARCHAR(50),
+    "IsReviewed" BOOLEAN DEFAULT FALSE,
+    "AdminNotes" TEXT,
+    "CreatedBy" VARCHAR(50) DEFAULT 'system' NOT NULL,
+    "CreateDate" TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "LastUpdatedBy" VARCHAR(50),
+    "UpdateDate" TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "UQ_core_feedback_Code" UNIQUE ("Code")
+);
+
+CREATE INDEX IF NOT EXISTS "IX_core_feedback_Scope" ON "core_feedback" ("Scope");
+CREATE INDEX IF NOT EXISTS "IX_core_feedback_Type" ON "core_feedback" ("Type");
+CREATE INDEX IF NOT EXISTS "IX_core_feedback_IsReviewed" ON "core_feedback" ("IsReviewed");
+CREATE INDEX IF NOT EXISTS "IX_core_feedback_CreateDate" ON "core_feedback" ("CreateDate" DESC);
+
+-- Register Identity sequence for Feedback (FDK)
+INSERT INTO "Identities" ("Domain", "Prefix1", "CurrentSequence")
+VALUES ('Feedback', 'FDK', 0)
+ON CONFLICT ("Domain") DO NOTHING;
+
+

@@ -89,6 +89,8 @@ add_library(OmniCore SHARED
     Integration/IntegrationService.cpp
     Integration/Repositories/TicketmasterRepository.cpp
     Integration/TicketmasterSettingsService.cpp
+    Feedback/FeedbackService.cpp
+    Feedback/Repositories/FeedbackRepository.cpp
 )
 
 # --- Resolución de dependencias Omni ---
@@ -233,6 +235,10 @@ set(
     License/Services
     License/Repositories
     Integration
+    Feedback
+    Feedback/DTOs
+    Feedback/Models
+    Feedback/Repositories
 )
 
 foreach(DIR ${HEADER_DIRS})
