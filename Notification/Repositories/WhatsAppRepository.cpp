@@ -190,6 +190,92 @@ namespace omnisphere::repositories
         }
     }
 
+    bool WhatsAppRepository::SetConversationContext(const std::string& customerPhone, const std::string& reservationCode) const
+    {
+        if (!m_dbPool || customerPhone.empty()) return false;
+        try
+        {
+            int convEntry = GetOrCreateConversation(customerPhone);
+            if (convEntry <= 0) return false;
+
+            auto conn = m_dbPool->Acquire();
+            std::string sql = "UPDATE \"WhatsAppConversations\" SET \"ContextReservationCode\" = ?, \"UpdateDate\" = CURRENT_TIMESTAMP WHERE \"Entry\" = ?";
+            return conn->RunPrepared(sql, {
+                omnisphere::types::MakeSQLParam(reservationCode),
+                omnisphere::types::MakeSQLParam(convEntry)
+            });
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[WhatsAppRepository::SetConversationContext Exception] " << ex.what() << std::endl;
+            return false;
+        }
+    }
+
+    std::optional<std::string> WhatsAppRepository::GetConversationContext(const std::string& customerPhone) const
+    {
+        if (!m_dbPool || customerPhone.empty()) return std::nullopt;
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            std::string digits;
+            for (char c : customerPhone) {
+                if (std::isdigit(static_cast<unsigned char>(c))) digits += c;
+            }
+            std::string phoneSuffix = (digits.length() > 10) ? digits.substr(digits.length() - 10) : digits;
+
+            std::string sql =
+                "SELECT \"ContextReservationCode\" FROM \"WhatsAppConversations\" "
+                "WHERE (\"CustomerPhone\" = ? OR RIGHT(REGEXP_REPLACE(\"CustomerPhone\", '[^0-9]', '', 'g'), 10) = ?) "
+                "  AND (\"Status\" IS NULL OR \"Status\" != 'CLOSED') "
+                "  AND \"IsActive\" = true "
+                "ORDER BY \"LastMessageDate\" DESC LIMIT 1";
+
+            auto dt = conn->FetchPrepared(sql, {
+                omnisphere::types::MakeSQLParam(customerPhone),
+                omnisphere::types::MakeSQLParam(phoneSuffix)
+            });
+
+            if (dt.IsEmpty()) return std::nullopt;
+            auto ctxOpt = dt[0]["ContextReservationCode"].GetOptional<std::string>();
+            if (ctxOpt.has_value() && !ctxOpt->empty()) return ctxOpt;
+            return std::nullopt;
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[WhatsAppRepository::GetConversationContext Exception] " << ex.what() << std::endl;
+            return std::nullopt;
+        }
+    }
+
+    bool WhatsAppRepository::ClearConversationContext(const std::string& customerPhone) const
+    {
+        if (!m_dbPool || customerPhone.empty()) return false;
+        try
+        {
+            auto conn = m_dbPool->Acquire();
+            std::string digits;
+            for (char c : customerPhone) {
+                if (std::isdigit(static_cast<unsigned char>(c))) digits += c;
+            }
+            std::string phoneSuffix = (digits.length() > 10) ? digits.substr(digits.length() - 10) : digits;
+
+            std::string sql =
+                "UPDATE \"WhatsAppConversations\" SET \"ContextReservationCode\" = NULL, \"UpdateDate\" = CURRENT_TIMESTAMP "
+                "WHERE \"CustomerPhone\" = ? OR RIGHT(REGEXP_REPLACE(\"CustomerPhone\", '[^0-9]', '', 'g'), 10) = ?";
+
+            return conn->RunPrepared(sql, {
+                omnisphere::types::MakeSQLParam(customerPhone),
+                omnisphere::types::MakeSQLParam(phoneSuffix)
+            });
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[WhatsAppRepository::ClearConversationContext Exception] " << ex.what() << std::endl;
+            return false;
+        }
+    }
+
     omnisphere::types::DataTable WhatsAppRepository::ReadConversations(int limit) const
     {
         if (!m_dbPool) return {};

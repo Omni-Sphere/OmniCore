@@ -18,6 +18,7 @@ namespace omnisphere::models
         bool isActive = true;
         std::string createdBy = "SYSTEM";
         std::optional<std::string> createDate;
+        std::optional<std::string> contextReservationCode;
         std::optional<std::string> lastUpdatedBy;
         std::optional<std::string> updateDate;
     };
@@ -34,6 +35,7 @@ namespace omnisphere::models
         isActive,
         createdBy,
         createDate,
+        contextReservationCode,
         lastUpdatedBy,
         updateDate
     ))

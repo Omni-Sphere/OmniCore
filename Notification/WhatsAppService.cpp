@@ -930,6 +930,26 @@ namespace omnisphere::services
         return SendRequest(cleanPhone, "INTERACTIVE", "", decodedBody, jsonStr);
     }
 
+    bool WhatsAppService::SetConversationContext(const std::string& phoneNumber, const std::string& reservationCode)
+    {
+        if (!m_repository) return false;
+        std::string cleanPhone = SanitizePhoneNumber(phoneNumber);
+        return m_repository->SetConversationContext(cleanPhone, reservationCode);
+    }
+
+    std::optional<std::string> WhatsAppService::GetConversationContext(const std::string& phoneNumber) const
+    {
+        if (!m_repository) return std::nullopt;
+        std::string cleanPhone = SanitizePhoneNumber(phoneNumber);
+        return m_repository->GetConversationContext(cleanPhone);
+    }
+
+    bool WhatsAppService::ClearConversationContext(const std::string& phoneNumber)
+    {
+        if (!m_repository) return false;
+        std::string cleanPhone = SanitizePhoneNumber(phoneNumber);
+        return m_repository->ClearConversationContext(cleanPhone);
+    }
 
     bool WhatsAppService::SendTicketConfirmation(
         const std::string& phoneNumber,

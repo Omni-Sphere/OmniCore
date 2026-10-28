@@ -785,11 +785,14 @@ CREATE TABLE IF NOT EXISTS "WhatsAppConversations" (
     "IsActive" BOOLEAN NOT NULL DEFAULT true,
     "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
     "CreateDate" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "ContextReservationCode" VARCHAR(50),
     "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP
 );
 
+ALTER TABLE "WhatsAppConversations" ADD COLUMN IF NOT EXISTS "ContextReservationCode" VARCHAR(50);
 CREATE INDEX IF NOT EXISTS "IDX_WhatsAppConversations_CustomerPhone" ON "WhatsAppConversations" ("CustomerPhone");
+CREATE INDEX IF NOT EXISTS "IDX_WhatsAppConversations_ContextReservation" ON "WhatsAppConversations" ("ContextReservationCode");
 
 -- 27. WhatsAppMessages
 CREATE TABLE IF NOT EXISTS "WhatsAppMessages" (

@@ -73,6 +73,10 @@ namespace omnisphere::services
             const std::vector<std::pair<std::string, std::string>>& buttons
         );
 
+        bool SetConversationContext(const std::string& phoneNumber, const std::string& reservationCode);
+        std::optional<std::string> GetConversationContext(const std::string& phoneNumber) const;
+        bool ClearConversationContext(const std::string& phoneNumber);
+
         bool SendTicketConfirmation(
             const std::string& phoneNumber,
             const std::string& customerName,

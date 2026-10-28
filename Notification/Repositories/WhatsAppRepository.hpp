@@ -25,6 +25,9 @@ namespace omnisphere::repositories
         bool SaveSettings(const omnisphere::models::WhatsAppSettings& settings) const;
 
         int GetOrCreateConversation(const std::string& customerPhone, const std::string& customerName = "") const;
+        bool SetConversationContext(const std::string& customerPhone, const std::string& reservationCode) const;
+        std::optional<std::string> GetConversationContext(const std::string& customerPhone) const;
+        bool ClearConversationContext(const std::string& customerPhone) const;
         omnisphere::types::DataTable ReadConversations(int limit = 50) const;
         omnisphere::types::DataTable ReadMessages(int conversationEntry, int limit = 100) const;
 
