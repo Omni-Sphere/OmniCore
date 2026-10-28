@@ -45,6 +45,78 @@ namespace omnisphere::repositories
                 prefix = "CRD";
             }
 
+            // 0. Si ya existe un registro de transacción activo para este EntityType y EntityCode, actualizarlo en vez de duplicar
+            if (!input.EntityType.empty() && !input.EntityCode.empty())
+            {
+                std::string checkSql = "SELECT \"Code\" FROM " + targetTable + " WHERE \"EntityType\" = ? AND \"EntityCode\" = ? AND \"IsActive\" = true LIMIT 1";
+                auto existingDt = conn->FetchPrepared(checkSql, {
+                    omnisphere::types::MakeSQLParam(input.EntityType),
+                    omnisphere::types::MakeSQLParam(input.EntityCode)
+                });
+                if (!existingDt.IsEmpty())
+                {
+                    std::string existingCode = existingDt[0]["Code"].GetOptional<std::string>().value_or("");
+                    if (!existingCode.empty())
+                    {
+                        std::vector<omnisphere::types::ColumnValue> updateCols;
+                        if (!input.Status.empty()) updateCols.push_back({"\"Status\"", omnisphere::types::MakeSQLParam(input.Status)});
+                        if (input.Amount > 0) updateCols.push_back({"\"Amount\"", omnisphere::types::MakeSQLParam(input.Amount)});
+                        if (!input.Currency.empty()) updateCols.push_back({"\"Currency\"", omnisphere::types::MakeSQLParam(input.Currency)});
+                        if (!input.PaymentCode.empty()) updateCols.push_back({"\"PaymentCode\"", omnisphere::types::MakeSQLParam(input.PaymentCode)});
+                        if (input.ExpiresAt) updateCols.push_back({"\"ExpiresAt\"", omnisphere::types::MakeSQLParam(*input.ExpiresAt)});
+
+                        if (targetTable == "\"TransferTransactions\"")
+                        {
+                            if (input.BankName) updateCols.push_back({"\"BankName\"", omnisphere::types::MakeSQLParam(*input.BankName)});
+                            if (input.Clabe) updateCols.push_back({"\"Clabe\"", omnisphere::types::MakeSQLParam(*input.Clabe)});
+                            if (input.AccountHolder) updateCols.push_back({"\"AccountHolder\"", omnisphere::types::MakeSQLParam(*input.AccountHolder)});
+                            if (input.PaymentReference) updateCols.push_back({"\"PaymentReference\"", omnisphere::types::MakeSQLParam(*input.PaymentReference)});
+                            if (input.ReceiptUrl) updateCols.push_back({"\"ReceiptUrl\"", omnisphere::types::MakeSQLParam(*input.ReceiptUrl)});
+                        }
+                        else if (targetTable == "\"CashTransactions\"")
+                        {
+                            if (input.CashReceived) updateCols.push_back({"\"CashReceived\"", omnisphere::types::MakeSQLParam(*input.CashReceived)});
+                            if (input.CashChange) updateCols.push_back({"\"CashChange\"", omnisphere::types::MakeSQLParam(*input.CashChange)});
+                            if (input.ReceivedBy) updateCols.push_back({"\"ReceivedBy\"", omnisphere::types::MakeSQLParam(*input.ReceivedBy)});
+                            if (input.Location) updateCols.push_back({"\"Location\"", omnisphere::types::MakeSQLParam(*input.Location)});
+                            if (input.ReceiptNumber) updateCols.push_back({"\"ReceiptNumber\"", omnisphere::types::MakeSQLParam(*input.ReceiptNumber)});
+                            if (input.Notes) updateCols.push_back({"\"Notes\"", omnisphere::types::MakeSQLParam(*input.Notes)});
+                        }
+                        else // CardTransactions
+                        {
+                            if (input.Provider) updateCols.push_back({"\"Provider\"", omnisphere::types::MakeSQLParam(*input.Provider)});
+                            if (input.PaymentIntentId) updateCols.push_back({"\"PaymentIntentId\"", omnisphere::types::MakeSQLParam(*input.PaymentIntentId)});
+                            if (input.SessionId) updateCols.push_back({"\"SessionId\"", omnisphere::types::MakeSQLParam(*input.SessionId)});
+                            if (input.CardLast4) updateCols.push_back({"\"CardLast4\"", omnisphere::types::MakeSQLParam(*input.CardLast4)});
+                            if (input.CardBrand) updateCols.push_back({"\"CardBrand\"", omnisphere::types::MakeSQLParam(*input.CardBrand)});
+                            if (input.CardHolderName) updateCols.push_back({"\"CardHolderName\"", omnisphere::types::MakeSQLParam(*input.CardHolderName)});
+                            if (input.AuthorizationCode) updateCols.push_back({"\"AuthorizationCode\"", omnisphere::types::MakeSQLParam(*input.AuthorizationCode)});
+                            if (input.ReceiptUrl) updateCols.push_back({"\"ReceiptUrl\"", omnisphere::types::MakeSQLParam(*input.ReceiptUrl)});
+                            if (input.HostedUrl) updateCols.push_back({"\"HostedUrl\"", omnisphere::types::MakeSQLParam(*input.HostedUrl)});
+                            if (input.RawPayload) updateCols.push_back({"\"RawPayload\"", omnisphere::types::MakeSQLParam(*input.RawPayload)});
+                        }
+
+                        std::string modifier = input.CreatedBy.empty() ? "system" : input.CreatedBy;
+                        updateCols.push_back({"\"LastUpdatedBy\"", omnisphere::types::MakeSQLParam(modifier)});
+
+                        auto now = std::chrono::system_clock::now();
+                        auto in_time_t = std::chrono::system_clock::to_time_t(now);
+                        char buf[32];
+                        std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", std::gmtime(&in_time_t));
+                        updateCols.push_back({"\"UpdateDate\"", omnisphere::types::MakeSQLParam(std::string(buf))});
+
+                        auto updateResult = omnisphere::types::BuildUpdateQuery(
+                            targetTable, updateCols, "\"Code\"", omnisphere::types::MakeSQLParam(existingCode)
+                        );
+                        if (conn->RunPrepared(updateResult.Query, updateResult.Parameters))
+                        {
+                            conn->CommitTransaction();
+                            return GetByCode(existingCode);
+                        }
+                    }
+                }
+            }
+
             std::string code = input.Code ? *input.Code : identityRepo.GetNextCode(conn, targetDomain, prefix);
 
             std::vector<omnisphere::types::ColumnValue> cols = {
