@@ -145,12 +145,22 @@ namespace omnisphere::repositories
         auto conn = m_dbPool->Acquire();
         try
         {
-            std::vector<std::string> selectFields = {"\"Entry\""};
-            std::vector<omnisphere::types::Condition> conditions = {{"", "\"CustomerPhone\"", "=", "?"}};
-            auto qp = omnisphere::types::BuildQueryParts(selectFields, conditions);
-            std::string selectSql = "SELECT " + qp.SelectClause + " FROM \"WhatsAppConversations\" WHERE " + qp.WhereClause + " LIMIT 1";
-            std::vector<omnisphere::types::SQLParam> selectParams = { omnisphere::types::MakeSQLParam(customerPhone) };
-            auto dt = conn->FetchPrepared(selectSql, selectParams);
+            std::string digits;
+            for (char c : customerPhone) {
+                if (std::isdigit(static_cast<unsigned char>(c))) digits += c;
+            }
+            std::string phoneSuffix = (digits.length() > 10) ? digits.substr(digits.length() - 10) : digits;
+
+            std::string selectSql =
+                "SELECT \"Entry\" FROM \"WhatsAppConversations\" "
+                "WHERE (\"CustomerPhone\" = ? OR RIGHT(REGEXP_REPLACE(\"CustomerPhone\", '[^0-9]', '', 'g'), 10) = ?) "
+                "ORDER BY \"LastMessageDate\" DESC NULLS LAST, \"Entry\" DESC LIMIT 1";
+
+            auto dt = conn->FetchPrepared(selectSql, {
+                omnisphere::types::MakeSQLParam(customerPhone),
+                omnisphere::types::MakeSQLParam(phoneSuffix)
+            });
+
             if (!dt.IsEmpty())
             {
                 const auto& row = dt[0];
@@ -199,7 +209,7 @@ namespace omnisphere::repositories
             if (convEntry <= 0) return false;
 
             auto conn = m_dbPool->Acquire();
-            std::string sql = "UPDATE \"WhatsAppConversations\" SET \"ContextReservationCode\" = ?, \"UpdateDate\" = CURRENT_TIMESTAMP WHERE \"Entry\" = ?";
+            std::string sql = "UPDATE \"WhatsAppConversations\" SET \"ContextReservationCode\" = ?, \"Status\" = 'OPEN', \"UpdateDate\" = CURRENT_TIMESTAMP WHERE \"Entry\" = ?";
             return conn->RunPrepared(sql, {
                 omnisphere::types::MakeSQLParam(reservationCode),
                 omnisphere::types::MakeSQLParam(convEntry)
