@@ -12,7 +12,7 @@ namespace omnisphere::repositories
     FAQRepository::FAQRepository(std::shared_ptr<omnisphere::data::DatabasePool> dbPool)
         : m_dbPool(std::move(dbPool)) {}
 
-    bool FAQRepository::Create(omnisphere::dtos::CreateFAQ& faq) const
+    bool FAQRepository::Create(omnisphere::dtos::CreateFAQInput& faq, const std::vector<std::string>& mutationFields) const
     {
         if (!m_dbPool) return false;
         auto conn = m_dbPool->Acquire();
@@ -27,10 +27,14 @@ namespace omnisphere::repositories
             auto in_time_t = std::chrono::system_clock::to_time_t(now);
             char timeBuf[32];
             std::strftime(timeBuf, sizeof(timeBuf), "%Y-%m-%d %H:%M:%S", std::localtime(&in_time_t));
-            faq.createDate = std::string(timeBuf);
-            faq.updateDate = std::string(timeBuf);
+            if (faq.createDate.empty()) {
+                faq.createDate = std::string(timeBuf);
+            }
+            if (!faq.updateDate.has_value() || faq.updateDate->empty()) {
+                faq.updateDate = std::string(timeBuf);
+            }
 
-            auto insertData = omnisphere::types::BuildInsertQuery("\"core_faqs\"", 0, faq);
+            auto insertData = omnisphere::types::BuildInsertQuery("\"core_faqs\"", 0, faq, mutationFields);
 
             if (!conn->RunPrepared(insertData.Query, insertData.Parameters))
             {
@@ -50,13 +54,19 @@ namespace omnisphere::repositories
         }
     }
 
-    std::optional<omnisphere::models::FAQ> FAQRepository::GetByCode(const std::string& code) const
+    std::optional<omnisphere::models::FAQ> FAQRepository::GetByCode(const std::string& code, const std::vector<std::string>& fields) const
     {
-        if (!m_dbPool) return std::nullopt;
+        if (!m_dbPool || code.empty()) return std::nullopt;
         auto conn = m_dbPool->Acquire();
         try
         {
-            std::string sql = "SELECT * FROM \"core_faqs\" WHERE \"Code\" = ? LIMIT 1";
+            auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::FAQ>(fields);
+            std::vector<omnisphere::types::Condition> conditions = {
+                {"", "\"Code\"", "=", "?"}
+            };
+            auto qp = omnisphere::types::BuildQueryParts(selectFields, conditions);
+            std::string sql = "SELECT " + qp.SelectClause + " FROM \"core_faqs\" WHERE " + qp.WhereClause + " LIMIT 1";
+
             auto dt = conn->FetchPrepared(sql, { omnisphere::types::MakeSQLParam(code) });
             if (!dt.IsEmpty())
             {
@@ -73,30 +83,38 @@ namespace omnisphere::repositories
     std::vector<omnisphere::models::FAQ> FAQRepository::GetFAQs(
         const std::optional<std::string>& scope,
         const std::optional<std::string>& category,
-        const std::optional<bool>& onlyActive
+        const std::optional<bool>& onlyActive,
+        const std::vector<std::string>& fields
     ) const
     {
         if (!m_dbPool) return {};
         auto conn = m_dbPool->Acquire();
         try
         {
-            std::string sql = "SELECT * FROM \"core_faqs\" WHERE 1=1";
+            auto selectFields = omnisphere::types::FilterModelFields<omnisphere::models::FAQ>(fields);
+            std::vector<omnisphere::types::Condition> conditions;
             std::vector<omnisphere::types::SQLParam> params;
 
             if (scope.has_value() && !scope->empty()) {
-                sql += " AND (\"Scope\" = ? OR \"Scope\" = 'GLOBAL')";
+                conditions.push_back({conditions.empty() ? "" : "AND", "(\"Scope\" = ? OR \"Scope\" = 'GLOBAL')", "", ""});
                 params.push_back(omnisphere::types::MakeSQLParam(scope.value()));
             }
 
             if (category.has_value() && !category->empty() && category.value() != "ALL") {
-                sql += " AND \"Category\" = ?";
+                conditions.push_back({conditions.empty() ? "" : "AND", "\"Category\"", "=", "?"});
                 params.push_back(omnisphere::types::MakeSQLParam(category.value()));
             }
 
             if (onlyActive.has_value() && onlyActive.value()) {
-                sql += " AND \"IsActive\" = true";
+                conditions.push_back({conditions.empty() ? "" : "AND", "\"IsActive\"", "=", "?"});
+                params.push_back(omnisphere::types::MakeSQLParam(true));
             }
 
+            auto qp = omnisphere::types::BuildQueryParts(selectFields, conditions);
+            std::string sql = "SELECT " + qp.SelectClause + " FROM \"core_faqs\"";
+            if (!qp.WhereClause.empty()) {
+                sql += " WHERE " + qp.WhereClause;
+            }
             sql += " ORDER BY \"SortOrder\" ASC, \"Entry\" ASC";
 
             auto dt = conn->FetchPrepared(sql, params);
@@ -142,62 +160,54 @@ namespace omnisphere::repositories
     }
 
     bool FAQRepository::Update(
-        const std::string& code,
-        const omnisphere::dtos::UpdateFAQ& input,
-        const std::string& updatedBy
+        const omnisphere::dtos::UpdateFAQInput& input,
+        const std::vector<std::string>& mutationFields
     ) const
     {
-        if (!m_dbPool) return false;
+        if (!m_dbPool || input.code.empty()) return false;
         auto conn = m_dbPool->Acquire();
         try
         {
-            auto now = std::chrono::system_clock::now();
-            auto in_time_t = std::chrono::system_clock::to_time_t(now);
-            char timeBuf[32];
-            std::strftime(timeBuf, sizeof(timeBuf), "%Y-%m-%d %H:%M:%S", std::localtime(&in_time_t));
-            std::string nowStr(timeBuf);
-
-            std::string sql = "UPDATE \"core_faqs\" SET \"LastUpdatedBy\" = ?, \"UpdateDate\" = ?";
-            std::vector<omnisphere::types::SQLParam> params;
-            params.push_back(omnisphere::types::MakeSQLParam(updatedBy));
-            params.push_back(omnisphere::types::MakeSQLParam(nowStr));
-
-            if (input.name.has_value()) {
-                sql += ", \"Name\" = ?";
-                params.push_back(omnisphere::types::MakeSQLParam(input.name.value()));
-            }
-            if (input.scope.has_value()) {
-                sql += ", \"Scope\" = ?";
-                params.push_back(omnisphere::types::MakeSQLParam(input.scope.value()));
-            }
-            if (input.category.has_value()) {
-                sql += ", \"Category\" = ?";
-                params.push_back(omnisphere::types::MakeSQLParam(input.category.value()));
-            }
-            if (input.question.has_value()) {
-                sql += ", \"Question\" = ?";
-                params.push_back(omnisphere::types::MakeSQLParam(input.question.value()));
-            }
-            if (input.answer.has_value()) {
-                sql += ", \"Answer\" = ?";
-                params.push_back(omnisphere::types::MakeSQLParam(input.answer.value()));
-            }
-            if (input.sortOrder.has_value()) {
-                sql += ", \"SortOrder\" = ?";
-                params.push_back(omnisphere::types::MakeSQLParam(input.sortOrder.value()));
-            }
-            if (input.isActive.has_value()) {
-                sql += ", \"IsActive\" = ?";
-                params.push_back(omnisphere::types::MakeSQLParam(input.isActive.value()));
+            conn->BeginTransaction();
+            omnisphere::dtos::UpdateFAQInput mutableInput = input;
+            auto updateCols = omnisphere::types::ExtractUpdateColumns(mutableInput, mutationFields);
+            if (updateCols.empty())
+            {
+                conn->CommitTransaction();
+                return true;
             }
 
-            sql += " WHERE \"Code\" = ?";
-            params.push_back(omnisphere::types::MakeSQLParam(code));
+            bool hasLastUpdatedBy = false;
+            bool hasUpdateDate = false;
+            for (const auto& c : updateCols) {
+                if (c.Column == "\"LastUpdatedBy\"") hasLastUpdatedBy = true;
+                if (c.Column == "\"UpdateDate\"") hasUpdateDate = true;
+            }
+            if (!hasLastUpdatedBy && mutableInput.lastUpdatedBy.has_value()) {
+                updateCols.push_back({"\"LastUpdatedBy\"", omnisphere::types::MakeSQLParam(mutableInput.lastUpdatedBy.value())});
+            }
+            if (!hasUpdateDate) {
+                auto now = std::chrono::system_clock::now();
+                auto in_time_t = std::chrono::system_clock::to_time_t(now);
+                char buf[32];
+                std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", std::localtime(&in_time_t));
+                updateCols.push_back({"\"UpdateDate\"", omnisphere::types::MakeSQLParam(mutableInput.updateDate.empty() ? std::string(buf) : mutableInput.updateDate)});
+            }
 
-            return conn->RunPrepared(sql, params);
+            auto updateResult = omnisphere::types::BuildUpdateQuery(
+                "\"core_faqs\"", updateCols, "\"Code\"", omnisphere::types::MakeSQLParam(mutableInput.code)
+            );
+            if (!conn->RunPrepared(updateResult.Query, updateResult.Parameters))
+            {
+                conn->RollbackTransaction();
+                return false;
+            }
+            conn->CommitTransaction();
+            return true;
         }
         catch (const std::exception& ex)
         {
+            conn->RollbackTransaction();
             std::cerr << "[FAQRepository::Update Exception] " << ex.what() << std::endl;
             return false;
         }
@@ -205,7 +215,7 @@ namespace omnisphere::repositories
 
     bool FAQRepository::DeleteByCode(const std::string& code) const
     {
-        if (!m_dbPool) return false;
+        if (!m_dbPool || code.empty()) return false;
         auto conn = m_dbPool->Acquire();
         try
         {

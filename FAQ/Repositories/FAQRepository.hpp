@@ -19,18 +19,18 @@ namespace omnisphere::repositories
         explicit FAQRepository(std::shared_ptr<omnisphere::data::DatabasePool> dbPool);
         ~FAQRepository() = default;
 
-        bool Create(omnisphere::dtos::CreateFAQ& faq) const;
-        std::optional<omnisphere::models::FAQ> GetByCode(const std::string& code) const;
+        bool Create(omnisphere::dtos::CreateFAQInput& faq, const std::vector<std::string>& mutationFields = {}) const;
+        std::optional<omnisphere::models::FAQ> GetByCode(const std::string& code, const std::vector<std::string>& fields = {}) const;
         std::vector<omnisphere::models::FAQ> GetFAQs(
             const std::optional<std::string>& scope = std::nullopt,
             const std::optional<std::string>& category = std::nullopt,
-            const std::optional<bool>& onlyActive = std::nullopt
+            const std::optional<bool>& onlyActive = std::nullopt,
+            const std::vector<std::string>& fields = {}
         ) const;
         std::vector<std::string> GetCategories(const std::optional<std::string>& scope = std::nullopt) const;
         bool Update(
-            const std::string& code,
-            const omnisphere::dtos::UpdateFAQ& input,
-            const std::string& updatedBy = "system"
+            const omnisphere::dtos::UpdateFAQInput& input,
+            const std::vector<std::string>& mutationFields = {}
         ) const;
         bool DeleteByCode(const std::string& code) const;
     };

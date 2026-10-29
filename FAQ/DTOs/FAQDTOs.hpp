@@ -5,7 +5,7 @@
 
 namespace omnisphere::dtos
 {
-    struct CreateFAQ
+    struct CreateFAQInput
     {
         std::string code;
         std::string name;
@@ -21,13 +21,14 @@ namespace omnisphere::dtos
         std::optional<std::string> updateDate;
     };
 
-    BOOST_DESCRIBE_STRUCT(CreateFAQ, (), (
+    BOOST_DESCRIBE_STRUCT(CreateFAQInput, (), (
         code, name, scope, category, question, answer,
         sortOrder, isActive, createdBy, createDate, lastUpdatedBy, updateDate
     ))
 
-    struct UpdateFAQ
+    struct UpdateFAQInput
     {
+        std::string code;
         std::optional<std::string> name;
         std::optional<std::string> scope;
         std::optional<std::string> category;
@@ -35,9 +36,16 @@ namespace omnisphere::dtos
         std::optional<std::string> answer;
         std::optional<int> sortOrder;
         std::optional<bool> isActive;
+        std::optional<std::string> lastUpdatedBy;
+        std::string updateDate;
     };
 
-    BOOST_DESCRIBE_STRUCT(UpdateFAQ, (), (
-        name, scope, category, question, answer, sortOrder, isActive
+    BOOST_DESCRIBE_STRUCT(UpdateFAQInput, (), (
+        code, name, scope, category, question, answer,
+        sortOrder, isActive, lastUpdatedBy, updateDate
     ))
+
+    // Alias retrocompatibles
+    using CreateFAQ = CreateFAQInput;
+    using UpdateFAQ = UpdateFAQInput;
 } // namespace omnisphere::dtos

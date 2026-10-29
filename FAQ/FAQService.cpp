@@ -9,32 +9,38 @@ namespace omnisphere::services
     FAQService::FAQService(std::shared_ptr<omnisphere::repositories::FAQRepository> repo)
         : m_repo(std::move(repo)) {}
 
-    std::optional<omnisphere::models::FAQ> FAQService::CreateFAQ(omnisphere::dtos::CreateFAQ input)
+    std::optional<omnisphere::models::FAQ> FAQService::CreateFAQ(
+        omnisphere::dtos::CreateFAQInput input,
+        const std::vector<std::string>& mutationFields,
+        const std::vector<std::string>& requestedFields
+    )
     {
         if (!m_repo) return std::nullopt;
-        if (input.name.empty()) {
-            input.name = input.question.substr(0, std::min<size_t>(input.question.length(), 50));
+        if (!m_repo->Create(input, mutationFields))
+        {
+            return std::nullopt;
         }
-        if (m_repo->Create(input)) {
-            return m_repo->GetByCode(input.code);
-        }
-        return std::nullopt;
+        return m_repo->GetByCode(input.code, requestedFields);
     }
 
-    std::optional<omnisphere::models::FAQ> FAQService::GetFAQByCode(const std::string& code)
+    std::optional<omnisphere::models::FAQ> FAQService::GetFAQByCode(
+        const std::string& code,
+        const std::vector<std::string>& requestedFields
+    )
     {
         if (!m_repo) return std::nullopt;
-        return m_repo->GetByCode(code);
+        return m_repo->GetByCode(code, requestedFields);
     }
 
     std::vector<omnisphere::models::FAQ> FAQService::GetFAQs(
         const std::optional<std::string>& scope,
         const std::optional<std::string>& category,
-        const std::optional<bool>& onlyActive
+        const std::optional<bool>& onlyActive,
+        const std::vector<std::string>& requestedFields
     )
     {
         if (!m_repo) return {};
-        return m_repo->GetFAQs(scope, category, onlyActive);
+        return m_repo->GetFAQs(scope, category, onlyActive, requestedFields);
     }
 
     std::vector<std::string> FAQService::GetCategories(const std::optional<std::string>& scope)
@@ -44,16 +50,17 @@ namespace omnisphere::services
     }
 
     std::optional<omnisphere::models::FAQ> FAQService::UpdateFAQ(
-        const std::string& code,
-        const omnisphere::dtos::UpdateFAQ& input,
-        const std::string& updatedBy
+        const omnisphere::dtos::UpdateFAQInput& input,
+        const std::vector<std::string>& mutationFields,
+        const std::vector<std::string>& requestedFields
     )
     {
         if (!m_repo) return std::nullopt;
-        if (m_repo->Update(code, input, updatedBy)) {
-            return m_repo->GetByCode(code);
+        if (!m_repo->Update(input, mutationFields))
+        {
+            return std::nullopt;
         }
-        return std::nullopt;
+        return m_repo->GetByCode(input.code, requestedFields);
     }
 
     bool FAQService::DeleteFAQByCode(const std::string& code)

@@ -20,18 +20,26 @@ namespace omnisphere::services
         explicit FAQService(std::shared_ptr<omnisphere::repositories::FAQRepository> repo);
         ~FAQService() = default;
 
-        std::optional<omnisphere::models::FAQ> CreateFAQ(omnisphere::dtos::CreateFAQ input);
-        std::optional<omnisphere::models::FAQ> GetFAQByCode(const std::string& code);
+        std::optional<omnisphere::models::FAQ> CreateFAQ(
+            omnisphere::dtos::CreateFAQInput input,
+            const std::vector<std::string>& mutationFields = {},
+            const std::vector<std::string>& requestedFields = {}
+        );
+        std::optional<omnisphere::models::FAQ> GetFAQByCode(
+            const std::string& code,
+            const std::vector<std::string>& requestedFields = {}
+        );
         std::vector<omnisphere::models::FAQ> GetFAQs(
             const std::optional<std::string>& scope = std::nullopt,
             const std::optional<std::string>& category = std::nullopt,
-            const std::optional<bool>& onlyActive = std::nullopt
+            const std::optional<bool>& onlyActive = std::nullopt,
+            const std::vector<std::string>& requestedFields = {}
         );
         std::vector<std::string> GetCategories(const std::optional<std::string>& scope = std::nullopt);
         std::optional<omnisphere::models::FAQ> UpdateFAQ(
-            const std::string& code,
-            const omnisphere::dtos::UpdateFAQ& input,
-            const std::string& updatedBy = "system"
+            const omnisphere::dtos::UpdateFAQInput& input,
+            const std::vector<std::string>& mutationFields = {},
+            const std::vector<std::string>& requestedFields = {}
         );
         bool DeleteFAQByCode(const std::string& code);
     };
