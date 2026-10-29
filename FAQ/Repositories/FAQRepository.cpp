@@ -58,19 +58,16 @@ namespace omnisphere::repositories
         {
             std::string sql = "SELECT * FROM \"core_faqs\" WHERE \"Code\" = ? LIMIT 1";
             auto dt = conn->FetchPrepared(sql, { omnisphere::types::MakeSQLParam(code) });
-            if (dt.Rows.empty()) return std::nullopt;
-
-            auto models = omnisphere::types::DataTableToModels<omnisphere::models::FAQ>(dt);
-            if (!models.empty()) {
-                return models.front();
+            if (!dt.IsEmpty())
+            {
+                return omnisphere::types::FromDataRow<omnisphere::models::FAQ>(dt[0]);
             }
-            return std::nullopt;
         }
         catch (const std::exception& ex)
         {
             std::cerr << "[FAQRepository::GetByCode Exception] " << ex.what() << std::endl;
-            return std::nullopt;
         }
+        return std::nullopt;
     }
 
     std::vector<omnisphere::models::FAQ> FAQRepository::GetFAQs(
@@ -130,10 +127,10 @@ namespace omnisphere::repositories
 
             auto dt = conn->FetchPrepared(sql, params);
             std::vector<std::string> categories;
-            for (const auto& row : dt.Rows) {
-                if (!row.Values.empty()) {
-                    categories.push_back(row.Values[0]);
-                }
+            for (const auto& row : dt) {
+                try {
+                    categories.push_back(row["Category"].operator std::string());
+                } catch (...) {}
             }
             return categories;
         }
