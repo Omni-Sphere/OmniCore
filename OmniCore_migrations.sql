@@ -1335,4 +1335,35 @@ INSERT INTO "Identities" ("Domain", "Prefix1", "CurrentSequence")
 VALUES ('Feedback', 'FDK', 0)
 ON CONFLICT ("Domain") DO NOTHING;
 
+-- =============================================================================
+-- Migration: Agnostic FAQ Module (core_faqs)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS "core_faqs" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(100) NOT NULL,
+    "Name" VARCHAR(255) NOT NULL,
+    "Scope" VARCHAR(50) DEFAULT 'GLOBAL' NOT NULL,
+    "Category" VARCHAR(100) DEFAULT 'General' NOT NULL,
+    "Question" TEXT NOT NULL,
+    "Answer" TEXT NOT NULL,
+    "SortOrder" INT DEFAULT 0 NOT NULL,
+    "IsActive" BOOLEAN DEFAULT TRUE NOT NULL,
+    "CreatedBy" VARCHAR(50) DEFAULT 'system' NOT NULL,
+    "CreateDate" TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "LastUpdatedBy" VARCHAR(50),
+    "UpdateDate" TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "UQ_core_faqs_Code" UNIQUE ("Code")
+);
+
+CREATE INDEX IF NOT EXISTS "IX_core_faqs_Scope" ON "core_faqs" ("Scope");
+CREATE INDEX IF NOT EXISTS "IX_core_faqs_Category" ON "core_faqs" ("Category");
+CREATE INDEX IF NOT EXISTS "IX_core_faqs_IsActive" ON "core_faqs" ("IsActive");
+CREATE INDEX IF NOT EXISTS "IX_core_faqs_SortOrder" ON "core_faqs" ("SortOrder");
+
+-- Register Identity sequence for FAQ (FAQ)
+INSERT INTO "Identities" ("Domain", "Prefix1", "CurrentSequence")
+VALUES ('FAQ', 'FAQ', 0)
+ON CONFLICT ("Domain") DO NOTHING;
+
+
 
