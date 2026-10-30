@@ -1336,34 +1336,56 @@ VALUES ('Feedback', 'FDK', 0)
 ON CONFLICT ("Domain") DO NOTHING;
 
 -- =============================================================================
--- Migration: Agnostic FAQ Module (core_faqs)
+-- Migration: Agnostic FAQ Module (FAQCategories & FAQs)
 -- =============================================================================
-CREATE TABLE IF NOT EXISTS "core_faqs" (
+CREATE TABLE IF NOT EXISTS "FAQCategories" (
     "Entry" SERIAL PRIMARY KEY,
     "Code" VARCHAR(100) NOT NULL,
     "Name" VARCHAR(255) NOT NULL,
     "Scope" VARCHAR(50) DEFAULT 'GLOBAL' NOT NULL,
-    "Category" VARCHAR(100) DEFAULT 'General' NOT NULL,
+    "Icon" VARCHAR(100) DEFAULT 'folder',
+    "SortOrder" INT DEFAULT 0 NOT NULL,
+    "IsActive" BOOLEAN DEFAULT TRUE NOT NULL,
+    "CreatedBy" VARCHAR(50) DEFAULT 'SYSTEM' NOT NULL,
+    "CreateDate" TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "LastUpdatedBy" VARCHAR(50),
+    "UpdateDate" TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "UQ_FAQCategories_Code" UNIQUE ("Code")
+);
+
+CREATE INDEX IF NOT EXISTS "IX_FAQCategories_Scope" ON "FAQCategories" ("Scope");
+CREATE INDEX IF NOT EXISTS "IX_FAQCategories_IsActive" ON "FAQCategories" ("IsActive");
+CREATE INDEX IF NOT EXISTS "IX_FAQCategories_SortOrder" ON "FAQCategories" ("SortOrder");
+
+CREATE TABLE IF NOT EXISTS "FAQs" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(100) NOT NULL,
+    "Name" VARCHAR(255) NOT NULL,
+    "CategoryCode" VARCHAR(100) NOT NULL,
+    "Scope" VARCHAR(50) DEFAULT 'GLOBAL' NOT NULL,
     "Question" TEXT NOT NULL,
     "Answer" TEXT NOT NULL,
     "SortOrder" INT DEFAULT 0 NOT NULL,
     "IsActive" BOOLEAN DEFAULT TRUE NOT NULL,
-    "CreatedBy" VARCHAR(50) DEFAULT 'system' NOT NULL,
+    "CreatedBy" VARCHAR(50) DEFAULT 'SYSTEM' NOT NULL,
     "CreateDate" TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
     "LastUpdatedBy" VARCHAR(50),
     "UpdateDate" TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "UQ_core_faqs_Code" UNIQUE ("Code")
+    CONSTRAINT "UQ_FAQs_Code" UNIQUE ("Code")
 );
 
-CREATE INDEX IF NOT EXISTS "IX_core_faqs_Scope" ON "core_faqs" ("Scope");
-CREATE INDEX IF NOT EXISTS "IX_core_faqs_Category" ON "core_faqs" ("Category");
-CREATE INDEX IF NOT EXISTS "IX_core_faqs_IsActive" ON "core_faqs" ("IsActive");
-CREATE INDEX IF NOT EXISTS "IX_core_faqs_SortOrder" ON "core_faqs" ("SortOrder");
+CREATE INDEX IF NOT EXISTS "IX_FAQs_CategoryCode" ON "FAQs" ("CategoryCode");
+CREATE INDEX IF NOT EXISTS "IX_FAQs_Scope" ON "FAQs" ("Scope");
+CREATE INDEX IF NOT EXISTS "IX_FAQs_IsActive" ON "FAQs" ("IsActive");
+CREATE INDEX IF NOT EXISTS "IX_FAQs_SortOrder" ON "FAQs" ("SortOrder");
 
--- Register Identity sequence for FAQ (FAQ)
+-- Register Identity sequences for FAQCategories and FAQs
 INSERT INTO "Identities" ("Domain", "Prefix1", "CurrentSequence")
-VALUES ('FAQ', 'FAQ', 0)
+VALUES 
+    ('FAQCategory', 'FQC', 0),
+    ('FAQ', 'FAQ', 0)
 ON CONFLICT ("Domain") DO NOTHING;
+
 
 
 

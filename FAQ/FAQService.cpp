@@ -9,6 +9,61 @@ namespace omnisphere::services
     FAQService::FAQService(std::shared_ptr<omnisphere::repositories::FAQRepository> repo)
         : m_repo(std::move(repo)) {}
 
+    // --- FAQ Category Service Implementation ---
+    std::optional<omnisphere::models::FAQCategory> FAQService::CreateCategory(
+        omnisphere::dtos::CreateFAQCategoryInput input,
+        const std::vector<std::string>& mutationFields,
+        const std::vector<std::string>& requestedFields
+    )
+    {
+        if (!m_repo) return std::nullopt;
+        if (!m_repo->CreateCategory(input, mutationFields))
+        {
+            return std::nullopt;
+        }
+        return m_repo->GetCategoryByCode(input.code, requestedFields);
+    }
+
+    std::optional<omnisphere::models::FAQCategory> FAQService::GetCategoryByCode(
+        const std::string& code,
+        const std::vector<std::string>& requestedFields
+    )
+    {
+        if (!m_repo) return std::nullopt;
+        return m_repo->GetCategoryByCode(code, requestedFields);
+    }
+
+    std::vector<omnisphere::models::FAQCategory> FAQService::GetCategories(
+        const std::optional<std::string>& scope,
+        const std::optional<bool>& onlyActive,
+        const std::vector<std::string>& requestedFields
+    )
+    {
+        if (!m_repo) return {};
+        return m_repo->GetCategories(scope, onlyActive, requestedFields);
+    }
+
+    std::optional<omnisphere::models::FAQCategory> FAQService::UpdateCategory(
+        const omnisphere::dtos::UpdateFAQCategoryInput& input,
+        const std::vector<std::string>& mutationFields,
+        const std::vector<std::string>& requestedFields
+    )
+    {
+        if (!m_repo) return std::nullopt;
+        if (!m_repo->UpdateCategory(input, mutationFields))
+        {
+            return std::nullopt;
+        }
+        return m_repo->GetCategoryByCode(input.code, requestedFields);
+    }
+
+    bool FAQService::DeleteCategoryByCode(const std::string& code)
+    {
+        if (!m_repo) return false;
+        return m_repo->DeleteCategoryByCode(code);
+    }
+
+    // --- FAQ Service Implementation ---
     std::optional<omnisphere::models::FAQ> FAQService::CreateFAQ(
         omnisphere::dtos::CreateFAQInput input,
         const std::vector<std::string>& mutationFields,
@@ -34,19 +89,13 @@ namespace omnisphere::services
 
     std::vector<omnisphere::models::FAQ> FAQService::GetFAQs(
         const std::optional<std::string>& scope,
-        const std::optional<std::string>& category,
+        const std::optional<std::string>& categoryCode,
         const std::optional<bool>& onlyActive,
         const std::vector<std::string>& requestedFields
     )
     {
         if (!m_repo) return {};
-        return m_repo->GetFAQs(scope, category, onlyActive, requestedFields);
-    }
-
-    std::vector<std::string> FAQService::GetCategories(const std::optional<std::string>& scope)
-    {
-        if (!m_repo) return {};
-        return m_repo->GetCategories(scope);
+        return m_repo->GetFAQs(scope, categoryCode, onlyActive, requestedFields);
     }
 
     std::optional<omnisphere::models::FAQ> FAQService::UpdateFAQ(
