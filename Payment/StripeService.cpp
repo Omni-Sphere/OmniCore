@@ -420,7 +420,6 @@ namespace omnisphere::services
 
                         if (m_repository) {
                             omnisphere::models::StripeTransaction tx;
-                            tx.code = "TX-CARD-" + (res.paymentIntentId.length() > 12 ? res.paymentIntentId.substr(0, 12) : res.paymentIntentId);
                             tx.reservationCode = reservationCode;
                             tx.paymentIntentId = res.paymentIntentId;
                             tx.amount = amount;
@@ -706,7 +705,6 @@ namespace omnisphere::services
 
                         if (m_repository) {
                             omnisphere::models::StripeTransaction tx;
-                            tx.code = "TX-SPEI-" + (res.paymentIntentId.length() > 12 ? res.paymentIntentId.substr(0, 12) : res.paymentIntentId);
                             tx.reservationCode = reservationCode;
                             tx.paymentIntentId = res.paymentIntentId;
                             tx.amount = amount;
