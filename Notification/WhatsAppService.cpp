@@ -1304,83 +1304,6 @@ namespace omnisphere::services
         return m_repository->ClearConversationContext(cleanPhone);
     }
 
-    bool WhatsAppService::SendTicketConfirmation(
-        const std::string& phoneNumber,
-        const std::string& customerName,
-        const std::string& ticketNumber,
-        const std::string& tripType,
-        const std::string& eventName,
-        const std::string& eventDate,
-        const std::string& eventTime,
-        const std::string& departureName,
-        const std::string& references,
-        const std::string& toleranceTime
-    )
-    {
-        CheckLicense();
-        std::string cleanPhone = SanitizePhoneNumber(phoneNumber);
-        json::object body;
-        body["messaging_product"] = "whatsapp";
-        body["to"] = cleanPhone;
-        body["type"] = "template";
-
-        json::object tmpl;
-        tmpl["name"] = "ticket_confirmation";
-        json::object lang;
-        lang["code"] = "en";
-        tmpl["language"] = lang;
-
-        json::array components;
-
-        // 1. Header Component (1 parameter: customer_name)
-        json::object headerComp;
-        headerComp["type"] = "header";
-        json::array headerParams;
-        json::object hParam;
-        hParam["type"] = "text";
-        hParam["parameter_name"] = "customer_name";
-        hParam["text"] = customerName;
-        headerParams.push_back(hParam);
-        headerComp["parameters"] = headerParams;
-        components.push_back(headerComp);
-
-        // 2. Body Component (9 parameters)
-        json::object bodyComp;
-        bodyComp["type"] = "body";
-        json::array bodyParams;
-
-        std::vector<std::pair<std::string, std::string>> paramList = {
-            {"customer_name", customerName},
-            {"ticket_number", ticketNumber},
-            {"trip_type", tripType},
-            {"event_name", eventName},
-            {"event_date", eventDate},
-            {"event_time", eventTime},
-            {"departure_name", departureName},
-            {"references", references},
-            {"tolerance_time", toleranceTime}
-        };
-
-        for (const auto& [key, val] : paramList)
-        {
-            json::object paramObj;
-            paramObj["type"] = "text";
-            paramObj["parameter_name"] = key;
-            paramObj["text"] = val;
-            bodyParams.push_back(paramObj);
-        }
-        bodyComp["parameters"] = bodyParams;
-        components.push_back(bodyComp);
-
-        tmpl["components"] = components;
-        body["template"] = tmpl;
-
-        std::string jsonStr = json::serialize(body);
-        std::string contentStr = "Ticket Confirmation Template";
-        return SendRequest(cleanPhone, "TEMPLATE", "ticket_confirmation", contentStr, jsonStr);
-    }
-
-
     std::optional<omnisphere::models::CustomMessage> WhatsAppService::GetCustomMessage(const std::string& messageCode) const
     {
         if (!m_repository) return std::nullopt;
@@ -1469,21 +1392,6 @@ namespace omnisphere::services
         else
         {
             success = SendMessage(phoneNumber, bodyText);
-        }
-
-        if (!success && (m_lastError.find("131047") != std::string::npos || m_lastError.find("24 hours") != std::string::npos))
-        {
-            omnisphere::utils::Logger::LogWarning("WhatsAppService",
-                "Custom message failed due to Meta 24h window (131047). Falling back to official Meta template 'ticket_confirmation' for " + phoneNumber);
-
-            std::string name = finalPlaceholders.count("nombre_registrado") ? finalPlaceholders["nombre_registrado"] : (finalPlaceholders.count("nombre_cliente") ? finalPlaceholders["nombre_cliente"] : "Pasajero");
-            std::string folio = finalPlaceholders.count("folio") ? finalPlaceholders["folio"] : "RSV000000";
-            std::string seats = finalPlaceholders.count("numero_asientos") ? finalPlaceholders["numero_asientos"] : "1 lugar";
-            std::string event = finalPlaceholders.count("evento") ? finalPlaceholders["evento"] : "Evento";
-            std::string pickup = finalPlaceholders.count("parada_inicial") ? finalPlaceholders["parada_inicial"] : "Punto de Abordaje";
-            std::string depTime = finalPlaceholders.count("hora_salida") ? finalPlaceholders["hora_salida"] : "Por confirmar";
-
-            return SendTicketConfirmation(phoneNumber, name, folio, seats, event, "Por confirmar", depTime, pickup, "Sin referencias", "15 minutos");
         }
 
         return success;

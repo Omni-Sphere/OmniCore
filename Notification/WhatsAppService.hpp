@@ -95,19 +95,6 @@ namespace omnisphere::services
         std::optional<std::string> GetConversationContext(const std::string& phoneNumber) const;
         bool ClearConversationContext(const std::string& phoneNumber);
 
-        bool SendTicketConfirmation(
-            const std::string& phoneNumber,
-            const std::string& customerName,
-            const std::string& ticketNumber,
-            const std::string& tripType,
-            const std::string& eventName,
-            const std::string& eventDate,
-            const std::string& eventTime,
-            const std::string& departureName,
-            const std::string& references,
-            const std::string& toleranceTime
-        );
-
 
 
         bool SendCustomMessage(
