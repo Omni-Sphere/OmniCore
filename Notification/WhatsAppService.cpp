@@ -473,10 +473,21 @@ namespace omnisphere::services
         body["to"] = cleanPhone;
         body["type"] = "template";
 
+        std::string langCode = "es_MX";
+        if (m_dbPool)
+        {
+            auto waRepo = std::make_shared<omnisphere::repositories::WhatsAppRepository>(m_dbPool);
+            auto tplOpt = waRepo->GetWhatsAppTemplateByCode(templateName);
+            if (tplOpt.has_value() && !tplOpt->language.empty())
+            {
+                langCode = tplOpt->language;
+            }
+        }
+
         json::object tmpl;
         tmpl["name"] = templateName;
         json::object lang;
-        lang["code"] = (templateName == "ticket_confirmation") ? "en" : "es_MX";
+        lang["code"] = langCode;
         tmpl["language"] = lang;
 
         json::array components;
@@ -584,10 +595,21 @@ namespace omnisphere::services
         body["to"] = cleanPhone;
         body["type"] = "template";
 
+        std::string langCode = "es_MX";
+        if (m_dbPool)
+        {
+            auto waRepo = std::make_shared<omnisphere::repositories::WhatsAppRepository>(m_dbPool);
+            auto tplOpt = waRepo->GetWhatsAppTemplateByCode(templateName);
+            if (tplOpt.has_value() && !tplOpt->language.empty())
+            {
+                langCode = tplOpt->language;
+            }
+        }
+
         json::object tmpl;
         tmpl["name"] = templateName;
         json::object lang;
-        lang["code"] = (templateName == "ticket_confirmation") ? "en" : "es_MX";
+        lang["code"] = langCode;
         tmpl["language"] = lang;
 
         json::array components;
@@ -679,6 +701,206 @@ namespace omnisphere::services
         std::string jsonStr = json::serialize(body);
         std::string contentStr = !interpolatedContent.empty() ? interpolatedContent : ("Named Template: " + templateName);
         return SendRequest(cleanPhone, "TEMPLATE", templateName, contentStr, jsonStr);
+    }
+
+    bool WhatsAppService::SendMetaTemplate(
+        const std::string& phoneNumber,
+        const omnisphere::models::WhatsAppTemplate& tpl,
+        const std::map<std::string, std::string>& availableValues,
+        const std::optional<WhatsAppMediaHeader>& mediaHeader
+    )
+    {
+        CheckLicense();
+        std::string cleanPhone = SanitizePhoneNumber(phoneNumber);
+
+        std::string actualTemplateName = !tpl.templateName.empty() ? tpl.templateName : tpl.code;
+        if (actualTemplateName.empty())
+        {
+            omnisphere::utils::Logger::LogError("WhatsAppService", "[SendMetaTemplate] Nombre y código de plantilla vacíos en el modelo.");
+            return false;
+        }
+
+        std::string langCode = !tpl.language.empty() ? tpl.language : "es_MX";
+
+        json::object body;
+        body["messaging_product"] = "whatsapp";
+        body["to"] = cleanPhone;
+        body["type"] = "template";
+
+        json::object tmpl;
+        json::array components;
+
+        // 1. Header (Variables o Media)
+        if (tpl.header.has_value())
+        {
+            const auto& h = *tpl.header;
+            json::object headerComp;
+            headerComp["type"] = "header";
+            json::array hParams;
+
+            if (h.headerType == "TEXT" && !h.variables.empty())
+            {
+                for (const auto& var : h.variables)
+                {
+                    std::string val = availableValues.count(var.varName) ? availableValues.at(var.varName) : "";
+                    if (val.empty() && var.exampleValue.has_value()) val = *var.exampleValue;
+                    if (val.empty()) val = "N/A";
+
+                    json::object p;
+                    p["type"] = "text";
+                    p["parameter_name"] = var.varName;
+                    p["text"] = val;
+                    hParams.push_back(p);
+                }
+            }
+            else if (mediaHeader.has_value())
+            {
+                std::string hType = mediaHeader->type;
+                if (hType == "IMAGE")
+                {
+                    json::object p;
+                    p["type"] = "image";
+                    json::object img;
+                    img["link"] = mediaHeader->mediaUrl;
+                    p["image"] = img;
+                    hParams.push_back(p);
+                }
+                else if (hType == "VIDEO")
+                {
+                    json::object p;
+                    p["type"] = "video";
+                    json::object vid;
+                    vid["link"] = mediaHeader->mediaUrl;
+                    p["video"] = vid;
+                    hParams.push_back(p);
+                }
+                else if (hType == "DOCUMENT")
+                {
+                    json::object p;
+                    p["type"] = "document";
+                    json::object doc;
+                    doc["link"] = mediaHeader->mediaUrl;
+                    if (!mediaHeader->filename.empty()) doc["filename"] = mediaHeader->filename;
+                    p["document"] = doc;
+                    hParams.push_back(p);
+                }
+            }
+
+            if (!hParams.empty())
+            {
+                headerComp["parameters"] = hParams;
+                components.push_back(headerComp);
+            }
+        }
+        else if (mediaHeader.has_value())
+        {
+            json::object headerComp;
+            headerComp["type"] = "header";
+            json::array hParams;
+            json::object p;
+            p["type"] = "image";
+            json::object img;
+            img["link"] = mediaHeader->mediaUrl;
+            p["image"] = img;
+            hParams.push_back(p);
+            headerComp["parameters"] = hParams;
+            components.push_back(headerComp);
+        }
+
+        // 2. Body (Variables exactas registradas en el objeto de la plantilla)
+        if (tpl.body.has_value() && !tpl.body->variables.empty())
+        {
+            json::object bodyComp;
+            bodyComp["type"] = "body";
+            json::array bParams;
+
+            for (const auto& var : tpl.body->variables)
+            {
+                std::string val = availableValues.count(var.varName) ? availableValues.at(var.varName) : "";
+                if (val.empty() && var.exampleValue.has_value()) val = *var.exampleValue;
+                if (val.empty()) val = "Por confirmar";
+
+                json::object p;
+                p["type"] = "text";
+                p["parameter_name"] = var.varName;
+                p["text"] = val;
+                bParams.push_back(p);
+            }
+
+            if (!bParams.empty())
+            {
+                bodyComp["parameters"] = bParams;
+                components.push_back(bodyComp);
+            }
+        }
+        else if (!availableValues.empty())
+        {
+            json::object bodyComp;
+            bodyComp["type"] = "body";
+            json::array bParams;
+            for (const auto& [k, v] : availableValues)
+            {
+                if (!v.empty())
+                {
+                    json::object p;
+                    p["type"] = "text";
+                    p["parameter_name"] = k;
+                    p["text"] = v;
+                    bParams.push_back(p);
+                }
+            }
+            if (!bParams.empty())
+            {
+                bodyComp["parameters"] = bParams;
+                components.push_back(bodyComp);
+            }
+        }
+
+        tmpl["name"] = actualTemplateName;
+        json::object langObj;
+        langObj["code"] = langCode;
+        tmpl["language"] = langObj;
+
+        if (!components.empty())
+        {
+            tmpl["components"] = components;
+        }
+        body["template"] = tmpl;
+
+        std::string jsonStr = json::serialize(body);
+        std::string contentStr = "Template: " + actualTemplateName;
+        omnisphere::utils::Logger::LogInfo("WhatsAppService",
+            "[SendMetaTemplate] Despachando plantilla [" + actualTemplateName + "] (" + langCode + ") a " + cleanPhone);
+
+        return SendRequest(cleanPhone, "TEMPLATE", actualTemplateName, contentStr, jsonStr);
+    }
+
+    bool WhatsAppService::SendMetaTemplate(
+        const std::string& phoneNumber,
+        const std::string& templateCodeOrName,
+        const std::map<std::string, std::string>& availableValues,
+        const std::optional<WhatsAppMediaHeader>& mediaHeader
+    )
+    {
+        if (templateCodeOrName.empty())
+        {
+            omnisphere::utils::Logger::LogError("WhatsAppService", "[SendMetaTemplate] Nombre o código de plantilla vacío.");
+            return false;
+        }
+
+        auto waRepo = std::make_shared<omnisphere::repositories::WhatsAppRepository>(m_dbPool);
+        auto tplOpt = waRepo->GetWhatsAppTemplateByCode(templateCodeOrName);
+
+        if (tplOpt.has_value())
+        {
+            return SendMetaTemplate(phoneNumber, *tplOpt, availableValues, mediaHeader);
+        }
+
+        omnisphere::models::WhatsAppTemplate fallbackTpl;
+        fallbackTpl.code = templateCodeOrName;
+        fallbackTpl.templateName = templateCodeOrName;
+        fallbackTpl.language = "es_MX";
+        return SendMetaTemplate(phoneNumber, fallbackTpl, availableValues, mediaHeader);
     }
 
     static std::string EncodeToUnicodeEscapes(const std::string& input)

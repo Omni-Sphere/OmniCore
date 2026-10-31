@@ -60,6 +60,20 @@ namespace omnisphere::services
             const std::optional<WhatsAppMediaHeader>& mediaHeader = std::nullopt
         );
 
+        bool SendMetaTemplate(
+            const std::string& phoneNumber,
+            const std::string& templateCodeOrName,
+            const std::map<std::string, std::string>& availableValues,
+            const std::optional<WhatsAppMediaHeader>& mediaHeader = std::nullopt
+        );
+
+        bool SendMetaTemplate(
+            const std::string& phoneNumber,
+            const omnisphere::models::WhatsAppTemplate& templateModel,
+            const std::map<std::string, std::string>& availableValues,
+            const std::optional<WhatsAppMediaHeader>& mediaHeader = std::nullopt
+        );
+
         bool SendMessage(
             const std::string& phoneNumber,
             const std::string& message
