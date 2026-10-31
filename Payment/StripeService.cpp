@@ -744,9 +744,15 @@ namespace omnisphere::services
                             if (paymentMethodCode.empty() || paymentMethodCode == "NOT_APPLICABLE" || paymentMethodCode == "TRANSFER" || paymentMethodCode == "SPEI") {
                                 try {
                                     auto conn = m_dbPool->Acquire();
+                                    // Buscar primero una forma de pago TRANSFER/SPEI que use integración activa (ej. Stripe)
                                     auto dtPm = conn->FetchResults(
-                                        "SELECT \"Code\" FROM \"PaymentMethods\" WHERE \"Type\" IN ('TRANSFER', 'SPEI') AND \"IsActive\" = true ORDER BY \"Entry\" ASC LIMIT 1"
+                                        "SELECT \"Code\" FROM \"PaymentMethods\" WHERE \"Type\" IN ('TRANSFER', 'SPEI') AND \"UsesIntegration\" = true AND \"IsActive\" = true ORDER BY \"Entry\" ASC LIMIT 1"
                                     );
+                                    if (dtPm.IsEmpty()) {
+                                        dtPm = conn->FetchResults(
+                                            "SELECT \"Code\" FROM \"PaymentMethods\" WHERE \"Type\" IN ('TRANSFER', 'SPEI') AND \"IsActive\" = true ORDER BY \"Entry\" ASC LIMIT 1"
+                                        );
+                                    }
                                     if (!dtPm.IsEmpty()) {
                                         const auto& pmRow = dtPm[0];
                                         paymentMethodCode = pmRow["Code"].GetOptional<std::string>().value_or("");
