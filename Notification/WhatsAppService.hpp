@@ -1,5 +1,6 @@
 #pragma once
 #include "Notification/DTOs/WhatsAppConfig.hpp"
+#include "Notification/DTOs/WhatsAppTemplateMessage.hpp"
 #include "Notification/DTOs/CreateMetaTemplateInput.hpp"
 #include "Notification/DTOs/UpdateWhatsAppTemplateInput.hpp"
 #include "Notification/Repositories/WhatsAppRepository.hpp"
@@ -38,6 +39,9 @@ namespace omnisphere::services
 
         omnisphere::models::WhatsAppSettings GetSettings(const std::vector<std::string>& requestedFields = {}) const;
         bool SaveSettings(const omnisphere::models::WhatsAppSettings& settings);
+
+        // Método agnóstico para envío de plantillas de WhatsApp (Meta Graph API)
+        bool SendTemplate(const omnisphere::dtos::WhatsAppTemplateMessage& message);
 
         bool SendNotification(
             const std::string& phoneNumber,

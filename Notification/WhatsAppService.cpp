@@ -450,6 +450,138 @@ namespace omnisphere::services
         return clean;
     }
 
+    bool WhatsAppService::SendTemplate(const omnisphere::dtos::WhatsAppTemplateMessage& message)
+    {
+        CheckLicense();
+        std::string cleanPhone = SanitizePhoneNumber(message.phoneNumber);
+        if (cleanPhone.empty() || message.templateName.empty())
+        {
+            m_lastError = "Número de teléfono o nombre de plantilla vacío.";
+            omnisphere::utils::Logger::LogError("WhatsAppService", m_lastError);
+            return false;
+        }
+
+        json::object body;
+        body["messaging_product"] = "whatsapp";
+        body["to"] = cleanPhone;
+        body["type"] = "template";
+
+        json::object tpl;
+        tpl["name"] = message.templateName;
+
+        json::object lang;
+        lang["code"] = message.language.empty() ? "es_MX" : message.language;
+        tpl["language"] = lang;
+
+        json::array components;
+
+        // 1. Cabecera (HEADER)
+        if (message.header.has_value())
+        {
+            json::object comp;
+            comp["type"] = "header";
+            json::array headerParams;
+
+            const auto& h = *message.header;
+            if (h.type == "IMAGE" || h.type == "DOCUMENT" || h.type == "VIDEO")
+            {
+                json::object param;
+                std::string mediaKey = (h.type == "IMAGE") ? "image" : ((h.type == "DOCUMENT") ? "document" : "video");
+                param["type"] = mediaKey;
+                json::object mediaObj;
+                mediaObj["link"] = h.mediaUrl.value_or("");
+                if (h.type == "DOCUMENT" && h.filename.has_value())
+                {
+                    mediaObj["filename"] = *h.filename;
+                }
+                param[mediaKey] = mediaObj;
+                headerParams.push_back(param);
+            }
+            else if (h.type == "LOCATION")
+            {
+                json::object param;
+                param["type"] = "location";
+                json::object locObj;
+                locObj["latitude"] = std::to_string(h.latitude);
+                locObj["longitude"] = std::to_string(h.longitude);
+                if (!h.locationName.empty()) locObj["name"] = h.locationName;
+                if (!h.locationAddress.empty()) locObj["address"] = h.locationAddress;
+                param["location"] = locObj;
+                headerParams.push_back(param);
+            }
+            else if (h.type == "TEXT")
+            {
+                for (const auto& hp : h.parameters)
+                {
+                    json::object param;
+                    param["type"] = "text";
+                    param["text"] = hp.text;
+                    headerParams.push_back(param);
+                }
+            }
+
+            if (!headerParams.empty())
+            {
+                comp["parameters"] = headerParams;
+                components.push_back(comp);
+            }
+        }
+
+        // 2. Cuerpo (BODY)
+        if (!message.bodyParameters.empty())
+        {
+            json::object comp;
+            comp["type"] = "body";
+            json::array bodyParams;
+
+            for (const auto& p : message.bodyParameters)
+            {
+                json::object param;
+                param["type"] = p.type.empty() ? "text" : p.type;
+                param["text"] = p.text;
+                bodyParams.push_back(param);
+            }
+
+            comp["parameters"] = bodyParams;
+            components.push_back(comp);
+        }
+
+        // 3. Botones (BUTTONS)
+        for (const auto& btn : message.buttons)
+        {
+            json::object comp;
+            comp["type"] = "button";
+            comp["sub_type"] = btn.subType;
+            comp["index"] = std::to_string(btn.index);
+
+            json::array btnParams;
+            json::object param;
+            if (btn.subType == "quick_reply")
+            {
+                param["type"] = "payload";
+                param["payload"] = btn.parameterValue;
+            }
+            else if (btn.subType == "url")
+            {
+                param["type"] = "text";
+                param["text"] = btn.parameterValue;
+            }
+            btnParams.push_back(param);
+            comp["parameters"] = btnParams;
+            components.push_back(comp);
+        }
+
+        if (!components.empty())
+        {
+            tpl["components"] = components;
+        }
+
+        body["template"] = tpl;
+        std::string jsonString = json::serialize(body);
+
+        return SendRequest(cleanPhone, "TEMPLATE", message.templateName, message.templateName, jsonString);
+    }
+
     bool WhatsAppService::SendNotification(
         const std::string& phoneNumber,
         const std::string& templateName,
@@ -474,10 +606,9 @@ namespace omnisphere::services
         body["type"] = "template";
 
         std::string langCode = "es_MX";
-        if (m_dbPool)
+        if (m_repository)
         {
-            auto waRepo = std::make_shared<omnisphere::repositories::WhatsAppRepository>(m_dbPool);
-            auto tplOpt = waRepo->GetWhatsAppTemplateByCode(templateName);
+            auto tplOpt = m_repository->GetWhatsAppTemplateByCode(templateName);
             if (tplOpt.has_value() && !tplOpt->language.empty())
             {
                 langCode = tplOpt->language;
@@ -596,10 +727,9 @@ namespace omnisphere::services
         body["type"] = "template";
 
         std::string langCode = "es_MX";
-        if (m_dbPool)
+        if (m_repository)
         {
-            auto waRepo = std::make_shared<omnisphere::repositories::WhatsAppRepository>(m_dbPool);
-            auto tplOpt = waRepo->GetWhatsAppTemplateByCode(templateName);
+            auto tplOpt = m_repository->GetWhatsAppTemplateByCode(templateName);
             if (tplOpt.has_value() && !tplOpt->language.empty())
             {
                 langCode = tplOpt->language;
@@ -888,12 +1018,13 @@ namespace omnisphere::services
             return false;
         }
 
-        auto waRepo = std::make_shared<omnisphere::repositories::WhatsAppRepository>(m_dbPool);
-        auto tplOpt = waRepo->GetWhatsAppTemplateByCode(templateCodeOrName);
-
-        if (tplOpt.has_value())
+        if (m_repository)
         {
-            return SendMetaTemplate(phoneNumber, *tplOpt, availableValues, mediaHeader);
+            auto tplOpt = m_repository->GetWhatsAppTemplateByCode(templateCodeOrName);
+            if (tplOpt.has_value())
+            {
+                return SendMetaTemplate(phoneNumber, *tplOpt, availableValues, mediaHeader);
+            }
         }
 
         omnisphere::models::WhatsAppTemplate fallbackTpl;
