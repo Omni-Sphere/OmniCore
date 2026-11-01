@@ -869,19 +869,43 @@ namespace omnisphere::services
             headerComp["type"] = "header";
             json::array hParams;
 
-            if (h.headerType == "TEXT" && !h.variables.empty())
+            if (h.headerType == "TEXT")
             {
-                for (const auto& var : h.variables)
+                if (!h.variables.empty())
                 {
-                    std::string val = availableValues.count(var.varName) ? availableValues.at(var.varName) : "";
-                    if (val.empty() && var.exampleValue.has_value()) val = *var.exampleValue;
-                    if (val.empty()) val = "N/A";
+                    for (const auto& var : h.variables)
+                    {
+                        std::string val = availableValues.count(var.varName) ? availableValues.at(var.varName) : "";
+                        if (val.empty() && var.exampleValue.has_value()) val = *var.exampleValue;
+                        if (val.empty()) val = "N/A";
 
-                    json::object p;
-                    p["type"] = "text";
-                    p["parameter_name"] = var.varName;
-                    p["text"] = val;
-                    hParams.push_back(p);
+                        json::object p;
+                        p["type"] = "text";
+                        p["parameter_name"] = var.varName;
+                        p["text"] = val;
+                        hParams.push_back(p);
+                    }
+                }
+                else if (h.textContent.has_value() && !h.textContent->empty())
+                {
+                    // Detectar variables {{param}} en el texto del Header
+                    std::regex hVarRegex(R"(\{\{([a-zA-Z0-9_]+)\}\})");
+                    std::string hText = *h.textContent;
+                    auto wBegin = std::sregex_iterator(hText.begin(), hText.end(), hVarRegex);
+                    auto wEnd = std::sregex_iterator();
+                    for (std::sregex_iterator i = wBegin; i != wEnd; ++i)
+                    {
+                        std::smatch m = *i;
+                        std::string varName = m[1].str();
+                        std::string val = availableValues.count(varName) ? availableValues.at(varName) : "";
+                        if (val.empty()) val = "N/A";
+
+                        json::object p;
+                        p["type"] = "text";
+                        p["parameter_name"] = varName;
+                        p["text"] = val;
+                        hParams.push_back(p);
+                    }
                 }
             }
             else if (mediaHeader.has_value())
