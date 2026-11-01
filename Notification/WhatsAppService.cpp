@@ -16,6 +16,7 @@
 #include <fstream>
 #include <filesystem>
 #include <ctime>
+#include <regex>
 
 namespace beast = boost::beast;
 namespace http = beast::http;
@@ -937,13 +938,14 @@ namespace omnisphere::services
             components.push_back(headerComp);
         }
 
-        // 2. Body (Variables exactas registradas en el objeto de la plantilla)
+        // 2. Body (Variables exactas requeridas por la plantilla en Meta)
         if (tpl.body.has_value() && !tpl.body->variables.empty())
         {
             json::object bodyComp;
             bodyComp["type"] = "body";
             json::array bParams;
 
+            // Enviar ÚNICAMENTE las variables configuradas en la plantilla de Meta
             for (const auto& var : tpl.body->variables)
             {
                 std::string val = availableValues.count(var.varName) ? availableValues.at(var.varName) : "";
@@ -961,6 +963,49 @@ namespace omnisphere::services
             {
                 bodyComp["parameters"] = bParams;
                 components.push_back(bodyComp);
+            }
+        }
+        else if (tpl.body.has_value() && !tpl.body->bodyText.empty())
+        {
+            // Extraer las variables requeridas directamente del texto de la plantilla (ej. {{nombre}} o {{1}})
+            // para no enviar parámetros arbitrarios o sobrantes
+            std::vector<std::string> detectedVars;
+            std::regex varRegex(R"(\{\{([a-zA-Z0-9_]+)\}\})");
+            std::string text = tpl.body->bodyText;
+            auto wordsBegin = std::sregex_iterator(text.begin(), text.end(), varRegex);
+            auto wordsEnd = std::sregex_iterator();
+
+            for (std::sregex_iterator i = wordsBegin; i != wordsEnd; ++i)
+            {
+                std::smatch match = *i;
+                std::string vName = match[1].str();
+                if (std::find(detectedVars.begin(), detectedVars.end(), vName) == detectedVars.end())
+                {
+                    detectedVars.push_back(vName);
+                }
+            }
+
+            if (!detectedVars.empty())
+            {
+                json::object bodyComp;
+                bodyComp["type"] = "body";
+                json::array bParams;
+                for (const auto& varName : detectedVars)
+                {
+                    std::string val = availableValues.count(varName) ? availableValues.at(varName) : "";
+                    if (val.empty()) val = "Por confirmar";
+
+                    json::object p;
+                    p["type"] = "text";
+                    p["parameter_name"] = varName;
+                    p["text"] = val;
+                    bParams.push_back(p);
+                }
+                if (!bParams.empty())
+                {
+                    bodyComp["parameters"] = bParams;
+                    components.push_back(bodyComp);
+                }
             }
         }
         else if (!availableValues.empty())
