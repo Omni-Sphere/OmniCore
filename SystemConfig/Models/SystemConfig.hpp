@@ -16,14 +16,6 @@ namespace omnisphere::models
         bool enableEmailNotifications = true;
         bool enableWhatsappNotifications = true;
         bool allowPartialPayments = false;
-        std::string whatsappTransferConfirmMessage;
-        std::string whatsappMeetingPointMessage;
-        std::string whatsappCancelTransferMessage;
-        std::string whatsappReceiptReceivedMessage;
-        std::string whatsappReceiptAcceptedMessage;
-        std::string whatsappReceiptRejectedMessage;
-        std::string whatsappInvalidFileMessage;
-        std::string whatsappConfirmationTemplateCode;
         bool isActive = true;
         std::string createdBy = "SYSTEM";
         std::string createDate;
@@ -35,10 +27,6 @@ namespace omnisphere::models
         entry, code, feeHandlingStrategy, taxRatePercent,
         defaultCurrency, companyName, enableEmailNotifications,
         enableWhatsappNotifications, allowPartialPayments,
-        whatsappTransferConfirmMessage, whatsappMeetingPointMessage,
-        whatsappCancelTransferMessage, whatsappReceiptReceivedMessage,
-        whatsappReceiptAcceptedMessage, whatsappReceiptRejectedMessage,
-        whatsappInvalidFileMessage, whatsappConfirmationTemplateCode,
         isActive, createdBy, createDate, lastUpdatedBy, updateDate
     ))
 } // namespace omnisphere::models

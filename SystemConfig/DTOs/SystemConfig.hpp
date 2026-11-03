@@ -26,14 +26,6 @@ namespace omnisphere::dtos
         std::optional<bool> EnableEmailNotifications;
         std::optional<bool> EnableWhatsappNotifications;
         std::optional<bool> AllowPartialPayments;
-        std::optional<std::string> WhatsappTransferConfirmMessage;
-        std::optional<std::string> WhatsappMeetingPointMessage;
-        std::optional<std::string> WhatsappCancelTransferMessage;
-        std::optional<std::string> WhatsappReceiptReceivedMessage;
-        std::optional<std::string> WhatsappReceiptAcceptedMessage;
-        std::optional<std::string> WhatsappReceiptRejectedMessage;
-        std::optional<std::string> WhatsappInvalidFileMessage;
-        std::optional<std::string> WhatsappConfirmationTemplateCode;
         std::optional<bool> IsActive;
         std::string LastUpdatedBy = "SYSTEM";
     };
@@ -41,10 +33,6 @@ namespace omnisphere::dtos
     BOOST_DESCRIBE_STRUCT(UpdateSystemConfigInput, (), (
         Entry, Code, FeeHandlingStrategy, TaxRatePercent, DefaultCurrency, CompanyName,
         EnableEmailNotifications, EnableWhatsappNotifications, AllowPartialPayments,
-        WhatsappTransferConfirmMessage, WhatsappMeetingPointMessage,
-        WhatsappCancelTransferMessage, WhatsappReceiptReceivedMessage,
-        WhatsappReceiptAcceptedMessage, WhatsappReceiptRejectedMessage,
-        WhatsappInvalidFileMessage, WhatsappConfirmationTemplateCode,
         IsActive, LastUpdatedBy
     ))
 } // namespace omnisphere::dtos

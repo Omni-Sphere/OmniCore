@@ -1820,6 +1820,32 @@ namespace omnisphere::services
         {
             cleanInput.FooterText = EncodeToUnicodeEscapes(*input.FooterText);
         }
+        if (input.ReceiptReceivedMessage.has_value() && !input.ReceiptReceivedMessage->empty())
+        {
+            cleanInput.ReceiptReceivedMessage = EncodeToUnicodeEscapes(*input.ReceiptReceivedMessage);
+        }
+        if (input.InvalidFileMessage.has_value() && !input.InvalidFileMessage->empty())
+        {
+            cleanInput.InvalidFileMessage = EncodeToUnicodeEscapes(*input.InvalidFileMessage);
+        }
+        if (input.ReceiptAcceptedMessage.has_value() && !input.ReceiptAcceptedMessage->empty())
+        {
+            cleanInput.ReceiptAcceptedMessage = EncodeToUnicodeEscapes(*input.ReceiptAcceptedMessage);
+        }
+        if (input.ReceiptRejectedMessage.has_value() && !input.ReceiptRejectedMessage->empty())
+        {
+            cleanInput.ReceiptRejectedMessage = EncodeToUnicodeEscapes(*input.ReceiptRejectedMessage);
+        }
+        if (cleanInput.Buttons.has_value())
+        {
+            for (auto& btn : *cleanInput.Buttons)
+            {
+                if (btn.responseMessage.has_value() && !btn.responseMessage->empty())
+                {
+                    btn.responseMessage = EncodeToUnicodeEscapes(*btn.responseMessage);
+                }
+            }
+        }
 
         return m_repository->UpdateWhatsAppTemplate(cleanInput, mutationFields);
     }

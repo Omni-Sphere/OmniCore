@@ -17,6 +17,11 @@ namespace omnisphere::dtos
         std::optional<std::string> HeaderType;
         std::optional<std::string> HeaderText;
         std::optional<std::string> FooterText;
+        std::optional<std::string> ReceiptReceivedMessage;
+        std::optional<std::string> InvalidFileMessage;
+        std::optional<std::string> ReceiptAcceptedMessage;
+        std::optional<std::string> ReceiptRejectedMessage;
+        std::optional<std::string> ConfirmationTemplateCode;
         std::optional<bool> IsActive;
         std::string LastUpdatedBy = "system";
         std::optional<std::string> UpdateDate;
@@ -33,6 +38,11 @@ namespace omnisphere::dtos
         TemplateName,
         Category,
         Language,
+        ReceiptReceivedMessage,
+        InvalidFileMessage,
+        ReceiptAcceptedMessage,
+        ReceiptRejectedMessage,
+        ConfirmationTemplateCode,
         IsActive,
         LastUpdatedBy,
         UpdateDate

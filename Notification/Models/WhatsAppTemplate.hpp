@@ -137,6 +137,8 @@ namespace omnisphere::models
         std::string buttonType = "QUICK_REPLY"; // QUICK_REPLY, URL, PHONE_NUMBER
         std::string title;
         std::optional<std::string> payload;
+        std::string triggerAction = "NONE";     // NONE, SEND_MESSAGE, REQUEST_RECEIPT, CANCEL_RESERVATION
+        std::string responseMessage;
         int sortOrder = 1;
         std::string createdBy = "system";
         std::optional<std::string> createDate;
@@ -148,6 +150,8 @@ namespace omnisphere::models
         buttonType,
         title,
         payload,
+        triggerAction,
+        responseMessage,
         sortOrder,
         createdBy,
         createDate
@@ -163,6 +167,11 @@ namespace omnisphere::models
         std::optional<std::string> metaTemplateId;
         std::string status = "PENDING";
         std::optional<std::string> rejectReason;
+        std::string receiptReceivedMessage;
+        std::string invalidFileMessage;
+        std::string receiptAcceptedMessage;
+        std::string receiptRejectedMessage;
+        std::string confirmationTemplateCode;
         bool isActive = true;
         std::string createdBy = "system";
         std::optional<std::string> createDate;
@@ -185,6 +194,11 @@ namespace omnisphere::models
         metaTemplateId,
         status,
         rejectReason,
+        receiptReceivedMessage,
+        invalidFileMessage,
+        receiptAcceptedMessage,
+        receiptRejectedMessage,
+        confirmationTemplateCode,
         isActive,
         createdBy,
         createDate,

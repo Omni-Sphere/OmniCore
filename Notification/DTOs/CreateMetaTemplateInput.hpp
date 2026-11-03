@@ -11,6 +11,8 @@ namespace omnisphere::dtos
         std::string text;
         std::optional<std::string> url;
         std::optional<std::string> phoneNumber;
+        std::optional<std::string> triggerAction;
+        std::optional<std::string> responseMessage;
     };
 
     struct CreateMetaTemplateVariableInput

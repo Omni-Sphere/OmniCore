@@ -1163,6 +1163,18 @@ namespace omnisphere::repositories
                 }
             }
 
+            // Preserve existing button actions/responses before replacing child records
+            std::vector<omnisphere::models::WhatsAppTemplateButton> prevButtons;
+            {
+                auto btnFields = omnisphere::types::FilterModelFields<omnisphere::models::WhatsAppTemplateButton>({});
+                auto qpBtn = omnisphere::types::BuildQueryParts(btnFields, { {"", "\"TemplateEntry\"", "=", "?"} });
+                auto dtPrevBtn = conn->FetchPrepared(
+                    "SELECT " + qpBtn.SelectClause + " FROM \"WhatsAppTemplateButtons\" WHERE " + qpBtn.WhereClause + " ORDER BY \"SortOrder\" ASC",
+                    { omnisphere::types::MakeSQLParam(templateEntry) }
+                );
+                prevButtons = omnisphere::types::DataTableToModels<omnisphere::models::WhatsAppTemplateButton>(dtPrevBtn);
+            }
+
             // Clean previous child records to update cleanly
             conn->RunPrepared("DELETE FROM \"WhatsAppTemplateHeaders\" WHERE \"TemplateEntry\" = ?", { omnisphere::types::MakeSQLParam(templateEntry) });
             conn->RunPrepared("DELETE FROM \"WhatsAppTemplateBodies\" WHERE \"TemplateEntry\" = ?", { omnisphere::types::MakeSQLParam(templateEntry) });
@@ -1274,14 +1286,37 @@ namespace omnisphere::repositories
             int btnIdx = 1;
             for (const auto& btn : tmpl.buttons)
             {
-                std::vector<std::string> cols = { "\"TemplateEntry\"", "\"ButtonType\"", "\"Title\"", "\"Payload\"", "\"SortOrder\"", "\"CreatedBy\"" };
+                int currentSort = btn.sortOrder > 0 ? btn.sortOrder : btnIdx++;
+                std::string trigAct = (!btn.triggerAction.empty() && btn.triggerAction != "NONE") ? btn.triggerAction : "";
+                std::string respMsg = btn.responseMessage;
+
+                if (trigAct.empty() && respMsg.empty())
+                {
+                    for (const auto& oldBtn : prevButtons)
+                    {
+                        if (oldBtn.title == btn.title || oldBtn.sortOrder == currentSort)
+                        {
+                            trigAct = oldBtn.triggerAction;
+                            respMsg = oldBtn.responseMessage;
+                            break;
+                        }
+                    }
+                }
+                if (trigAct.empty()) trigAct = "NONE";
+
+                std::vector<std::string> cols = {
+                    "\"TemplateEntry\"", "\"ButtonType\"", "\"Title\"", "\"Payload\"",
+                    "\"TriggerAction\"", "\"ResponseMessage\"", "\"SortOrder\"", "\"CreatedBy\""
+                };
                 std::string sql = omnisphere::types::BuildInsertQuery("\"WhatsAppTemplateButtons\"", cols);
                 std::vector<omnisphere::types::SQLParam> params = {
                     omnisphere::types::MakeSQLParam(templateEntry),
                     omnisphere::types::MakeSQLParam(btn.buttonType),
                     omnisphere::types::MakeSQLParam(btn.title),
                     omnisphere::types::MakeSQLParam(btn.payload.value_or("")),
-                    omnisphere::types::MakeSQLParam(btn.sortOrder > 0 ? btn.sortOrder : btnIdx++),
+                    omnisphere::types::MakeSQLParam(trigAct),
+                    omnisphere::types::MakeSQLParam(respMsg),
+                    omnisphere::types::MakeSQLParam(currentSort),
                     omnisphere::types::MakeSQLParam(!btn.createdBy.empty() ? btn.createdBy : std::string("system"))
                 };
                 conn->RunPrepared(sql, params);
@@ -1471,19 +1506,51 @@ namespace omnisphere::repositories
             // 5. Botones
             if (input.Buttons.has_value())
             {
+                std::vector<omnisphere::models::WhatsAppTemplateButton> prevButtons;
+                {
+                    auto btnFields = omnisphere::types::FilterModelFields<omnisphere::models::WhatsAppTemplateButton>({});
+                    auto qpBtn = omnisphere::types::BuildQueryParts(btnFields, { {"", "\"TemplateEntry\"", "=", "?"} });
+                    auto dtPrevBtn = conn->FetchPrepared(
+                        "SELECT " + qpBtn.SelectClause + " FROM \"WhatsAppTemplateButtons\" WHERE " + qpBtn.WhereClause + " ORDER BY \"SortOrder\" ASC",
+                        { omnisphere::types::MakeSQLParam(templateEntry) }
+                    );
+                    prevButtons = omnisphere::types::DataTableToModels<omnisphere::models::WhatsAppTemplateButton>(dtPrevBtn);
+                }
+
                 conn->RunPrepared("DELETE FROM \"WhatsAppTemplateButtons\" WHERE \"TemplateEntry\" = ?", { omnisphere::types::MakeSQLParam(templateEntry) });
 
                 int btnIdx = 1;
                 for (const auto& btn : *input.Buttons)
                 {
-                    std::vector<std::string> cols = { "\"TemplateEntry\"", "\"ButtonType\"", "\"Title\"", "\"Payload\"", "\"SortOrder\"", "\"CreatedBy\"" };
+                    int currentSort = btnIdx++;
+                    std::string prevTrig = "NONE";
+                    std::string prevResp = "";
+                    for (const auto& oldBtn : prevButtons)
+                    {
+                        if (oldBtn.title == btn.text || oldBtn.sortOrder == currentSort)
+                        {
+                            prevTrig = oldBtn.triggerAction.empty() ? "NONE" : oldBtn.triggerAction;
+                            prevResp = oldBtn.responseMessage;
+                            break;
+                        }
+                    }
+
+                    std::string finalTrig = btn.triggerAction.has_value() ? *btn.triggerAction : prevTrig;
+                    std::string finalResp = btn.responseMessage.has_value() ? *btn.responseMessage : prevResp;
+
+                    std::vector<std::string> cols = {
+                        "\"TemplateEntry\"", "\"ButtonType\"", "\"Title\"", "\"Payload\"",
+                        "\"TriggerAction\"", "\"ResponseMessage\"", "\"SortOrder\"", "\"CreatedBy\""
+                    };
                     std::string sql = omnisphere::types::BuildInsertQuery("\"WhatsAppTemplateButtons\"", cols);
                     std::vector<omnisphere::types::SQLParam> params = {
                         omnisphere::types::MakeSQLParam(templateEntry),
                         omnisphere::types::MakeSQLParam(btn.type),
                         omnisphere::types::MakeSQLParam(btn.text),
                         omnisphere::types::MakeSQLParam(btn.url.has_value() ? *btn.url : (btn.phoneNumber.has_value() ? *btn.phoneNumber : "")),
-                        omnisphere::types::MakeSQLParam(btnIdx++),
+                        omnisphere::types::MakeSQLParam(finalTrig),
+                        omnisphere::types::MakeSQLParam(finalResp),
+                        omnisphere::types::MakeSQLParam(currentSort),
                         omnisphere::types::MakeSQLParam(input.LastUpdatedBy.empty() ? "system" : input.LastUpdatedBy)
                     };
                     conn->RunPrepared(sql, params);

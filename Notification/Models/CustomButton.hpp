@@ -13,6 +13,8 @@ namespace omnisphere::models
         std::string title;
         std::string actionType = "TRIGGER_MESSAGE"; // "EXECUTE_COMMAND", "TRIGGER_MESSAGE", "URL_REDIRECT", "TRANSFER_TO_AGENT"
         std::optional<std::string> actionPayload;
+        std::string triggerAction = "NONE";
+        std::string responseMessage;
         int sortOrder = 1;
         std::string createdBy = "SYSTEM";
         std::optional<std::string> createDate;
@@ -25,6 +27,8 @@ namespace omnisphere::models
         title,
         actionType,
         actionPayload,
+        triggerAction,
+        responseMessage,
         sortOrder,
         createdBy,
         createDate
