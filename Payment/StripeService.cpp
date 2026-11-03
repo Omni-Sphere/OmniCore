@@ -763,13 +763,31 @@ namespace omnisphere::services
 
                             try {
                                 auto conn = m_dbPool->Acquire();
-                                std::string updateSql = "UPDATE \"Reservations\" SET \"PaymentReference\" = ?, \"PaymentMethod\" = ? WHERE \"Code\" = ?";
+                                std::string updateSql = "UPDATE \"Reservations\" SET \"PaymentReference\" = ?, \"PaymentMethod\" = 'TRANSFER' WHERE \"Code\" = ?";
                                 std::vector<omnisphere::types::SQLParam> updateParams = {
                                     omnisphere::types::MakeSQLParam(res.paymentIntentId),
-                                    omnisphere::types::MakeSQLParam(paymentMethodCode),
                                     omnisphere::types::MakeSQLParam(reservationCode)
                                 };
                                 conn->RunPrepared(updateSql, updateParams);
+                            } catch (...) {}
+
+                            std::string accountHolderStr = "OmniRoute";
+                            try {
+                                auto conn = m_dbPool->Acquire();
+                                auto dtPmd = conn->FetchPrepared(
+                                    "SELECT \"AccountHolder\" FROM \"PaymentMethodDetails\" WHERE \"Code\" = ? AND \"IsActive\" = true LIMIT 1",
+                                    { omnisphere::types::MakeSQLParam(paymentMethodCode) }
+                                );
+                                if (!dtPmd.IsEmpty()) {
+                                    std::string holder = dtPmd[0]["AccountHolder"].GetOptional<std::string>().value_or("");
+                                    if (!holder.empty()) accountHolderStr = holder;
+                                } else {
+                                    auto dtSys = conn->FetchResults("SELECT \"CompanyName\" FROM \"SystemConfigs\" WHERE \"IsActive\" = true LIMIT 1");
+                                    if (!dtSys.IsEmpty()) {
+                                        std::string comp = dtSys[0]["CompanyName"].GetOptional<std::string>().value_or("");
+                                        if (!comp.empty()) accountHolderStr = comp;
+                                    }
+                                }
                             } catch (...) {}
 
                             try {
@@ -784,6 +802,7 @@ namespace omnisphere::services
                                 pInput.Status = "PENDING";
                                 pInput.BankName = res.bankName;
                                 pInput.Clabe = res.clabe;
+                                pInput.AccountHolder = accountHolderStr;
                                 pInput.PaymentReference = res.paymentIntentId;
                                 pInput.ReceiptUrl = res.hostedInstructionsUrl;
                                 std::string creator = !ctx.userCode.empty() ? ctx.userCode : "system";
