@@ -852,7 +852,9 @@ namespace omnisphere::services
         CheckLicense();
         std::string cleanPhone = SanitizePhoneNumber(phoneNumber);
 
-        std::string actualTemplateName = !tpl.templateName.empty() ? tpl.templateName : tpl.code;
+        // En Meta Cloud API, el identificador técnico de la plantilla es estrictamente `tpl.code` (ej. "ticket_manual_confirmation"),
+        // mientras que `tpl.templateName` corresponde al título descriptivo/humano (ej. "Ticket transferencia manual").
+        std::string actualTemplateName = !tpl.code.empty() ? tpl.code : tpl.templateName;
         if (actualTemplateName.empty())
         {
             omnisphere::utils::Logger::LogError("WhatsAppService", "[SendMetaTemplate] Nombre y código de plantilla vacíos en el modelo.");
