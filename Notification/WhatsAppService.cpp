@@ -2111,17 +2111,33 @@ namespace omnisphere::services
         {
             cleanInput.ReceiptReceivedMessage = EncodeToUnicodeEscapes(*input.ReceiptReceivedMessage);
         }
+        if (input.ReceiptReceivedPayload.has_value() && !input.ReceiptReceivedPayload->empty())
+        {
+            cleanInput.ReceiptReceivedPayload = EncodeToUnicodeEscapes(*input.ReceiptReceivedPayload);
+        }
         if (input.InvalidFileMessage.has_value() && !input.InvalidFileMessage->empty())
         {
             cleanInput.InvalidFileMessage = EncodeToUnicodeEscapes(*input.InvalidFileMessage);
+        }
+        if (input.InvalidFilePayload.has_value() && !input.InvalidFilePayload->empty())
+        {
+            cleanInput.InvalidFilePayload = EncodeToUnicodeEscapes(*input.InvalidFilePayload);
         }
         if (input.ReceiptAcceptedMessage.has_value() && !input.ReceiptAcceptedMessage->empty())
         {
             cleanInput.ReceiptAcceptedMessage = EncodeToUnicodeEscapes(*input.ReceiptAcceptedMessage);
         }
+        if (input.ReceiptAcceptedPayload.has_value() && !input.ReceiptAcceptedPayload->empty())
+        {
+            cleanInput.ReceiptAcceptedPayload = EncodeToUnicodeEscapes(*input.ReceiptAcceptedPayload);
+        }
         if (input.ReceiptRejectedMessage.has_value() && !input.ReceiptRejectedMessage->empty())
         {
             cleanInput.ReceiptRejectedMessage = EncodeToUnicodeEscapes(*input.ReceiptRejectedMessage);
+        }
+        if (input.ReceiptRejectedPayload.has_value() && !input.ReceiptRejectedPayload->empty())
+        {
+            cleanInput.ReceiptRejectedPayload = EncodeToUnicodeEscapes(*input.ReceiptRejectedPayload);
         }
         if (cleanInput.Buttons.has_value())
         {

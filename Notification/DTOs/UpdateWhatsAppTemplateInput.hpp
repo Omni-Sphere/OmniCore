@@ -17,6 +17,14 @@ namespace omnisphere::dtos
         std::optional<std::string> HeaderType;
         std::optional<std::string> HeaderText;
         std::optional<std::string> FooterText;
+        std::optional<std::string> ReceiptReceivedType;
+        std::optional<std::string> ReceiptReceivedPayload;
+        std::optional<std::string> InvalidFileType;
+        std::optional<std::string> InvalidFilePayload;
+        std::optional<std::string> ReceiptAcceptedType;
+        std::optional<std::string> ReceiptAcceptedPayload;
+        std::optional<std::string> ReceiptRejectedType;
+        std::optional<std::string> ReceiptRejectedPayload;
         std::optional<std::string> ReceiptReceivedMessage;
         std::optional<std::string> InvalidFileMessage;
         std::optional<std::string> ReceiptAcceptedMessage;

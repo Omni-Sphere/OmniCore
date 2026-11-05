@@ -161,6 +161,14 @@ namespace omnisphere::models
     {
         int entry = 0;
         std::string templateCode;
+        std::string receiptReceivedType = "TEXT";
+        std::string receiptReceivedPayload;
+        std::string invalidFileType = "TEXT";
+        std::string invalidFilePayload;
+        std::string receiptAcceptedType = "TEXT";
+        std::string receiptAcceptedPayload;
+        std::string receiptRejectedType = "TEXT";
+        std::string receiptRejectedPayload;
         std::string receiptReceivedMessage;
         std::string invalidFileMessage;
         std::string receiptAcceptedMessage;
@@ -176,6 +184,14 @@ namespace omnisphere::models
     BOOST_DESCRIBE_STRUCT(WhatsAppInternalTemplate, (), (
         entry,
         templateCode,
+        receiptReceivedType,
+        receiptReceivedPayload,
+        invalidFileType,
+        invalidFilePayload,
+        receiptAcceptedType,
+        receiptAcceptedPayload,
+        receiptRejectedType,
+        receiptRejectedPayload,
         receiptReceivedMessage,
         invalidFileMessage,
         receiptAcceptedMessage,
@@ -236,6 +252,14 @@ namespace omnisphere::models
         std::optional<std::string> updateDate;
 
         // Propiedades hidratadas en tiempo de ejecución desde WhatsAppInternalTemplates (NO son columnas de WhatsAppTemplates)
+        std::string receiptReceivedType = "TEXT";
+        std::string receiptReceivedPayload;
+        std::string invalidFileType = "TEXT";
+        std::string invalidFilePayload;
+        std::string receiptAcceptedType = "TEXT";
+        std::string receiptAcceptedPayload;
+        std::string receiptRejectedType = "TEXT";
+        std::string receiptRejectedPayload;
         std::string receiptReceivedMessage;
         std::string invalidFileMessage;
         std::string receiptAcceptedMessage;

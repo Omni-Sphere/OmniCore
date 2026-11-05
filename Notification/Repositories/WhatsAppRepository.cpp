@@ -1010,6 +1010,14 @@ namespace omnisphere::repositories
                 if (!dtInt.IsEmpty())
                 {
                     auto intModel = omnisphere::types::FromDataRow<omnisphere::models::WhatsAppInternalTemplate>(dtInt[0]);
+                    tmpl.receiptReceivedType = !intModel.receiptReceivedType.empty() ? intModel.receiptReceivedType : "TEXT";
+                    tmpl.receiptReceivedPayload = intModel.receiptReceivedPayload;
+                    tmpl.invalidFileType = !intModel.invalidFileType.empty() ? intModel.invalidFileType : "TEXT";
+                    tmpl.invalidFilePayload = intModel.invalidFilePayload;
+                    tmpl.receiptAcceptedType = !intModel.receiptAcceptedType.empty() ? intModel.receiptAcceptedType : "TEXT";
+                    tmpl.receiptAcceptedPayload = intModel.receiptAcceptedPayload;
+                    tmpl.receiptRejectedType = !intModel.receiptRejectedType.empty() ? intModel.receiptRejectedType : "TEXT";
+                    tmpl.receiptRejectedPayload = intModel.receiptRejectedPayload;
                     tmpl.receiptReceivedMessage = intModel.receiptReceivedMessage;
                     tmpl.invalidFileMessage = intModel.invalidFileMessage;
                     tmpl.receiptAcceptedMessage = intModel.receiptAcceptedMessage;
@@ -1126,6 +1134,14 @@ namespace omnisphere::repositories
                     if (!dtInt.IsEmpty())
                     {
                         auto intModel = omnisphere::types::FromDataRow<omnisphere::models::WhatsAppInternalTemplate>(dtInt[0]);
+                        tmpl.receiptReceivedType = !intModel.receiptReceivedType.empty() ? intModel.receiptReceivedType : "TEXT";
+                        tmpl.receiptReceivedPayload = intModel.receiptReceivedPayload;
+                        tmpl.invalidFileType = !intModel.invalidFileType.empty() ? intModel.invalidFileType : "TEXT";
+                        tmpl.invalidFilePayload = intModel.invalidFilePayload;
+                        tmpl.receiptAcceptedType = !intModel.receiptAcceptedType.empty() ? intModel.receiptAcceptedType : "TEXT";
+                        tmpl.receiptAcceptedPayload = intModel.receiptAcceptedPayload;
+                        tmpl.receiptRejectedType = !intModel.receiptRejectedType.empty() ? intModel.receiptRejectedType : "TEXT";
+                        tmpl.receiptRejectedPayload = intModel.receiptRejectedPayload;
                         tmpl.receiptReceivedMessage = intModel.receiptReceivedMessage;
                         tmpl.invalidFileMessage = intModel.invalidFileMessage;
                         tmpl.receiptAcceptedMessage = intModel.receiptAcceptedMessage;
@@ -1517,11 +1533,27 @@ namespace omnisphere::repositories
 
             // 5. Plantillas internas de OmniCore (WhatsAppInternalTemplates) vinculadas por TemplateCode
             if (input.ReceiptReceivedMessage.has_value() ||
+                input.ReceiptReceivedType.has_value() ||
+                input.ReceiptReceivedPayload.has_value() ||
                 input.InvalidFileMessage.has_value() ||
+                input.InvalidFileType.has_value() ||
+                input.InvalidFilePayload.has_value() ||
                 input.ReceiptAcceptedMessage.has_value() ||
+                input.ReceiptAcceptedType.has_value() ||
+                input.ReceiptAcceptedPayload.has_value() ||
                 input.ReceiptRejectedMessage.has_value() ||
+                input.ReceiptRejectedType.has_value() ||
+                input.ReceiptRejectedPayload.has_value() ||
                 input.ConfirmationTemplateCode.has_value())
             {
+                std::string prevRecType = "TEXT";
+                std::string prevRecPayload = "";
+                std::string prevInvType = "TEXT";
+                std::string prevInvPayload = "";
+                std::string prevAccType = "TEXT";
+                std::string prevAccPayload = "";
+                std::string prevRejType = "TEXT";
+                std::string prevRejPayload = "";
                 std::string prevRec = "";
                 std::string prevInv = "";
                 std::string prevAcc = "";
@@ -1534,6 +1566,14 @@ namespace omnisphere::repositories
                 if (!dtPrevInt.IsEmpty())
                 {
                     auto prevModel = omnisphere::types::FromDataRow<omnisphere::models::WhatsAppInternalTemplate>(dtPrevInt[0]);
+                    prevRecType = !prevModel.receiptReceivedType.empty() ? prevModel.receiptReceivedType : "TEXT";
+                    prevRecPayload = prevModel.receiptReceivedPayload;
+                    prevInvType = !prevModel.invalidFileType.empty() ? prevModel.invalidFileType : "TEXT";
+                    prevInvPayload = prevModel.invalidFilePayload;
+                    prevAccType = !prevModel.receiptAcceptedType.empty() ? prevModel.receiptAcceptedType : "TEXT";
+                    prevAccPayload = prevModel.receiptAcceptedPayload;
+                    prevRejType = !prevModel.receiptRejectedType.empty() ? prevModel.receiptRejectedType : "TEXT";
+                    prevRejPayload = prevModel.receiptRejectedPayload;
                     prevRec = prevModel.receiptReceivedMessage;
                     prevInv = prevModel.invalidFileMessage;
                     prevAcc = prevModel.receiptAcceptedMessage;
@@ -1544,13 +1584,26 @@ namespace omnisphere::repositories
                 conn->RunPrepared("DELETE FROM \"WhatsAppInternalTemplates\" WHERE \"TemplateCode\" = ?", { omnisphere::types::MakeSQLParam(input.Code) });
 
                 std::vector<std::string> intCols = {
-                    "\"TemplateCode\"", "\"ReceiptReceivedMessage\"", "\"InvalidFileMessage\"",
+                    "\"TemplateCode\"",
+                    "\"ReceiptReceivedType\"", "\"ReceiptReceivedPayload\"",
+                    "\"InvalidFileType\"", "\"InvalidFilePayload\"",
+                    "\"ReceiptAcceptedType\"", "\"ReceiptAcceptedPayload\"",
+                    "\"ReceiptRejectedType\"", "\"ReceiptRejectedPayload\"",
+                    "\"ReceiptReceivedMessage\"", "\"InvalidFileMessage\"",
                     "\"ReceiptAcceptedMessage\"", "\"ReceiptRejectedMessage\"", "\"ConfirmationTemplateCode\"",
                     "\"CreatedBy\"", "\"LastUpdatedBy\""
                 };
                 std::string intSql = omnisphere::types::BuildInsertQuery("\"WhatsAppInternalTemplates\"", intCols);
                 std::vector<omnisphere::types::SQLParam> intParams = {
                     omnisphere::types::MakeSQLParam(input.Code),
+                    omnisphere::types::MakeSQLParam(input.ReceiptReceivedType.value_or(prevRecType)),
+                    omnisphere::types::MakeSQLParam(input.ReceiptReceivedPayload.value_or(prevRecPayload)),
+                    omnisphere::types::MakeSQLParam(input.InvalidFileType.value_or(prevInvType)),
+                    omnisphere::types::MakeSQLParam(input.InvalidFilePayload.value_or(prevInvPayload)),
+                    omnisphere::types::MakeSQLParam(input.ReceiptAcceptedType.value_or(prevAccType)),
+                    omnisphere::types::MakeSQLParam(input.ReceiptAcceptedPayload.value_or(prevAccPayload)),
+                    omnisphere::types::MakeSQLParam(input.ReceiptRejectedType.value_or(prevRejType)),
+                    omnisphere::types::MakeSQLParam(input.ReceiptRejectedPayload.value_or(prevRejPayload)),
                     omnisphere::types::MakeSQLParam(input.ReceiptReceivedMessage.value_or(prevRec)),
                     omnisphere::types::MakeSQLParam(input.InvalidFileMessage.value_or(prevInv)),
                     omnisphere::types::MakeSQLParam(input.ReceiptAcceptedMessage.value_or(prevAcc)),
