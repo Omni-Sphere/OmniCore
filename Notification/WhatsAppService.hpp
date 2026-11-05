@@ -80,7 +80,8 @@ namespace omnisphere::services
 
         bool SendMessage(
             const std::string& phoneNumber,
-            const std::string& message
+            const std::string& message,
+            const std::string& templateName = ""
         );
 
         bool MarkAsRead(const std::string& wamid) const;
@@ -88,7 +89,58 @@ namespace omnisphere::services
         bool SendInteractiveButtons(
             const std::string& phoneNumber,
             const std::string& bodyText,
-            const std::vector<std::pair<std::string, std::string>>& buttons
+            const std::vector<std::pair<std::string, std::string>>& buttons,
+            const std::string& templateName = ""
+        );
+
+        bool SendLocationMessage(
+            const std::string& phoneNumber,
+            double latitude,
+            double longitude,
+            const std::string& name,
+            const std::string& address,
+            const std::string& templateName = ""
+        );
+
+        bool SendMediaMessage(
+            const std::string& phoneNumber,
+            const std::string& mediaType,
+            const std::string& mediaUrl,
+            const std::string& caption = "",
+            const std::string& filename = "",
+            const std::string& templateName = ""
+        );
+
+        bool SendCtaUrlMessage(
+            const std::string& phoneNumber,
+            const std::string& bodyText,
+            const std::string& buttonText,
+            const std::string& url,
+            const std::string& headerText = "",
+            const std::string& footerText = "",
+            const std::string& templateName = ""
+        );
+
+        bool SendContactMessage(
+            const std::string& phoneNumber,
+            const std::string& formattedName,
+            const std::string& contactPhone,
+            const std::string& company = "",
+            const std::string& email = "",
+            const std::string& templateName = ""
+        );
+
+        bool SendReactionMessage(
+            const std::string& phoneNumber,
+            const std::string& messageId,
+            const std::string& emoji,
+            const std::string& templateName = ""
+        );
+
+        bool SendInteractiveLocationRequest(
+            const std::string& phoneNumber,
+            const std::string& bodyText,
+            const std::string& templateName = ""
         );
 
         bool SetConversationContext(const std::string& phoneNumber, const std::string& reservationCode);
@@ -146,7 +198,9 @@ namespace omnisphere::services
             const std::string& messageType,
             const std::string& templateName,
             const std::string& content,
-            const std::string& jsonString
+            const std::string& jsonString,
+            const std::string& mediaUrl = "",
+            const std::string& mediaFileName = ""
         );
     };
 }

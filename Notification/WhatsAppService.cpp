@@ -291,7 +291,9 @@ namespace omnisphere::services
         const std::string& messageType,
         const std::string& templateName,
         const std::string& content,
-        const std::string& jsonString
+        const std::string& jsonString,
+        const std::string& mediaUrl,
+        const std::string& mediaFileName
     )
     {
         try
@@ -419,8 +421,11 @@ namespace omnisphere::services
                 msg.messageType = messageType;
                 msg.templateName = templateName;
                 msg.content = content;
+                if (!mediaUrl.empty()) msg.mediaUrl = mediaUrl;
+                if (!mediaFileName.empty()) msg.mediaFileName = mediaFileName;
                 msg.status = requestSuccess ? "SENT" : "FAILED";
                 msg.responsePayload = responseBodyStr;
+                if (!requestSuccess && !m_lastError.empty()) msg.errorMessage = m_lastError;
                 msg.sentBy = 1;
                 m_repository->LogMessage(msg);
                 omnisphere::utils::Logger::LogInfo("WhatsAppService", "Message logged to database (ConvEntry: " + std::to_string(convEntry) + ", Status: " + msg.status + ")");
@@ -834,6 +839,9 @@ namespace omnisphere::services
         return SendRequest(cleanPhone, "TEMPLATE", templateName, contentStr, jsonStr);
     }
 
+    static std::string EncodeToUnicodeEscapes(const std::string& input);
+    static std::string DecodeUnicodeEscapes(const std::string& input);
+
     bool WhatsAppService::SendMetaTemplate(
         const std::string& phoneNumber,
         const omnisphere::models::WhatsAppTemplate& tpl,
@@ -1068,10 +1076,33 @@ namespace omnisphere::services
 
         std::string jsonStr = json::serialize(body);
         std::string contentStr = "Template: " + actualTemplateName;
+        if (tpl.body.has_value() && !tpl.body->bodyText.empty())
+        {
+            contentStr = DecodeUnicodeEscapes(tpl.body->bodyText);
+            for (const auto& [k, v] : availableValues)
+            {
+                std::string token1 = "{{" + k + "}}";
+                size_t p1 = 0;
+                while ((p1 = contentStr.find(token1, p1)) != std::string::npos)
+                {
+                    contentStr.replace(p1, token1.length(), v);
+                    p1 += v.length();
+                }
+                std::string token2 = "{" + k + "}";
+                size_t p2 = 0;
+                while ((p2 = contentStr.find(token2, p2)) != std::string::npos)
+                {
+                    contentStr.replace(p2, token2.length(), v);
+                    p2 += v.length();
+                }
+            }
+        }
+        std::string hdrMediaUrl = mediaHeader.has_value() ? mediaHeader->mediaUrl : "";
+        std::string hdrFileName = mediaHeader.has_value() ? mediaHeader->filename : "";
         omnisphere::utils::Logger::LogInfo("WhatsAppService",
             "[SendMetaTemplate] Despachando plantilla [" + actualTemplateName + "] (" + langCode + ") a " + cleanPhone);
 
-        return SendRequest(cleanPhone, "TEMPLATE", actualTemplateName, contentStr, jsonStr);
+        return SendRequest(cleanPhone, "TEMPLATE", actualTemplateName, contentStr, jsonStr, hdrMediaUrl, hdrFileName);
     }
 
     bool WhatsAppService::SendMetaTemplate(
@@ -1269,7 +1300,8 @@ namespace omnisphere::services
 
     bool WhatsAppService::SendMessage(
         const std::string& phoneNumber,
-        const std::string& message
+        const std::string& message,
+        const std::string& templateName
     )
     {
         CheckLicense();
@@ -1285,7 +1317,7 @@ namespace omnisphere::services
         body["text"] = textObj;
 
         std::string jsonStr = json::serialize(body);
-        return SendRequest(cleanPhone, "TEXT", "", decodedMessage, jsonStr);
+        return SendRequest(cleanPhone, "TEXT", templateName, decodedMessage, jsonStr);
     }
 
     bool WhatsAppService::MarkAsRead(const std::string& wamid) const
@@ -1311,7 +1343,8 @@ namespace omnisphere::services
     bool WhatsAppService::SendInteractiveButtons(
         const std::string& phoneNumber,
         const std::string& bodyText,
-        const std::vector<std::pair<std::string, std::string>>& buttons
+        const std::vector<std::pair<std::string, std::string>>& buttons,
+        const std::string& templateName
     )
     {
         CheckLicense();
@@ -1349,7 +1382,259 @@ namespace omnisphere::services
         body["interactive"] = interactiveObj;
 
         std::string jsonStr = json::serialize(body);
-        return SendRequest(cleanPhone, "INTERACTIVE", "", decodedBody, jsonStr);
+        return SendRequest(cleanPhone, "INTERACTIVE", templateName, decodedBody, jsonStr);
+    }
+
+    bool WhatsAppService::SendLocationMessage(
+        const std::string& phoneNumber,
+        double latitude,
+        double longitude,
+        const std::string& name,
+        const std::string& address,
+        const std::string& templateName
+    )
+    {
+        CheckLicense();
+        std::string cleanPhone = SanitizePhoneNumber(phoneNumber);
+        std::string decodedName = DecodeUnicodeEscapes(name);
+        std::string decodedAddress = DecodeUnicodeEscapes(address);
+
+        json::object body;
+        body["messaging_product"] = "whatsapp";
+        body["to"] = cleanPhone;
+        body["type"] = "location";
+
+        json::object locObj;
+        locObj["latitude"] = latitude;
+        locObj["longitude"] = longitude;
+        if (!decodedName.empty()) locObj["name"] = decodedName;
+        if (!decodedAddress.empty()) locObj["address"] = decodedAddress;
+        body["location"] = locObj;
+
+        std::string jsonStr = json::serialize(body);
+        std::string summary = "📍 " + decodedName + (decodedAddress.empty() ? "" : (" - " + decodedAddress));
+        return SendRequest(cleanPhone, "LOCATION", templateName, summary, jsonStr);
+    }
+
+    bool WhatsAppService::SendMediaMessage(
+        const std::string& phoneNumber,
+        const std::string& mediaType,
+        const std::string& mediaUrl,
+        const std::string& caption,
+        const std::string& filename,
+        const std::string& templateName
+    )
+    {
+        CheckLicense();
+        std::string cleanPhone = SanitizePhoneNumber(phoneNumber);
+        std::string decodedCaption = DecodeUnicodeEscapes(caption);
+
+        std::string mTypeLower = mediaType;
+        std::transform(mTypeLower.begin(), mTypeLower.end(), mTypeLower.begin(), ::tolower);
+        if (mTypeLower != "image" && mTypeLower != "video" && mTypeLower != "document" &&
+            mTypeLower != "audio" && mTypeLower != "sticker")
+        {
+            mTypeLower = "image";
+        }
+
+        std::string mTypeUpper = mTypeLower;
+        std::transform(mTypeUpper.begin(), mTypeUpper.end(), mTypeUpper.begin(), ::toupper);
+
+        json::object body;
+        body["messaging_product"] = "whatsapp";
+        body["to"] = cleanPhone;
+        body["type"] = mTypeLower;
+
+        json::object mediaObj;
+        mediaObj["link"] = mediaUrl;
+        if (!decodedCaption.empty() && (mTypeLower == "image" || mTypeLower == "video" || mTypeLower == "document"))
+        {
+            mediaObj["caption"] = decodedCaption;
+        }
+        if (mTypeLower == "document" && !filename.empty()) mediaObj["filename"] = filename;
+
+        body[mTypeLower] = mediaObj;
+
+        std::string jsonStr = json::serialize(body);
+        return SendRequest(cleanPhone, mTypeUpper, templateName, !decodedCaption.empty() ? decodedCaption : mediaUrl, jsonStr, mediaUrl, filename);
+    }
+
+    bool WhatsAppService::SendCtaUrlMessage(
+        const std::string& phoneNumber,
+        const std::string& bodyText,
+        const std::string& buttonText,
+        const std::string& url,
+        const std::string& headerText,
+        const std::string& footerText,
+        const std::string& templateName
+    )
+    {
+        CheckLicense();
+        std::string cleanPhone = SanitizePhoneNumber(phoneNumber);
+        std::string decodedBody = DecodeUnicodeEscapes(bodyText);
+        std::string decodedBtn = DecodeUnicodeEscapes(buttonText);
+        std::string decodedHeader = DecodeUnicodeEscapes(headerText);
+        std::string decodedFooter = DecodeUnicodeEscapes(footerText);
+
+        json::object body;
+        body["messaging_product"] = "whatsapp";
+        body["to"] = cleanPhone;
+        body["type"] = "interactive";
+
+        json::object interactiveObj;
+        interactiveObj["type"] = "cta_url";
+
+        if (!decodedHeader.empty())
+        {
+            json::object headerObj;
+            headerObj["type"] = "text";
+            headerObj["text"] = decodedHeader;
+            interactiveObj["header"] = headerObj;
+        }
+
+        json::object bodyObj;
+        bodyObj["text"] = !decodedBody.empty() ? decodedBody : url;
+        interactiveObj["body"] = bodyObj;
+
+        if (!decodedFooter.empty())
+        {
+            json::object footerObj;
+            footerObj["text"] = decodedFooter;
+            interactiveObj["footer"] = footerObj;
+        }
+
+        json::object actionObj;
+        actionObj["name"] = "cta_url";
+        json::object paramsObj;
+        paramsObj["display_text"] = !decodedBtn.empty() ? decodedBtn : "Abrir enlace";
+        paramsObj["url"] = url;
+        actionObj["parameters"] = paramsObj;
+        interactiveObj["action"] = actionObj;
+
+        body["interactive"] = interactiveObj;
+
+        std::string jsonStr = json::serialize(body);
+        return SendRequest(cleanPhone, "URL", templateName, decodedBody + " (" + url + ")", jsonStr, url);
+    }
+
+    bool WhatsAppService::SendContactMessage(
+        const std::string& phoneNumber,
+        const std::string& formattedName,
+        const std::string& contactPhone,
+        const std::string& company,
+        const std::string& email,
+        const std::string& templateName
+    )
+    {
+        CheckLicense();
+        std::string cleanPhone = SanitizePhoneNumber(phoneNumber);
+        std::string decodedName = DecodeUnicodeEscapes(formattedName);
+        std::string decodedCompany = DecodeUnicodeEscapes(company);
+
+        json::object body;
+        body["messaging_product"] = "whatsapp";
+        body["to"] = cleanPhone;
+        body["type"] = "contacts";
+
+        json::object contactObj;
+        json::object nameObj;
+        nameObj["formatted_name"] = !decodedName.empty() ? decodedName : "Contacto";
+        nameObj["first_name"] = !decodedName.empty() ? decodedName : "Contacto";
+        contactObj["name"] = nameObj;
+
+        if (!contactPhone.empty())
+        {
+            json::array phonesArr;
+            json::object phObj;
+            phObj["phone"] = contactPhone;
+            phObj["type"] = "WORK";
+            phonesArr.push_back(phObj);
+            contactObj["phones"] = phonesArr;
+        }
+
+        if (!decodedCompany.empty())
+        {
+            json::object orgObj;
+            orgObj["company"] = decodedCompany;
+            contactObj["org"] = orgObj;
+        }
+
+        if (!email.empty())
+        {
+            json::array emailsArr;
+            json::object emObj;
+            emObj["email"] = email;
+            emObj["type"] = "WORK";
+            emailsArr.push_back(emObj);
+            contactObj["emails"] = emailsArr;
+        }
+
+        json::array contactsArr;
+        contactsArr.push_back(contactObj);
+        body["contacts"] = contactsArr;
+
+        std::string jsonStr = json::serialize(body);
+        return SendRequest(cleanPhone, "CONTACTS", templateName, "👤 " + decodedName + " (" + contactPhone + ")", jsonStr);
+    }
+
+    bool WhatsAppService::SendReactionMessage(
+        const std::string& phoneNumber,
+        const std::string& messageId,
+        const std::string& emoji,
+        const std::string& templateName
+    )
+    {
+        CheckLicense();
+        std::string cleanPhone = SanitizePhoneNumber(phoneNumber);
+        if (cleanPhone.empty() || messageId.empty()) return false;
+        std::string decodedEmoji = DecodeUnicodeEscapes(emoji);
+
+        json::object body;
+        body["messaging_product"] = "whatsapp";
+        body["recipient_type"] = "individual";
+        body["to"] = cleanPhone;
+        body["type"] = "reaction";
+
+        json::object reactObj;
+        reactObj["message_id"] = messageId;
+        reactObj["emoji"] = decodedEmoji;
+        body["reaction"] = reactObj;
+
+        std::string jsonStr = json::serialize(body);
+        return SendRequest(cleanPhone, "REACTION", templateName, decodedEmoji, jsonStr);
+    }
+
+    bool WhatsAppService::SendInteractiveLocationRequest(
+        const std::string& phoneNumber,
+        const std::string& bodyText,
+        const std::string& templateName
+    )
+    {
+        CheckLicense();
+        std::string cleanPhone = SanitizePhoneNumber(phoneNumber);
+        std::string decodedBody = DecodeUnicodeEscapes(bodyText);
+
+        json::object body;
+        body["messaging_product"] = "whatsapp";
+        body["recipient_type"] = "individual";
+        body["to"] = cleanPhone;
+        body["type"] = "interactive";
+
+        json::object interactiveObj;
+        interactiveObj["type"] = "location_request_message";
+
+        json::object bodyObj;
+        bodyObj["text"] = !decodedBody.empty() ? decodedBody : "Por favor comparte tu ubicación.";
+        interactiveObj["body"] = bodyObj;
+
+        json::object actionObj;
+        actionObj["name"] = "send_location";
+        interactiveObj["action"] = actionObj;
+
+        body["interactive"] = interactiveObj;
+
+        std::string jsonStr = json::serialize(body);
+        return SendRequest(cleanPhone, "INTERACTIVE", templateName, decodedBody, jsonStr);
     }
 
     bool WhatsAppService::SetConversationContext(const std::string& phoneNumber, const std::string& reservationCode)

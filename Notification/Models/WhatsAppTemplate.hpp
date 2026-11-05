@@ -137,11 +137,13 @@ namespace omnisphere::models
         std::string buttonType = "QUICK_REPLY"; // QUICK_REPLY, URL, PHONE_NUMBER
         std::string title;
         std::optional<std::string> payload;
-        std::string triggerAction = "NONE";     // NONE, SEND_MESSAGE, REQUEST_RECEIPT, CANCEL_RESERVATION
-        std::string responseMessage;
         int sortOrder = 1;
         std::string createdBy = "system";
         std::optional<std::string> createDate;
+
+        // Propiedades hidratadas en tiempo de ejecución desde WhatsAppInternalButtonActions (NO son columnas de WhatsAppTemplateButtons)
+        std::string triggerAction = "NONE";
+        std::string responseMessage;
     };
 
     BOOST_DESCRIBE_STRUCT(WhatsAppTemplateButton, (), (
@@ -150,11 +152,109 @@ namespace omnisphere::models
         buttonType,
         title,
         payload,
-        triggerAction,
-        responseMessage,
         sortOrder,
         createdBy,
         createDate
+    ))
+
+    struct WhatsAppInternalTemplate
+    {
+        int entry = 0;
+        int templateEntry = 0;
+        std::string receiptReceivedMessage;
+        std::string invalidFileMessage;
+        std::string receiptAcceptedMessage;
+        std::string receiptRejectedMessage;
+        std::string confirmationTemplateCode;
+        bool isActive = true;
+        std::string createdBy = "system";
+        std::optional<std::string> createDate;
+        std::optional<std::string> lastUpdatedBy;
+        std::optional<std::string> updateDate;
+    };
+
+    BOOST_DESCRIBE_STRUCT(WhatsAppInternalTemplate, (), (
+        entry,
+        templateEntry,
+        receiptReceivedMessage,
+        invalidFileMessage,
+        receiptAcceptedMessage,
+        receiptRejectedMessage,
+        confirmationTemplateCode,
+        isActive,
+        createdBy,
+        createDate,
+        lastUpdatedBy,
+        updateDate
+    ))
+
+    struct WhatsAppInternalButtonAction
+    {
+        int entry = 0;
+        int templateEntry = 0;
+        std::string buttonTitle;
+        int sortOrder = 1;
+        std::string messageType = "NONE";
+        std::string bodyText;
+        std::string headerText;
+        std::string footerText;
+        std::string mediaType = "IMAGE";
+        std::string mediaUrl;
+        std::string fileName;
+        std::string latitude;
+        std::string longitude;
+        std::string locationName;
+        std::string locationAddress;
+        std::string contactName;
+        std::string contactPhone;
+        std::string contactCompany;
+        std::string contactEmail;
+        std::string urlButtonText;
+        std::string targetUrl;
+        std::string interactiveButtonsJson = "[]";
+        std::string targetTemplateCode;
+        std::string reactionEmoji;
+        bool requestReceipt = false;
+        bool cancelReservation = false;
+        std::string responsePayload;
+        std::string createdBy = "system";
+        std::optional<std::string> createDate;
+        std::optional<std::string> lastUpdatedBy;
+        std::optional<std::string> updateDate;
+    };
+
+    BOOST_DESCRIBE_STRUCT(WhatsAppInternalButtonAction, (), (
+        entry,
+        templateEntry,
+        buttonTitle,
+        sortOrder,
+        messageType,
+        bodyText,
+        headerText,
+        footerText,
+        mediaType,
+        mediaUrl,
+        fileName,
+        latitude,
+        longitude,
+        locationName,
+        locationAddress,
+        contactName,
+        contactPhone,
+        contactCompany,
+        contactEmail,
+        urlButtonText,
+        targetUrl,
+        interactiveButtonsJson,
+        targetTemplateCode,
+        reactionEmoji,
+        requestReceipt,
+        cancelReservation,
+        responsePayload,
+        createdBy,
+        createDate,
+        lastUpdatedBy,
+        updateDate
     ))
 
     struct WhatsAppTemplate
@@ -167,16 +267,18 @@ namespace omnisphere::models
         std::optional<std::string> metaTemplateId;
         std::string status = "PENDING";
         std::optional<std::string> rejectReason;
-        std::string receiptReceivedMessage;
-        std::string invalidFileMessage;
-        std::string receiptAcceptedMessage;
-        std::string receiptRejectedMessage;
-        std::string confirmationTemplateCode;
         bool isActive = true;
         std::string createdBy = "system";
         std::optional<std::string> createDate;
         std::optional<std::string> lastUpdatedBy;
         std::optional<std::string> updateDate;
+
+        // Propiedades hidratadas en tiempo de ejecución desde WhatsAppInternalTemplates (NO son columnas de WhatsAppTemplates)
+        std::string receiptReceivedMessage;
+        std::string invalidFileMessage;
+        std::string receiptAcceptedMessage;
+        std::string receiptRejectedMessage;
+        std::string confirmationTemplateCode;
 
         // Structured Sub-Components
         std::optional<WhatsAppTemplateHeader> header;
@@ -194,11 +296,6 @@ namespace omnisphere::models
         metaTemplateId,
         status,
         rejectReason,
-        receiptReceivedMessage,
-        invalidFileMessage,
-        receiptAcceptedMessage,
-        receiptRejectedMessage,
-        confirmationTemplateCode,
         isActive,
         createdBy,
         createDate,

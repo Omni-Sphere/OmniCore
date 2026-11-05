@@ -38,11 +38,6 @@ namespace omnisphere::dtos
         TemplateName,
         Category,
         Language,
-        ReceiptReceivedMessage,
-        InvalidFileMessage,
-        ReceiptAcceptedMessage,
-        ReceiptRejectedMessage,
-        ConfirmationTemplateCode,
         IsActive,
         LastUpdatedBy,
         UpdateDate
