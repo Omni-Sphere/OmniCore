@@ -14,8 +14,8 @@ namespace fs = std::filesystem;
 
 namespace omnisphere::services
 {
-    // Límite máximo de tamaño de carga: 5 MB
-    constexpr static std::size_t MAX_UPLOAD_SIZE = 5 * 1024 * 1024;
+    // Límite máximo de tamaño de carga: 25 MB (soporte para imágenes, PDFs, audio y video de WhatsApp)
+    constexpr static std::size_t MAX_UPLOAD_SIZE = 25 * 1024 * 1024;
 
     FileHandler::FileHandler(std::string uploadDir)
         : m_uploadDir(std::move(uploadDir))
@@ -39,7 +39,13 @@ namespace omnisphere::services
     {
         std::string lowerExt = ext;
         std::transform(lowerExt.begin(), lowerExt.end(), lowerExt.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-        return (lowerExt == ".webp" || lowerExt == ".png" || lowerExt == ".jpg" || lowerExt == ".jpeg" || lowerExt == ".gif" || lowerExt == ".svg");
+        return (
+            lowerExt == ".webp" || lowerExt == ".png" || lowerExt == ".jpg" || lowerExt == ".jpeg" ||
+            lowerExt == ".gif"  || lowerExt == ".svg" || lowerExt == ".pdf" || lowerExt == ".doc"  ||
+            lowerExt == ".docx" || lowerExt == ".xls" || lowerExt == ".xlsx"|| lowerExt == ".mp4"  ||
+            lowerExt == ".mov"  || lowerExt == ".mp3" || lowerExt == ".ogg" || lowerExt == ".aac"  ||
+            lowerExt == ".m4a"  || lowerExt == ".amr"
+        );
     }
 
     std::string FileHandler::DetectMimeType(const std::string& fileName)
@@ -51,6 +57,14 @@ namespace omnisphere::services
         if (ext == ".gif")  return "image/gif";
         if (ext == ".webp") return "image/webp";
         if (ext == ".svg")  return "image/svg+xml";
+        if (ext == ".pdf")  return "application/pdf";
+        if (ext == ".mp4")  return "video/mp4";
+        if (ext == ".mov")  return "video/quicktime";
+        if (ext == ".mp3")  return "audio/mpeg";
+        if (ext == ".ogg")  return "audio/ogg";
+        if (ext == ".aac")  return "audio/aac";
+        if (ext == ".m4a")  return "audio/mp4";
+        if (ext == ".amr")  return "audio/amr";
         return "application/octet-stream";
     }
 
@@ -67,7 +81,19 @@ namespace omnisphere::services
         char hexBuf[17];
         std::snprintf(hexBuf, sizeof(hexBuf), "%016lx", randVal);
 
-        return "img_" + std::to_string(now) + "_" + std::string(hexBuf) + extension;
+        std::string lowerExt = extension;
+        std::transform(lowerExt.begin(), lowerExt.end(), lowerExt.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        std::string prefix = "file_";
+        if (lowerExt == ".jpg" || lowerExt == ".jpeg" || lowerExt == ".png" || lowerExt == ".webp" || lowerExt == ".gif" || lowerExt == ".svg")
+            prefix = "img_";
+        else if (lowerExt == ".pdf" || lowerExt == ".doc" || lowerExt == ".docx")
+            prefix = "doc_";
+        else if (lowerExt == ".mp4" || lowerExt == ".mov")
+            prefix = "vid_";
+        else if (lowerExt == ".mp3" || lowerExt == ".ogg" || lowerExt == ".aac" || lowerExt == ".m4a")
+            prefix = "aud_";
+
+        return prefix + std::to_string(now) + "_" + std::string(hexBuf) + lowerExt;
     }
 
     omnisphere::net::Response FileHandler::HandleUpload(const omnisphere::net::Request& req) const
@@ -88,7 +114,7 @@ namespace omnisphere::services
         if (body.size() > MAX_UPLOAD_SIZE)
         {
             omnisphere::utils::Logger::LogWarning("FileHandler Security", req.TraceContext() + " File upload exceeded limit: " + std::to_string(body.size()) + " bytes");
-            return omnisphere::net::Response(413, "application/json", R"({"error":"Payload too large: File exceeds maximum allowed size of 5 MB."})");
+            return omnisphere::net::Response(413, "application/json", R"({"error":"Payload too large: File exceeds maximum allowed size of 25 MB."})");
         }
 
         // C. Detección y Validación Estricta de Extensión (Whitelist)
@@ -102,13 +128,17 @@ namespace omnisphere::services
             if (contentType.find("image/png") != std::string::npos) ext = ".png";
             else if (contentType.find("image/jpeg") != std::string::npos || contentType.find("image/jpg") != std::string::npos) ext = ".jpg";
             else if (contentType.find("image/gif") != std::string::npos) ext = ".gif";
+            else if (contentType.find("application/pdf") != std::string::npos) ext = ".pdf";
+            else if (contentType.find("video/mp4") != std::string::npos) ext = ".mp4";
+            else if (contentType.find("audio/mpeg") != std::string::npos) ext = ".mp3";
+            else if (contentType.find("audio/ogg") != std::string::npos) ext = ".ogg";
             else ext = ".webp";
         }
 
         if (!IsAllowedImageExtension(ext))
         {
             omnisphere::utils::Logger::LogWarning("FileHandler Security", req.TraceContext() + " Rejected file extension: " + ext);
-            return omnisphere::net::Response::BadRequest(R"({"error":"Forbidden file extension. Only .webp, .png, .jpg, .jpeg, .gif, .svg image files are allowed."})");
+            return omnisphere::net::Response::BadRequest(R"({"error":"Formato de archivo no permitido. Se permiten imágenes (.jpg, .png, .webp), documentos (.pdf), videos (.mp4) y audio (.mp3, .ogg)."})");
         }
 
         // D. Generación Segura e Impredecible del Nombre de Archivo

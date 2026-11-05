@@ -9,7 +9,7 @@ namespace omnisphere::models
     struct WhatsAppTemplateHeaderVariable
     {
         int entry = 0;
-        int headerEntry = 0;
+        std::string templateCode;
         std::string varName;
         int varIndex = 1;
         std::optional<std::string> exampleValue;
@@ -19,7 +19,7 @@ namespace omnisphere::models
 
     BOOST_DESCRIBE_STRUCT(WhatsAppTemplateHeaderVariable, (), (
         entry,
-        headerEntry,
+        templateCode,
         varName,
         varIndex,
         exampleValue,
@@ -30,7 +30,7 @@ namespace omnisphere::models
     struct WhatsAppTemplateHeader
     {
         int entry = 0;
-        int templateEntry = 0;
+        std::string templateCode;
         std::string headerType = "NONE"; // NONE, TEXT, IMAGE, DOCUMENT, VIDEO
         std::optional<std::string> textContent;
         std::optional<std::string> mediaUrl;
@@ -42,7 +42,7 @@ namespace omnisphere::models
 
     BOOST_DESCRIBE_STRUCT(WhatsAppTemplateHeader, (), (
         entry,
-        templateEntry,
+        templateCode,
         headerType,
         textContent,
         mediaUrl,
@@ -53,7 +53,7 @@ namespace omnisphere::models
     struct WhatsAppTemplateBodyVariable
     {
         int entry = 0;
-        int bodyEntry = 0;
+        std::string templateCode;
         std::string varName;
         int varIndex = 1;
         std::optional<std::string> exampleValue;
@@ -63,7 +63,7 @@ namespace omnisphere::models
 
     BOOST_DESCRIBE_STRUCT(WhatsAppTemplateBodyVariable, (), (
         entry,
-        bodyEntry,
+        templateCode,
         varName,
         varIndex,
         exampleValue,
@@ -74,7 +74,7 @@ namespace omnisphere::models
     struct WhatsAppTemplateBody
     {
         int entry = 0;
-        int templateEntry = 0;
+        std::string templateCode;
         std::string bodyText;
         std::string createdBy = "system";
         std::optional<std::string> createDate;
@@ -84,7 +84,7 @@ namespace omnisphere::models
 
     BOOST_DESCRIBE_STRUCT(WhatsAppTemplateBody, (), (
         entry,
-        templateEntry,
+        templateCode,
         bodyText,
         createdBy,
         createDate
@@ -93,7 +93,7 @@ namespace omnisphere::models
     struct WhatsAppTemplateFooterVariable
     {
         int entry = 0;
-        int footerEntry = 0;
+        std::string templateCode;
         std::string varName;
         int varIndex = 1;
         std::optional<std::string> exampleValue;
@@ -103,7 +103,7 @@ namespace omnisphere::models
 
     BOOST_DESCRIBE_STRUCT(WhatsAppTemplateFooterVariable, (), (
         entry,
-        footerEntry,
+        templateCode,
         varName,
         varIndex,
         exampleValue,
@@ -114,7 +114,7 @@ namespace omnisphere::models
     struct WhatsAppTemplateFooter
     {
         int entry = 0;
-        int templateEntry = 0;
+        std::string templateCode;
         std::optional<std::string> footerText;
         std::string createdBy = "system";
         std::optional<std::string> createDate;
@@ -124,7 +124,7 @@ namespace omnisphere::models
 
     BOOST_DESCRIBE_STRUCT(WhatsAppTemplateFooter, (), (
         entry,
-        templateEntry,
+        templateCode,
         footerText,
         createdBy,
         createDate
@@ -133,7 +133,7 @@ namespace omnisphere::models
     struct WhatsAppTemplateButton
     {
         int entry = 0;
-        int templateEntry = 0;
+        std::string templateCode;
         std::string buttonType = "QUICK_REPLY"; // QUICK_REPLY, URL, PHONE_NUMBER
         std::string title;
         std::optional<std::string> payload;
@@ -148,7 +148,7 @@ namespace omnisphere::models
 
     BOOST_DESCRIBE_STRUCT(WhatsAppTemplateButton, (), (
         entry,
-        templateEntry,
+        templateCode,
         buttonType,
         title,
         payload,
@@ -160,7 +160,7 @@ namespace omnisphere::models
     struct WhatsAppInternalTemplate
     {
         int entry = 0;
-        int templateEntry = 0;
+        std::string templateCode;
         std::string receiptReceivedMessage;
         std::string invalidFileMessage;
         std::string receiptAcceptedMessage;
@@ -175,7 +175,7 @@ namespace omnisphere::models
 
     BOOST_DESCRIBE_STRUCT(WhatsAppInternalTemplate, (), (
         entry,
-        templateEntry,
+        templateCode,
         receiptReceivedMessage,
         invalidFileMessage,
         receiptAcceptedMessage,
@@ -191,32 +191,13 @@ namespace omnisphere::models
     struct WhatsAppInternalButtonAction
     {
         int entry = 0;
-        int templateEntry = 0;
+        std::string templateCode;
         std::string buttonTitle;
         int sortOrder = 1;
         std::string messageType = "NONE";
-        std::string bodyText;
-        std::string headerText;
-        std::string footerText;
-        std::string mediaType = "IMAGE";
-        std::string mediaUrl;
-        std::string fileName;
-        std::string latitude;
-        std::string longitude;
-        std::string locationName;
-        std::string locationAddress;
-        std::string contactName;
-        std::string contactPhone;
-        std::string contactCompany;
-        std::string contactEmail;
-        std::string urlButtonText;
-        std::string targetUrl;
-        std::string interactiveButtonsJson = "[]";
-        std::string targetTemplateCode;
-        std::string reactionEmoji;
+        std::string responsePayload;
         bool requestReceipt = false;
         bool cancelReservation = false;
-        std::string responsePayload;
         std::string createdBy = "system";
         std::optional<std::string> createDate;
         std::optional<std::string> lastUpdatedBy;
@@ -225,32 +206,13 @@ namespace omnisphere::models
 
     BOOST_DESCRIBE_STRUCT(WhatsAppInternalButtonAction, (), (
         entry,
-        templateEntry,
+        templateCode,
         buttonTitle,
         sortOrder,
         messageType,
-        bodyText,
-        headerText,
-        footerText,
-        mediaType,
-        mediaUrl,
-        fileName,
-        latitude,
-        longitude,
-        locationName,
-        locationAddress,
-        contactName,
-        contactPhone,
-        contactCompany,
-        contactEmail,
-        urlButtonText,
-        targetUrl,
-        interactiveButtonsJson,
-        targetTemplateCode,
-        reactionEmoji,
+        responsePayload,
         requestReceipt,
         cancelReservation,
-        responsePayload,
         createdBy,
         createDate,
         lastUpdatedBy,
