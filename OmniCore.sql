@@ -1115,19 +1115,23 @@ CREATE TABLE IF NOT EXISTS "AuthorizationAuditLog" (
 CREATE INDEX IF NOT EXISTS "IDX_AuthAudit_UserCode" ON "AuthorizationAuditLog" ("UserCode");
 CREATE INDEX IF NOT EXISTS "IDX_AuthAudit_CreateDate" ON "AuthorizationAuditLog" ("CreateDate");
 
--- Seed Modules (11 Modules)
+-- Seed Modules (15 Modules)
 INSERT INTO "Modules" ("Code", "Name", "Description", "Icon", "SortOrder", "IsActive", "CreatedBy") VALUES
 ('MOD_OVERVIEW', 'Panel Analítico', 'Métricas, KPIs y estadísticas globales', 'dashboard', 1, true, 'system'),
-('MOD_RESERVATIONS', 'Reservaciones', 'Gestión de boletos, pasajeros y cobros', 'confirmation_number', 2, true, 'system'),
-('MOD_SCHEDULES', 'Horarios y Salidas', 'Programación de corridas y viajes', 'schedule', 3, true, 'system'),
-('MOD_EVENTS', 'Eventos', 'Conciertos, festivales y eventos', 'event', 4, true, 'system'),
-('MOD_ROUTES', 'Rutas de Viaje', 'Trazado de rutas y tarifas base', 'alt_route', 5, true, 'system'),
-('MOD_CATALOGS', 'Catálogos Base', 'Recintos, paradas y puntos de abordaje', 'folder', 6, true, 'system'),
-('MOD_EMPLOYEES', 'Personal', 'Registro de empleados y operadores', 'badge', 7, true, 'system'),
-('MOD_CUSTOMERS', 'Clientes', 'Padrón de pasajeros y viajeros frecuentes', 'groups', 8, true, 'system'),
-('MOD_USERS', 'Usuarios y Accesos', 'Cuentas de usuario y seguridad', 'manage_accounts', 9, true, 'system'),
-('MOD_ROLES', 'Roles y Perfiles', 'Perfiles y asignación de permisos', 'security', 10, true, 'system'),
-('MOD_SETTINGS', 'Configuración General', 'Parámetros del sistema e integraciones', 'settings', 11, true, 'system')
+('MOD_DASHBOARD', 'Panel del Pasajero', 'Consulta de boletos e itinerario personal', 'confirmation_number', 2, true, 'system'),
+('MOD_RESERVATIONS', 'Reservaciones', 'Gestión de boletos, pasajeros y cobros', 'confirmation_number', 3, true, 'system'),
+('MOD_SCHEDULES', 'Horarios y Salidas', 'Programación de corridas y viajes', 'schedule', 4, true, 'system'),
+('MOD_VENUES', 'Destinos', 'Gestión de destinos, sedes y recintos', 'flag', 5, true, 'system'),
+('MOD_POINTS', 'Orígenes y Paradas', 'Puntos de abordaje y paradas intermedias', 'place', 6, true, 'system'),
+('MOD_ROUTES', 'Rutas de Viaje', 'Trazado de rutas y tarifas base', 'alt_route', 7, true, 'system'),
+('MOD_EVENTS', 'Eventos', 'Conciertos, festivales y eventos', 'event', 8, true, 'system'),
+('MOD_PAYMENTS', 'Formas de Pago', 'Métodos de pago y cuentas bancarias', 'payments', 9, true, 'system'),
+('MOD_INTEGRATIONS', 'Integraciones', 'Configuración de pasarelas y WhatsApp Cloud API', 'hub', 10, true, 'system'),
+('MOD_SETTINGS', 'Configuración General', 'Parámetros del sistema y políticas', 'settings', 11, true, 'system'),
+('MOD_FAQS', 'Preguntas Frecuentes', 'Gestión de preguntas frecuentes y categorías', 'quiz', 12, true, 'system'),
+('MOD_SUGGESTIONS', 'Buzón de Sugerencias', 'Gestión de sugerencias y rutas deseadas', 'inbox', 13, true, 'system'),
+('MOD_MEMBERSHIPS', 'Planes y Membresías', 'Gestión de suscripciones y beneficios', 'card_membership', 14, true, 'system'),
+('MOD_USERS', 'Personal y Accesos', 'Usuarios, colaboradores, roles y permisos', 'manage_accounts', 15, true, 'system')
 ON CONFLICT ("Code") DO UPDATE SET
     "Name" = EXCLUDED."Name",
     "Description" = EXCLUDED."Description",
@@ -1135,7 +1139,7 @@ ON CONFLICT ("Code") DO UPDATE SET
     "SortOrder" = EXCLUDED."SortOrder",
     "IsActive" = true;
 
--- Seed Permissions (34 Atomic Operational Permissions)
+-- Seed Permissions (Atomic Operational Permissions)
 INSERT INTO "Permissions" ("Code", "Name", "Description", "ModuleCode", "IsActive", "CreatedBy") VALUES
 -- 01. Overview
 ('ROUTE_OVERVIEW_EXPORT', 'Exportar Métricas', 'Permite exportar resúmenes ejecutivos en Excel o PDF', 'MOD_OVERVIEW', true, 'system'),
@@ -1153,50 +1157,60 @@ INSERT INTO "Permissions" ("Code", "Name", "Description", "ModuleCode", "IsActiv
 ('ROUTE_SCHEDULE_UPDATE', 'Editar Horario', 'Permite modificar horas, capacidad o tarifas de viaje', 'MOD_SCHEDULES', true, 'system'),
 ('ROUTE_SCHEDULE_DELETE', 'Eliminar Horario', 'Permite dar de baja una corrida programada', 'MOD_SCHEDULES', true, 'system'),
 
--- 04. Eventos
-('ROUTE_EVENT_CREATE', 'Crear Evento', 'Permite dar de alta nuevos conciertos o festivales', 'MOD_EVENTS', true, 'system'),
-('ROUTE_EVENT_UPDATE', 'Editar Evento', 'Permite actualizar datos, fecha o imagen del evento', 'MOD_EVENTS', true, 'system'),
-('ROUTE_EVENT_DELETE', 'Eliminar Evento', 'Permite retirar eventos del sistema', 'MOD_EVENTS', true, 'system'),
+-- 04. Destinos (Venues)
+('ROUTE_VENUE_CREATE', 'Registrar Destino', 'Permite dar de alta nuevos destinos y recintos', 'MOD_VENUES', true, 'system'),
+('ROUTE_VENUE_UPDATE', 'Modificar Destino', 'Permite editar dirección, ciudad y nombre del destino', 'MOD_VENUES', true, 'system'),
+('ROUTE_VENUE_DELETE', 'Eliminar Destino', 'Permite eliminar destinos registrados', 'MOD_VENUES', true, 'system'),
 
--- 05. Rutas
+-- 05. Orígenes y Paradas (Points)
+('ROUTE_POINT_CREATE', 'Crear Punto de Abordaje', 'Permite dar de alta nuevas paradas y terminales', 'MOD_POINTS', true, 'system'),
+('ROUTE_POINT_UPDATE', 'Editar Parada', 'Permite modificar dirección y tipo de punto de abordaje', 'MOD_POINTS', true, 'system'),
+('ROUTE_POINT_DELETE', 'Eliminar Parada', 'Permite retirar paradas del catálogo', 'MOD_POINTS', true, 'system'),
+
+-- 06. Rutas
 ('ROUTE_ROUTE_CREATE', 'Trazar Ruta', 'Permite crear itinerarios y rutas de viaje', 'MOD_ROUTES', true, 'system'),
 ('ROUTE_ROUTE_UPDATE', 'Editar Ruta', 'Permite modificar paradas o precios de la ruta', 'MOD_ROUTES', true, 'system'),
 ('ROUTE_ROUTE_DELETE', 'Eliminar Ruta', 'Permite anular rutas existentes', 'MOD_ROUTES', true, 'system'),
 
--- 06. Catálogos Base (Recintos y Paradas)
-('ROUTE_CATALOG_CREATE', 'Crear Catálogo', 'Permite agregar recintos o puntos de abordaje', 'MOD_CATALOGS', true, 'system'),
-('ROUTE_CATALOG_UPDATE', 'Editar Catálogo', 'Permite actualizar información de recintos o paradas', 'MOD_CATALOGS', true, 'system'),
-('ROUTE_CATALOG_DELETE', 'Eliminar Catálogo', 'Permite dar de baja recintos o puntos de abordaje', 'MOD_CATALOGS', true, 'system'),
+-- 07. Eventos
+('ROUTE_EVENT_CREATE', 'Crear Evento', 'Permite dar de alta nuevos conciertos o festivales', 'MOD_EVENTS', true, 'system'),
+('ROUTE_EVENT_UPDATE', 'Editar Evento', 'Permite actualizar datos, fecha o imagen del evento', 'MOD_EVENTS', true, 'system'),
+('ROUTE_EVENT_DELETE', 'Eliminar Evento', 'Permite retirar eventos del sistema', 'MOD_EVENTS', true, 'system'),
 
--- 07. Personal (Employees) - CORE
-('CORE_EMPLOYEE_CREATE', 'Crear Empleado', 'Permite registrar personal y operadores', 'MOD_EMPLOYEES', true, 'system'),
-('CORE_EMPLOYEE_UPDATE', 'Editar Empleado', 'Permite actualizar datos del colaborador', 'MOD_EMPLOYEES', true, 'system'),
-('CORE_EMPLOYEE_DELETE', 'Eliminar Empleado', 'Permite dar de baja colaboradores', 'MOD_EMPLOYEES', true, 'system'),
+-- 08. Formas de Pago
+('CORE_PAYMENT_CREATE', 'Crear Método de Pago', 'Permite dar de alta nuevas formas de cobro', 'MOD_PAYMENTS', true, 'system'),
+('CORE_PAYMENT_UPDATE', 'Editar Configuración de Pago', 'Permite editar comisiones y pasarelas', 'MOD_PAYMENTS', true, 'system'),
+('CORE_PAYMENT_BANK_MANAGE', 'Administrar Cuentas Bancarias', 'Permite editar CLABEs, bancos y beneficiarios', 'MOD_PAYMENTS', true, 'system'),
+('CORE_PAYMENT_DELETE', 'Eliminar Método de Pago', 'Permite desactivar opciones de cobro', 'MOD_PAYMENTS', true, 'system'),
 
--- 08. Clientes (Customers) - CORE
-('CORE_CUSTOMER_CREATE', 'Registrar Cliente', 'Permite registrar nuevos pasajeros', 'MOD_CUSTOMERS', true, 'system'),
-('CORE_CUSTOMER_UPDATE', 'Editar Cliente', 'Permite actualizar información del cliente', 'MOD_CUSTOMERS', true, 'system'),
-('CORE_CUSTOMER_DELETE', 'Eliminar Cliente', 'Permite dar de baja registros de clientes', 'MOD_CUSTOMERS', true, 'system'),
+-- 09. Integraciones
+('CORE_INTEGRATION_STRIPE', 'Configurar Stripe', 'Permite configurar API keys y webhooks de cobros', 'MOD_INTEGRATIONS', true, 'system'),
+('CORE_INTEGRATION_WHATSAPP', 'Configurar WhatsApp', 'Permite editar tokens y plantillas de Meta Cloud', 'MOD_INTEGRATIONS', true, 'system'),
+('CORE_INTEGRATION_TEST', 'Pruebas de Diagnóstico', 'Permite enviar mensajes y cobros de prueba', 'MOD_INTEGRATIONS', true, 'system'),
+('CORE_NOTIF_STAFF', 'Notificaciones a Personal', 'Permite configurar alertas de salida a operadores', 'MOD_INTEGRATIONS', true, 'system'),
 
--- 09. Usuarios - CORE
-('CORE_USER_CREATE', 'Crear Usuario', 'Permite crear cuentas de acceso al sistema', 'MOD_USERS', true, 'system'),
-('CORE_USER_UPDATE', 'Editar Usuario', 'Permite actualizar accesos, correo y credenciales', 'MOD_USERS', true, 'system'),
-('CORE_USER_DELETE', 'Eliminar Usuario', 'Permite desactivar cuentas de acceso', 'MOD_USERS', true, 'system'),
-
--- 10. Roles y Permisos - CORE
-('CORE_ROLE_CREATE', 'Crear Rol', 'Permite definir nuevos perfiles de usuario', 'MOD_ROLES', true, 'system'),
-('CORE_ROLE_UPDATE', 'Editar Rol', 'Permite modificar asignación de permisos y módulos', 'MOD_ROLES', true, 'system'),
-('CORE_ROLE_DELETE', 'Eliminar Rol', 'Permite dar de baja perfiles de rol', 'MOD_ROLES', true, 'system'),
-('CORE_ROLE_MANAGE', 'Administrar Roles', 'Permite gestionar perfiles y asignaciones de rol', 'MOD_ROLES', true, 'system'),
-('CORE_PERM_MANAGE', 'Administrar Permisos', 'Permite modificar y conceder permisos específicos', 'MOD_ROLES', true, 'system'),
-
--- 11. Configuración del Sistema - CORE
+-- 10. Configuración General
 ('CORE_CONFIG_UPDATE', 'Actualizar Configuración', 'Permite ajustar parámetros generales y políticas', 'MOD_SETTINGS', true, 'system'),
-('CORE_PAYMENT_CREATE', 'Crear Método de Pago', 'Permite dar de alta nuevas formas de cobro', 'MOD_SETTINGS', true, 'system'),
-('CORE_PAYMENT_UPDATE', 'Editar Configuración de Pago', 'Permite editar comisiones y cuentas bancarias', 'MOD_SETTINGS', true, 'system'),
-('CORE_PAYMENT_DELETE', 'Eliminar Método de Pago', 'Permite desactivar opciones de cobro', 'MOD_SETTINGS', true, 'system'),
-('CORE_INTEGRATION_STRIPE', 'Configurar Stripe', 'Permite configurar API keys y webhooks de cobros', 'MOD_SETTINGS', true, 'system'),
-('CORE_INTEGRATION_WHATSAPP', 'Configurar WhatsApp', 'Permite editar tokens y plantillas de Meta Cloud', 'MOD_SETTINGS', true, 'system')
+
+-- 11. Preguntas Frecuentes (FAQs)
+('CORE_FAQ_CREATE', 'Crear Pregunta/Categoría', 'Permite registrar nuevas preguntas frecuentes y categorías', 'MOD_FAQS', true, 'system'),
+('CORE_FAQ_UPDATE', 'Editar Pregunta/Categoría', 'Permite modificar respuestas, visibilidad y orden', 'MOD_FAQS', true, 'system'),
+('CORE_FAQ_DELETE', 'Eliminar Pregunta/Categoría', 'Permite retirar preguntas frecuentes del catálogo', 'MOD_FAQS', true, 'system'),
+
+-- 12. Buzón de Sugerencias
+('CORE_FEEDBACK_VIEW', 'Consultar Buzón', 'Permite ver y filtrar comentarios y rutas sugeridas', 'MOD_SUGGESTIONS', true, 'system'),
+('CORE_FEEDBACK_STATUS', 'Marcar como Atendido', 'Permite cambiar el estatus de revisión y notas', 'MOD_SUGGESTIONS', true, 'system'),
+('CORE_FEEDBACK_DELETE', 'Eliminar Sugerencia', 'Permite dar de baja un comentario o sugerencia', 'MOD_SUGGESTIONS', true, 'system'),
+
+-- 13. Planes y Membresías
+('CORE_MEMBERSHIP_MANAGE', 'Administrar Planes', 'Permite crear o modificar beneficios y membresías', 'MOD_MEMBERSHIPS', true, 'system'),
+
+-- 14. Personal y Accesos (Usuarios, Empleados, Roles)
+('CORE_USER_CREATE', 'Crear Usuario/Empleado', 'Permite dar de alta colaboradores y cuentas de acceso', 'MOD_USERS', true, 'system'),
+('CORE_USER_UPDATE', 'Editar Usuario/Empleado', 'Permite actualizar accesos, correo y credenciales', 'MOD_USERS', true, 'system'),
+('CORE_USER_DELETE', 'Eliminar Usuario/Empleado', 'Permite desactivar o dar de baja colaboradores', 'MOD_USERS', true, 'system'),
+('CORE_ROLE_MANAGE', 'Administrar Roles', 'Permite gestionar perfiles y asignaciones de rol', 'MOD_USERS', true, 'system'),
+('CORE_PERM_MANAGE', 'Administrar Permisos', 'Permite modificar y conceder permisos específicos', 'MOD_USERS', true, 'system')
 ON CONFLICT ("Code") DO UPDATE SET
     "Name" = EXCLUDED."Name",
     "Description" = EXCLUDED."Description",

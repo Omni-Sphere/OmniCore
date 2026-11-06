@@ -24,8 +24,6 @@ namespace omnisphere::enums
         MOD_ROLES,
         MOD_EMPLOYEES,
         MOD_CUSTOMERS,
-        // Legacy / Fallback
-        MOD_CATALOGS,
         UNKNOWN
     };
 
@@ -51,7 +49,6 @@ namespace omnisphere::enums
             case ModuleType::MOD_ROLES: return "MOD_ROLES";
             case ModuleType::MOD_EMPLOYEES: return "MOD_EMPLOYEES";
             case ModuleType::MOD_CUSTOMERS: return "MOD_CUSTOMERS";
-            case ModuleType::MOD_CATALOGS: return "MOD_CATALOGS";
             default: return "UNKNOWN";
         }
     }
@@ -76,7 +73,6 @@ namespace omnisphere::enums
         if (str == "MOD_ROLES") return ModuleType::MOD_ROLES;
         if (str == "MOD_EMPLOYEES") return ModuleType::MOD_EMPLOYEES;
         if (str == "MOD_CUSTOMERS") return ModuleType::MOD_CUSTOMERS;
-        if (str == "MOD_CATALOGS") return ModuleType::MOD_CATALOGS;
         return ModuleType::UNKNOWN;
     }
 }

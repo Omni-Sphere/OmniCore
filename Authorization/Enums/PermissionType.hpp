@@ -86,13 +86,12 @@ namespace omnisphere::enums
         ROUTE_ROUTE_UPDATE,
         ROUTE_ROUTE_DELETE,
 
-        // Catálogos Base (Recintos y Paradas)
-        ROUTE_CATALOG_CREATE,
-        ROUTE_CATALOG_UPDATE,
-        ROUTE_CATALOG_DELETE,
+        // Destinos (Venues)
         ROUTE_VENUE_CREATE,
         ROUTE_VENUE_UPDATE,
         ROUTE_VENUE_DELETE,
+
+        // Orígenes y Paradas (Points)
         ROUTE_POINT_CREATE,
         ROUTE_POINT_UPDATE,
         ROUTE_POINT_DELETE,
@@ -199,9 +198,6 @@ namespace omnisphere::enums
             case PermissionType::ROUTE_ROUTE_CREATE: return "ROUTE_ROUTE_CREATE";
             case PermissionType::ROUTE_ROUTE_UPDATE: return "ROUTE_ROUTE_UPDATE";
             case PermissionType::ROUTE_ROUTE_DELETE: return "ROUTE_ROUTE_DELETE";
-            case PermissionType::ROUTE_CATALOG_CREATE: return "ROUTE_CATALOG_CREATE";
-            case PermissionType::ROUTE_CATALOG_UPDATE: return "ROUTE_CATALOG_UPDATE";
-            case PermissionType::ROUTE_CATALOG_DELETE: return "ROUTE_CATALOG_DELETE";
             case PermissionType::ROUTE_VENUE_CREATE: return "ROUTE_VENUE_CREATE";
             case PermissionType::ROUTE_VENUE_UPDATE: return "ROUTE_VENUE_UPDATE";
             case PermissionType::ROUTE_VENUE_DELETE: return "ROUTE_VENUE_DELETE";
@@ -303,9 +299,6 @@ namespace omnisphere::enums
         if (str == "ROUTE_ROUTE_CREATE") return PermissionType::ROUTE_ROUTE_CREATE;
         if (str == "ROUTE_ROUTE_UPDATE") return PermissionType::ROUTE_ROUTE_UPDATE;
         if (str == "ROUTE_ROUTE_DELETE") return PermissionType::ROUTE_ROUTE_DELETE;
-        if (str == "ROUTE_CATALOG_CREATE") return PermissionType::ROUTE_CATALOG_CREATE;
-        if (str == "ROUTE_CATALOG_UPDATE") return PermissionType::ROUTE_CATALOG_UPDATE;
-        if (str == "ROUTE_CATALOG_DELETE") return PermissionType::ROUTE_CATALOG_DELETE;
         if (str == "ROUTE_VENUE_CREATE") return PermissionType::ROUTE_VENUE_CREATE;
         if (str == "ROUTE_VENUE_UPDATE") return PermissionType::ROUTE_VENUE_UPDATE;
         if (str == "ROUTE_VENUE_DELETE") return PermissionType::ROUTE_VENUE_DELETE;
