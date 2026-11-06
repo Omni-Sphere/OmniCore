@@ -1247,11 +1247,11 @@ DELETE FROM "Modules" WHERE "Code" IN ('MOD_CATALOGS', 'MOD_CUSTOMERS', 'MOD_DAS
 UPDATE "Routes" r
 SET "OriginPointCode" = COALESCE(
   NULLIF(r."OriginPointCode", ''),
-  (SELECT rs."DeparturePointCode" FROM "RouteStops" rs WHERE rs."RouteCode" = r."Code" AND (rs."Type" = 'PICKUP' OR rs."Type" = 'origin') AND rs."DeparturePointCode" IS NOT NULL AND rs."DeparturePointCode" != '' LIMIT 1)
+  (SELECT rs."DeparturePointCode" FROM "RouteStops" rs WHERE rs."RouteCode" = r."Code" AND rs."Type" = 'PICKUP' AND rs."DeparturePointCode" IS NOT NULL AND rs."DeparturePointCode" != '' LIMIT 1)
 ),
 "DestinationVenueCode" = COALESCE(
   NULLIF(r."DestinationVenueCode", ''),
-  (SELECT rs."VenueCode" FROM "RouteStops" rs WHERE rs."RouteCode" = r."Code" AND (rs."Type" = 'DROPOFF' OR rs."Type" = 'destination') AND rs."VenueCode" IS NOT NULL AND rs."VenueCode" != '' LIMIT 1)
+  (SELECT rs."VenueCode" FROM "RouteStops" rs WHERE rs."RouteCode" = r."Code" AND rs."Type" = 'DROPOFF' AND rs."VenueCode" IS NOT NULL AND rs."VenueCode" != '' LIMIT 1)
 )
 WHERE (r."OriginPointCode" IS NULL OR r."OriginPointCode" = '')
    OR (r."DestinationVenueCode" IS NULL OR r."DestinationVenueCode" = '');
