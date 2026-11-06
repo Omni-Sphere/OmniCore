@@ -1163,27 +1163,42 @@ CREATE INDEX IF NOT EXISTS "IDX_AuthAudit_CreateDate" ON "AuthorizationAuditLog"
 DELETE FROM "Permissions" WHERE "ModuleCode" IN ('MOD_CATALOGS', 'MOD_CUSTOMERS') OR "Code" IN ('ROUTE_CATALOG_CREATE', 'ROUTE_CATALOG_UPDATE', 'ROUTE_CATALOG_DELETE', 'CORE_CUSTOMER_CREATE', 'CORE_CUSTOMER_UPDATE', 'CORE_CUSTOMER_DELETE');
 DELETE FROM "UserPermissions" WHERE "PermissionCode" IN ('ROUTE_CATALOG_CREATE', 'ROUTE_CATALOG_UPDATE', 'ROUTE_CATALOG_DELETE', 'CORE_CUSTOMER_CREATE', 'CORE_CUSTOMER_UPDATE', 'CORE_CUSTOMER_DELETE');
 DELETE FROM "RolePermissions" WHERE "PermissionCode" IN ('ROUTE_CATALOG_CREATE', 'ROUTE_CATALOG_UPDATE', 'ROUTE_CATALOG_DELETE', 'CORE_CUSTOMER_CREATE', 'CORE_CUSTOMER_UPDATE', 'CORE_CUSTOMER_DELETE');
-DELETE FROM "RoleModules" WHERE "ModuleCode" IN ('MOD_CATALOGS', 'MOD_CUSTOMERS');
-DELETE FROM "UserModules" WHERE "ModuleCode" IN ('MOD_CATALOGS', 'MOD_CUSTOMERS');
-DELETE FROM "Modules" WHERE "Code" IN ('MOD_CATALOGS', 'MOD_CUSTOMERS');
+DELETE FROM "RoleModules" WHERE "ModuleCode" IN ('MOD_CATALOGS', 'MOD_CUSTOMERS', 'MOD_DASHBOARD');
+DELETE FROM "UserModules" WHERE "ModuleCode" IN ('MOD_CATALOGS', 'MOD_CUSTOMERS', 'MOD_DASHBOARD');
+DELETE FROM "Modules" WHERE "Code" IN ('MOD_CATALOGS', 'MOD_CUSTOMERS', 'MOD_DASHBOARD');
 
--- Seed Modules (15 Modules)
+-- Corregir cabeceras de Rutas que tengan OriginPointCode o DestinationVenueCode vacíos
+UPDATE "Routes" r
+SET "OriginPointCode" = COALESCE(
+  NULLIF(r."OriginPointCode", ''),
+  (SELECT rs."DeparturePointCode" FROM "RouteStops" rs WHERE rs."RouteCode" = r."Code" AND (rs."Type" = 'PICKUP' OR rs."Type" = 'origin') AND rs."DeparturePointCode" IS NOT NULL AND rs."DeparturePointCode" != '' LIMIT 1)
+),
+"DestinationVenueCode" = COALESCE(
+  NULLIF(r."DestinationVenueCode", ''),
+  (SELECT rs."VenueCode" FROM "RouteStops" rs WHERE rs."RouteCode" = r."Code" AND (rs."Type" = 'DROPOFF' OR rs."Type" = 'destination') AND rs."VenueCode" IS NOT NULL AND rs."VenueCode" != '' LIMIT 1)
+)
+WHERE (r."OriginPointCode" IS NULL OR r."OriginPointCode" = '')
+   OR (r."DestinationVenueCode" IS NULL OR r."DestinationVenueCode" = '');
+
+-- Seed Modules (17 Official Modules)
 INSERT INTO "Modules" ("Code", "Name", "Description", "Icon", "SortOrder", "IsActive", "CreatedBy") VALUES
-('MOD_OVERVIEW', 'Panel Analítico', 'Métricas, KPIs y estadísticas globales', 'dashboard', 1, true, 'system'),
-('MOD_DASHBOARD', 'Panel del Pasajero', 'Consulta de boletos e itinerario personal', 'confirmation_number', 2, true, 'system'),
-('MOD_RESERVATIONS', 'Reservaciones', 'Gestión de boletos, pasajeros y cobros', 'confirmation_number', 3, true, 'system'),
-('MOD_SCHEDULES', 'Horarios y Salidas', 'Programación de corridas y viajes', 'schedule', 4, true, 'system'),
-('MOD_VENUES', 'Destinos', 'Gestión de destinos, sedes y recintos', 'flag', 5, true, 'system'),
-('MOD_POINTS', 'Orígenes y Paradas', 'Puntos de abordaje y paradas intermedias', 'place', 6, true, 'system'),
-('MOD_ROUTES', 'Rutas de Viaje', 'Trazado de rutas y tarifas base', 'alt_route', 7, true, 'system'),
-('MOD_EVENTS', 'Eventos', 'Conciertos, festivales y eventos', 'event', 8, true, 'system'),
-('MOD_PAYMENTS', 'Formas de Pago', 'Métodos de pago y cuentas bancarias', 'payments', 9, true, 'system'),
-('MOD_INTEGRATIONS', 'Integraciones', 'Configuración de pasarelas y WhatsApp Cloud API', 'hub', 10, true, 'system'),
-('MOD_SETTINGS', 'Configuración General', 'Parámetros del sistema y políticas', 'settings', 11, true, 'system'),
-('MOD_FAQS', 'Preguntas Frecuentes', 'Gestión de preguntas frecuentes y categorías', 'quiz', 12, true, 'system'),
-('MOD_SUGGESTIONS', 'Buzón de Sugerencias', 'Gestión de sugerencias y rutas deseadas', 'inbox', 13, true, 'system'),
+('MOD_OVERVIEW', 'Dashboard Analítico', 'Métricas, KPIs y estadísticas globales', 'dashboard', 1, true, 'system'),
+('MOD_RESERVATIONS', 'Reservaciones', 'Gestión de boletos, pasajeros y cobros', 'confirmation_number', 2, true, 'system'),
+('MOD_SCHEDULES', 'Horarios y Salidas', 'Programación de corridas y viajes', 'schedule', 3, true, 'system'),
+('MOD_VENUES', 'Destinos', 'Gestión de destinos, sedes y recintos', 'flag', 4, true, 'system'),
+('MOD_POINTS', 'Orígenes y Paradas', 'Puntos de abordaje y paradas intermedias', 'place', 5, true, 'system'),
+('MOD_ROUTES', 'Rutas de Viaje', 'Trazado de rutas y tarifas base', 'alt_route', 6, true, 'system'),
+('MOD_EVENTS', 'Eventos', 'Conciertos, festivales y eventos', 'event', 7, true, 'system'),
+('MOD_SETTINGS', 'Configuración General', 'Parámetros del sistema y políticas', 'settings', 8, true, 'system'),
+('MOD_EMPLOYEES', 'Empleados y Personal', 'Gestión de colaboradores y plantilla laboral', 'badge', 9, true, 'system'),
+('MOD_ROLES', 'Roles y Permisos', 'Perfiles de acceso y seguridad granular', 'shield_lock', 10, true, 'system'),
+('MOD_USERS', 'Cuentas de Usuario', 'Credenciales, cuentas y accesos del sistema', 'manage_accounts', 11, true, 'system'),
+('MOD_PAYMENTS', 'Formas de Pago', 'Métodos de pago y cuentas bancarias', 'payments', 12, true, 'system'),
+('MOD_INTEGRATIONS', 'Notificaciones e Integraciones', 'Configuración de pasarelas y WhatsApp Cloud API', 'hub', 13, true, 'system'),
 ('MOD_MEMBERSHIPS', 'Planes y Membresías', 'Gestión de suscripciones y beneficios', 'card_membership', 14, true, 'system'),
-('MOD_USERS', 'Personal y Accesos', 'Usuarios, colaboradores, roles y permisos', 'manage_accounts', 15, true, 'system')
+('MOD_FAQS', 'Preguntas Frecuentes', 'Gestión de preguntas frecuentes y categorías', 'quiz', 15, true, 'system'),
+('MOD_SUGGESTIONS', 'Buzón de Sugerencias', 'Gestión de sugerencias y rutas deseadas', 'inbox', 16, true, 'system'),
+('MOD_LICENSE', 'Licenciamiento OmniSphere', 'Activación y validación de licencias de producto', 'key', 17, true, 'system')
 ON CONFLICT ("Code") DO UPDATE SET
     "Name" = EXCLUDED."Name",
     "Description" = EXCLUDED."Description",
@@ -1191,83 +1206,117 @@ ON CONFLICT ("Code") DO UPDATE SET
     "SortOrder" = EXCLUDED."SortOrder",
     "IsActive" = true;
 
--- Seed Permissions (Atomic Operational Permissions)
+-- Seed Permissions (Atomic Operational Permissions por cada acción del frontend)
 INSERT INTO "Permissions" ("Code", "Name", "Description", "ModuleCode", "IsActive", "CreatedBy") VALUES
 -- 01. Overview
 ('ROUTE_OVERVIEW_EXPORT', 'Exportar Métricas', 'Permite exportar resúmenes ejecutivos en Excel o PDF', 'MOD_OVERVIEW', true, 'system'),
 
 -- 02. Reservaciones
+('ROUTE_RESERVATION_VIEW', 'Consultar Reservaciones', 'Permite ver el listado y detalle de reservaciones', 'MOD_RESERVATIONS', true, 'system'),
 ('ROUTE_RESERVATION_CREATE', 'Crear Reservación', 'Permite registrar nuevas reservaciones en el sistema', 'MOD_RESERVATIONS', true, 'system'),
 ('ROUTE_RESERVATION_UPDATE', 'Editar Reservación', 'Permite modificar datos del pasajero o viaje', 'MOD_RESERVATIONS', true, 'system'),
 ('ROUTE_RESERVATION_STATUS', 'Cambiar Estatus', 'Permite cambiar estado de reservación (Confirmar, etc.)', 'MOD_RESERVATIONS', true, 'system'),
 ('ROUTE_RESERVATION_PAY', 'Procesar Pagos', 'Permite validar o registrar cobros de reservaciones', 'MOD_RESERVATIONS', true, 'system'),
+('ROUTE_RESERVATION_RECEIPT', 'Ver Comprobante', 'Permite visualizar e imprimir comprobantes y boletos', 'MOD_RESERVATIONS', true, 'system'),
 ('ROUTE_RESERVATION_CANCEL', 'Cancelar Reservación', 'Permite anular reservaciones y liberar asientos', 'MOD_RESERVATIONS', true, 'system'),
 ('ROUTE_RESERVATION_DELETE', 'Eliminar Registro', 'Permite borrado lógico de reservaciones', 'MOD_RESERVATIONS', true, 'system'),
 
--- 03. Horarios
+-- 03. Horarios y Salidas
+('ROUTE_SCHEDULE_VIEW', 'Consultar Horarios', 'Permite ver salidas y corridas programadas', 'MOD_SCHEDULES', true, 'system'),
 ('ROUTE_SCHEDULE_CREATE', 'Crear Horario', 'Permite programar nuevas corridas y viajes', 'MOD_SCHEDULES', true, 'system'),
 ('ROUTE_SCHEDULE_UPDATE', 'Editar Horario', 'Permite modificar horas, capacidad o tarifas de viaje', 'MOD_SCHEDULES', true, 'system'),
 ('ROUTE_SCHEDULE_DELETE', 'Eliminar Horario', 'Permite dar de baja una corrida programada', 'MOD_SCHEDULES', true, 'system'),
 
 -- 04. Destinos (Venues)
+('ROUTE_VENUE_VIEW', 'Consultar Destinos', 'Permite ver recintos y destinos registrados', 'MOD_VENUES', true, 'system'),
 ('ROUTE_VENUE_CREATE', 'Registrar Destino', 'Permite dar de alta nuevos destinos y recintos', 'MOD_VENUES', true, 'system'),
 ('ROUTE_VENUE_UPDATE', 'Modificar Destino', 'Permite editar dirección, ciudad y nombre del destino', 'MOD_VENUES', true, 'system'),
 ('ROUTE_VENUE_DELETE', 'Eliminar Destino', 'Permite eliminar destinos registrados', 'MOD_VENUES', true, 'system'),
 
 -- 05. Orígenes y Paradas (Points)
+('ROUTE_POINT_VIEW', 'Consultar Paradas', 'Permite consultar puntos de abordaje y paradas', 'MOD_POINTS', true, 'system'),
 ('ROUTE_POINT_CREATE', 'Crear Punto de Abordaje', 'Permite dar de alta nuevas paradas y terminales', 'MOD_POINTS', true, 'system'),
 ('ROUTE_POINT_UPDATE', 'Editar Parada', 'Permite modificar dirección y tipo de punto de abordaje', 'MOD_POINTS', true, 'system'),
 ('ROUTE_POINT_DELETE', 'Eliminar Parada', 'Permite retirar paradas del catálogo', 'MOD_POINTS', true, 'system'),
 
--- 06. Rutas
+-- 06. Rutas de Viaje
+('ROUTE_ROUTE_VIEW', 'Consultar Rutas', 'Permite ver el catálogo de rutas e itinerarios', 'MOD_ROUTES', true, 'system'),
 ('ROUTE_ROUTE_CREATE', 'Trazar Ruta', 'Permite crear itinerarios y rutas de viaje', 'MOD_ROUTES', true, 'system'),
 ('ROUTE_ROUTE_UPDATE', 'Editar Ruta', 'Permite modificar paradas o precios de la ruta', 'MOD_ROUTES', true, 'system'),
 ('ROUTE_ROUTE_DELETE', 'Eliminar Ruta', 'Permite anular rutas existentes', 'MOD_ROUTES', true, 'system'),
 
 -- 07. Eventos
+('ROUTE_EVENT_VIEW', 'Consultar Eventos', 'Permite ver la cartelera de eventos programados', 'MOD_EVENTS', true, 'system'),
 ('ROUTE_EVENT_CREATE', 'Crear Evento', 'Permite dar de alta nuevos conciertos o festivales', 'MOD_EVENTS', true, 'system'),
 ('ROUTE_EVENT_UPDATE', 'Editar Evento', 'Permite actualizar datos, fecha o imagen del evento', 'MOD_EVENTS', true, 'system'),
 ('ROUTE_EVENT_DELETE', 'Eliminar Evento', 'Permite retirar eventos del sistema', 'MOD_EVENTS', true, 'system'),
 
--- 08. Formas de Pago
+-- 08. Configuración General
+('CORE_CONFIG_UPDATE', 'Actualizar Configuración', 'Permite ajustar parámetros generales y políticas', 'MOD_SETTINGS', true, 'system'),
+
+-- 09. Empleados y Personal
+('CORE_EMPLOYEE_VIEW', 'Consultar Empleados', 'Permite ver el directorio de colaboradores y empleados', 'MOD_EMPLOYEES', true, 'system'),
+('CORE_EMPLOYEE_CREATE', 'Registrar Empleado', 'Permite dar de alta nuevo personal operativo o staff', 'MOD_EMPLOYEES', true, 'system'),
+('CORE_EMPLOYEE_UPDATE', 'Modificar Empleado', 'Permite editar datos laborales y de contacto', 'MOD_EMPLOYEES', true, 'system'),
+('CORE_EMPLOYEE_DELETE', 'Eliminar Empleado', 'Permite dar de baja colaboradores', 'MOD_EMPLOYEES', true, 'system'),
+
+-- 10. Roles y Permisos
+('CORE_ROLE_CREATE', 'Crear Rol', 'Permite registrar nuevos perfiles de acceso', 'MOD_ROLES', true, 'system'),
+('CORE_ROLE_UPDATE', 'Modificar Rol', 'Permite editar nombre y atributos del rol', 'MOD_ROLES', true, 'system'),
+('CORE_ROLE_DELETE', 'Eliminar Rol', 'Permite dar de baja roles del sistema', 'MOD_ROLES', true, 'system'),
+('CORE_ROLE_MANAGE', 'Administrar Roles', 'Permite crear o ajustar perfiles de seguridad', 'MOD_ROLES', true, 'system'),
+('CORE_PERM_MANAGE', 'Modificar Permisos', 'Permite otorgar o revocar permisos específicos', 'MOD_ROLES', true, 'system'),
+
+-- 11. Cuentas de Usuario
+('CORE_USER_VIEW', 'Consultar Usuarios', 'Permite ver las cuentas de usuario registradas', 'MOD_USERS', true, 'system'),
+('CORE_USER_CREATE', 'Crear Cuenta de Usuario', 'Permite registrar credenciales y cuentas de acceso', 'MOD_USERS', true, 'system'),
+('CORE_USER_UPDATE', 'Modificar Usuario', 'Permite editar contraseñas, roles y teléfonos', 'MOD_USERS', true, 'system'),
+('CORE_USER_DELETE', 'Eliminar Usuario', 'Permite dar de baja cuentas de usuario', 'MOD_USERS', true, 'system'),
+
+-- 12. Formas de Pago
 ('CORE_PAYMENT_CREATE', 'Crear Método de Pago', 'Permite dar de alta nuevas formas de cobro', 'MOD_PAYMENTS', true, 'system'),
 ('CORE_PAYMENT_UPDATE', 'Editar Configuración de Pago', 'Permite editar comisiones y pasarelas', 'MOD_PAYMENTS', true, 'system'),
 ('CORE_PAYMENT_BANK_MANAGE', 'Administrar Cuentas Bancarias', 'Permite editar CLABEs, bancos y beneficiarios', 'MOD_PAYMENTS', true, 'system'),
 ('CORE_PAYMENT_DELETE', 'Eliminar Método de Pago', 'Permite desactivar opciones de cobro', 'MOD_PAYMENTS', true, 'system'),
 
--- 09. Integraciones
+-- 13. Notificaciones e Integraciones
 ('CORE_INTEGRATION_STRIPE', 'Configurar Stripe', 'Permite configurar API keys y webhooks de cobros', 'MOD_INTEGRATIONS', true, 'system'),
 ('CORE_INTEGRATION_WHATSAPP', 'Configurar WhatsApp', 'Permite editar tokens y plantillas de Meta Cloud', 'MOD_INTEGRATIONS', true, 'system'),
 ('CORE_INTEGRATION_TEST', 'Pruebas de Diagnóstico', 'Permite enviar mensajes y cobros de prueba', 'MOD_INTEGRATIONS', true, 'system'),
 ('CORE_NOTIF_STAFF', 'Notificaciones a Personal', 'Permite configurar alertas de salida a operadores', 'MOD_INTEGRATIONS', true, 'system'),
 
--- 10. Configuración General
-('CORE_CONFIG_UPDATE', 'Actualizar Configuración', 'Permite ajustar parámetros generales y políticas', 'MOD_SETTINGS', true, 'system'),
+-- 14. Planes y Membresías
+('CORE_MEMBERSHIP_MANAGE', 'Administrar Planes', 'Permite crear o modificar beneficios y membresías', 'MOD_MEMBERSHIPS', true, 'system'),
 
--- 11. Preguntas Frecuentes (FAQs)
+-- 15. Preguntas Frecuentes (FAQs)
 ('CORE_FAQ_CREATE', 'Crear Pregunta/Categoría', 'Permite registrar nuevas preguntas frecuentes y categorías', 'MOD_FAQS', true, 'system'),
 ('CORE_FAQ_UPDATE', 'Editar Pregunta/Categoría', 'Permite modificar respuestas, visibilidad y orden', 'MOD_FAQS', true, 'system'),
 ('CORE_FAQ_DELETE', 'Eliminar Pregunta/Categoría', 'Permite retirar preguntas frecuentes del catálogo', 'MOD_FAQS', true, 'system'),
 
--- 12. Buzón de Sugerencias
+-- 16. Buzón de Sugerencias
 ('CORE_FEEDBACK_VIEW', 'Consultar Buzón', 'Permite ver y filtrar comentarios y rutas sugeridas', 'MOD_SUGGESTIONS', true, 'system'),
 ('CORE_FEEDBACK_STATUS', 'Marcar como Atendido', 'Permite cambiar el estatus de revisión y notas', 'MOD_SUGGESTIONS', true, 'system'),
 ('CORE_FEEDBACK_DELETE', 'Eliminar Sugerencia', 'Permite dar de baja un comentario o sugerencia', 'MOD_SUGGESTIONS', true, 'system'),
 
--- 13. Planes y Membresías
-('CORE_MEMBERSHIP_MANAGE', 'Administrar Planes', 'Permite crear o modificar beneficios y membresías', 'MOD_MEMBERSHIPS', true, 'system'),
-
--- 14. Personal y Accesos (Usuarios, Empleados, Roles)
-('CORE_USER_CREATE', 'Crear Usuario/Empleado', 'Permite dar de alta colaboradores y cuentas de acceso', 'MOD_USERS', true, 'system'),
-('CORE_USER_UPDATE', 'Editar Usuario/Empleado', 'Permite actualizar accesos, correo y credenciales', 'MOD_USERS', true, 'system'),
-('CORE_USER_DELETE', 'Eliminar Usuario/Empleado', 'Permite desactivar o dar de baja colaboradores', 'MOD_USERS', true, 'system'),
-('CORE_ROLE_MANAGE', 'Administrar Roles', 'Permite gestionar perfiles y asignaciones de rol', 'MOD_USERS', true, 'system'),
-('CORE_PERM_MANAGE', 'Administrar Permisos', 'Permite modificar y conceder permisos específicos', 'MOD_USERS', true, 'system')
+-- 17. Licenciamiento OmniSphere
+('CORE_LICENSE_MANAGE', 'Administrar Licencias', 'Permite activar claves y gestionar licencias del sistema', 'MOD_LICENSE', true, 'system')
 ON CONFLICT ("Code") DO UPDATE SET
     "Name" = EXCLUDED."Name",
     "Description" = EXCLUDED."Description",
     "ModuleCode" = EXCLUDED."ModuleCode",
     "IsActive" = true;
+
+-- Conceder todos los permisos al rol ADMIN
+INSERT INTO "RolePermissions" ("RoleCode", "PermissionCode", "IsActive", "CreatedBy")
+SELECT 'ADMIN', "Code", true, 'system'
+FROM "Permissions"
+ON CONFLICT ("RoleCode", "PermissionCode") DO UPDATE SET "IsActive" = true;
+
+-- Conceder todos los módulos al rol ADMIN
+INSERT INTO "RoleModules" ("RoleCode", "ModuleCode", "IsActive", "CreatedBy")
+SELECT 'ADMIN', "Code", true, 'system'
+FROM "Modules"
+ON CONFLICT ("RoleCode", "ModuleCode") DO UPDATE SET "IsActive" = true;
 
 -- Access Control & Permissions catalog seeded. No default roles created.
 
