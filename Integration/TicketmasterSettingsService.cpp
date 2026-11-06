@@ -249,7 +249,7 @@ namespace omnisphere::services
     {
         std::vector<TicketmasterVenue> results;
         auto settingsOpt = GetSettings(true);
-        if (!settingsOpt.has_value() || settingsOpt->apiKey.empty())
+        if (!settingsOpt.has_value() || !settingsOpt->isActive || settingsOpt->apiKey.empty())
         {
             return results;
         }
