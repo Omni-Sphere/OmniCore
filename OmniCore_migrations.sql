@@ -1168,6 +1168,14 @@ CREATE TABLE IF NOT EXISTS "AuthorizationAuditLog" (
 CREATE INDEX IF NOT EXISTS "IDX_AuthAudit_UserCode" ON "AuthorizationAuditLog" ("UserCode");
 CREATE INDEX IF NOT EXISTS "IDX_AuthAudit_CreateDate" ON "AuthorizationAuditLog" ("CreateDate");
 
+-- Cleanup obsolete/deprecated modules and permissions from database
+DELETE FROM "Permissions" WHERE "ModuleCode" IN ('MOD_CATALOGS', 'MOD_CUSTOMERS') OR "Code" IN ('ROUTE_CATALOG_CREATE', 'ROUTE_CATALOG_UPDATE', 'ROUTE_CATALOG_DELETE', 'CORE_CUSTOMER_CREATE', 'CORE_CUSTOMER_UPDATE', 'CORE_CUSTOMER_DELETE');
+DELETE FROM "UserPermissions" WHERE "PermissionCode" IN ('ROUTE_CATALOG_CREATE', 'ROUTE_CATALOG_UPDATE', 'ROUTE_CATALOG_DELETE', 'CORE_CUSTOMER_CREATE', 'CORE_CUSTOMER_UPDATE', 'CORE_CUSTOMER_DELETE');
+DELETE FROM "RolePermissions" WHERE "PermissionCode" IN ('ROUTE_CATALOG_CREATE', 'ROUTE_CATALOG_UPDATE', 'ROUTE_CATALOG_DELETE', 'CORE_CUSTOMER_CREATE', 'CORE_CUSTOMER_UPDATE', 'CORE_CUSTOMER_DELETE');
+DELETE FROM "RoleModules" WHERE "ModuleCode" IN ('MOD_CATALOGS', 'MOD_CUSTOMERS');
+DELETE FROM "UserModules" WHERE "ModuleCode" IN ('MOD_CATALOGS', 'MOD_CUSTOMERS');
+DELETE FROM "Modules" WHERE "Code" IN ('MOD_CATALOGS', 'MOD_CUSTOMERS');
+
 -- Seed Modules (15 Modules)
 INSERT INTO "Modules" ("Code", "Name", "Description", "Icon", "SortOrder", "IsActive", "CreatedBy") VALUES
 ('MOD_OVERVIEW', 'Panel Analítico', 'Métricas, KPIs y estadísticas globales', 'dashboard', 1, true, 'system'),
