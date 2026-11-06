@@ -1168,20 +1168,23 @@ CREATE TABLE IF NOT EXISTS "AuthorizationAuditLog" (
 CREATE INDEX IF NOT EXISTS "IDX_AuthAudit_UserCode" ON "AuthorizationAuditLog" ("UserCode");
 CREATE INDEX IF NOT EXISTS "IDX_AuthAudit_CreateDate" ON "AuthorizationAuditLog" ("CreateDate");
 
--- Seed Modules (12 Modules)
+-- Seed Modules (15 Modules)
 INSERT INTO "Modules" ("Code", "Name", "Description", "Icon", "SortOrder", "IsActive", "CreatedBy") VALUES
 ('MOD_OVERVIEW', 'Panel Analítico', 'Métricas, KPIs y estadísticas globales', 'dashboard', 1, true, 'system'),
-('MOD_RESERVATIONS', 'Reservaciones', 'Gestión de boletos, pasajeros y cobros', 'confirmation_number', 2, true, 'system'),
-('MOD_SCHEDULES', 'Horarios y Salidas', 'Programación de corridas y viajes', 'schedule', 3, true, 'system'),
-('MOD_VENUES', 'Destinos', 'Gestión de destinos, sedes y recintos', 'flag', 4, true, 'system'),
-('MOD_POINTS', 'Orígenes y Paradas', 'Puntos de abordaje y paradas intermedias', 'place', 5, true, 'system'),
-('MOD_ROUTES', 'Rutas de Viaje', 'Trazado de rutas y tarifas base', 'alt_route', 6, true, 'system'),
-('MOD_EVENTS', 'Eventos', 'Conciertos, festivales y eventos', 'event', 7, true, 'system'),
-('MOD_PAYMENTS', 'Formas de Pago', 'Métodos de pago y cuentas bancarias', 'payments', 8, true, 'system'),
-('MOD_INTEGRATIONS', 'Integraciones', 'Configuración de pasarelas y WhatsApp Cloud API', 'hub', 9, true, 'system'),
-('MOD_SETTINGS', 'Configuración General', 'Parámetros del sistema y políticas', 'settings', 10, true, 'system'),
-('MOD_MEMBERSHIPS', 'Planes y Membresías', 'Gestión de suscripciones y beneficios', 'card_membership', 11, true, 'system'),
-('MOD_USERS', 'Personal y Accesos', 'Usuarios, colaboradores, roles y permisos', 'manage_accounts', 12, true, 'system')
+('MOD_DASHBOARD', 'Panel del Pasajero', 'Consulta de boletos e itinerario personal', 'confirmation_number', 2, true, 'system'),
+('MOD_RESERVATIONS', 'Reservaciones', 'Gestión de boletos, pasajeros y cobros', 'confirmation_number', 3, true, 'system'),
+('MOD_SCHEDULES', 'Horarios y Salidas', 'Programación de corridas y viajes', 'schedule', 4, true, 'system'),
+('MOD_VENUES', 'Destinos', 'Gestión de destinos, sedes y recintos', 'flag', 5, true, 'system'),
+('MOD_POINTS', 'Orígenes y Paradas', 'Puntos de abordaje y paradas intermedias', 'place', 6, true, 'system'),
+('MOD_ROUTES', 'Rutas de Viaje', 'Trazado de rutas y tarifas base', 'alt_route', 7, true, 'system'),
+('MOD_EVENTS', 'Eventos', 'Conciertos, festivales y eventos', 'event', 8, true, 'system'),
+('MOD_PAYMENTS', 'Formas de Pago', 'Métodos de pago y cuentas bancarias', 'payments', 9, true, 'system'),
+('MOD_INTEGRATIONS', 'Integraciones', 'Configuración de pasarelas y WhatsApp Cloud API', 'hub', 10, true, 'system'),
+('MOD_SETTINGS', 'Configuración General', 'Parámetros del sistema y políticas', 'settings', 11, true, 'system'),
+('MOD_FAQS', 'Preguntas Frecuentes', 'Gestión de preguntas frecuentes y categorías', 'quiz', 12, true, 'system'),
+('MOD_SUGGESTIONS', 'Buzón de Sugerencias', 'Gestión de sugerencias y rutas deseadas', 'inbox', 13, true, 'system'),
+('MOD_MEMBERSHIPS', 'Planes y Membresías', 'Gestión de suscripciones y beneficios', 'card_membership', 14, true, 'system'),
+('MOD_USERS', 'Personal y Accesos', 'Usuarios, colaboradores, roles y permisos', 'manage_accounts', 15, true, 'system')
 ON CONFLICT ("Code") DO UPDATE SET
     "Name" = EXCLUDED."Name",
     "Description" = EXCLUDED."Description",
@@ -1242,10 +1245,20 @@ INSERT INTO "Permissions" ("Code", "Name", "Description", "ModuleCode", "IsActiv
 -- 10. Configuración General
 ('CORE_CONFIG_UPDATE', 'Actualizar Configuración', 'Permite ajustar parámetros generales y políticas', 'MOD_SETTINGS', true, 'system'),
 
--- 11. Planes y Membresías
+-- 11. Preguntas Frecuentes (FAQs)
+('CORE_FAQ_CREATE', 'Crear Pregunta/Categoría', 'Permite registrar nuevas preguntas frecuentes y categorías', 'MOD_FAQS', true, 'system'),
+('CORE_FAQ_UPDATE', 'Editar Pregunta/Categoría', 'Permite modificar respuestas, visibilidad y orden', 'MOD_FAQS', true, 'system'),
+('CORE_FAQ_DELETE', 'Eliminar Pregunta/Categoría', 'Permite retirar preguntas frecuentes del catálogo', 'MOD_FAQS', true, 'system'),
+
+-- 12. Buzón de Sugerencias
+('CORE_FEEDBACK_VIEW', 'Consultar Buzón', 'Permite ver y filtrar comentarios y rutas sugeridas', 'MOD_SUGGESTIONS', true, 'system'),
+('CORE_FEEDBACK_STATUS', 'Marcar como Atendido', 'Permite cambiar el estatus de revisión y notas', 'MOD_SUGGESTIONS', true, 'system'),
+('CORE_FEEDBACK_DELETE', 'Eliminar Sugerencia', 'Permite dar de baja un comentario o sugerencia', 'MOD_SUGGESTIONS', true, 'system'),
+
+-- 13. Planes y Membresías
 ('CORE_MEMBERSHIP_MANAGE', 'Administrar Planes', 'Permite crear o modificar beneficios y membresías', 'MOD_MEMBERSHIPS', true, 'system'),
 
--- 12. Personal y Accesos (Usuarios, Empleados, Roles)
+-- 14. Personal y Accesos (Usuarios, Empleados, Roles)
 ('CORE_USER_CREATE', 'Crear Usuario/Empleado', 'Permite dar de alta colaboradores y cuentas de acceso', 'MOD_USERS', true, 'system'),
 ('CORE_USER_UPDATE', 'Editar Usuario/Empleado', 'Permite actualizar accesos, correo y credenciales', 'MOD_USERS', true, 'system'),
 ('CORE_USER_DELETE', 'Eliminar Usuario/Empleado', 'Permite desactivar o dar de baja colaboradores', 'MOD_USERS', true, 'system'),

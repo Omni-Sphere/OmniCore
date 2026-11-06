@@ -33,6 +33,14 @@ namespace omnisphere::enums
 
         // Configuración General
         CORE_CONFIG_UPDATE,
+        CORE_FAQ_MANAGE,
+        CORE_FEEDBACK_MANAGE,
+        CORE_FAQ_CREATE,
+        CORE_FAQ_UPDATE,
+        CORE_FAQ_DELETE,
+        CORE_FEEDBACK_VIEW,
+        CORE_FEEDBACK_STATUS,
+        CORE_FEEDBACK_DELETE,
 
         // Métodos de Pago y Cuentas Bancarias
         CORE_PAYMENT_CREATE,
@@ -156,6 +164,14 @@ namespace omnisphere::enums
             case PermissionType::CORE_ROLE_MANAGE: return "CORE_ROLE_MANAGE";
             case PermissionType::CORE_PERM_MANAGE: return "CORE_PERM_MANAGE";
             case PermissionType::CORE_CONFIG_UPDATE: return "CORE_CONFIG_UPDATE";
+            case PermissionType::CORE_FAQ_MANAGE: return "CORE_FAQ_MANAGE";
+            case PermissionType::CORE_FEEDBACK_MANAGE: return "CORE_FEEDBACK_MANAGE";
+            case PermissionType::CORE_FAQ_CREATE: return "CORE_FAQ_CREATE";
+            case PermissionType::CORE_FAQ_UPDATE: return "CORE_FAQ_UPDATE";
+            case PermissionType::CORE_FAQ_DELETE: return "CORE_FAQ_DELETE";
+            case PermissionType::CORE_FEEDBACK_VIEW: return "CORE_FEEDBACK_VIEW";
+            case PermissionType::CORE_FEEDBACK_STATUS: return "CORE_FEEDBACK_STATUS";
+            case PermissionType::CORE_FEEDBACK_DELETE: return "CORE_FEEDBACK_DELETE";
             case PermissionType::CORE_PAYMENT_CREATE: return "CORE_PAYMENT_CREATE";
             case PermissionType::CORE_PAYMENT_UPDATE: return "CORE_PAYMENT_UPDATE";
             case PermissionType::CORE_PAYMENT_DELETE: return "CORE_PAYMENT_DELETE";
@@ -252,6 +268,14 @@ namespace omnisphere::enums
         if (str == "CORE_ROLE_MANAGE") return PermissionType::CORE_ROLE_MANAGE;
         if (str == "CORE_PERM_MANAGE") return PermissionType::CORE_PERM_MANAGE;
         if (str == "CORE_CONFIG_UPDATE") return PermissionType::CORE_CONFIG_UPDATE;
+        if (str == "CORE_FAQ_MANAGE") return PermissionType::CORE_FAQ_MANAGE;
+        if (str == "CORE_FEEDBACK_MANAGE") return PermissionType::CORE_FEEDBACK_MANAGE;
+        if (str == "CORE_FAQ_CREATE") return PermissionType::CORE_FAQ_CREATE;
+        if (str == "CORE_FAQ_UPDATE") return PermissionType::CORE_FAQ_UPDATE;
+        if (str == "CORE_FAQ_DELETE") return PermissionType::CORE_FAQ_DELETE;
+        if (str == "CORE_FEEDBACK_VIEW") return PermissionType::CORE_FEEDBACK_VIEW;
+        if (str == "CORE_FEEDBACK_STATUS") return PermissionType::CORE_FEEDBACK_STATUS;
+        if (str == "CORE_FEEDBACK_DELETE") return PermissionType::CORE_FEEDBACK_DELETE;
         if (str == "CORE_PAYMENT_CREATE") return PermissionType::CORE_PAYMENT_CREATE;
         if (str == "CORE_PAYMENT_UPDATE") return PermissionType::CORE_PAYMENT_UPDATE;
         if (str == "CORE_PAYMENT_DELETE") return PermissionType::CORE_PAYMENT_DELETE;
