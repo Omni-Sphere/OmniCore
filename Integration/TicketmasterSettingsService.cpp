@@ -469,14 +469,12 @@ namespace omnisphere::services
                     }
                 }
 
-                // Comparar contra venues de nuestra base de datos (por similitud de nombre)
+                // Comparar contra venues de nuestra base de datos (por igualdad exacta normalizada)
                 std::string normTm = NormalizeString(tv.name);
                 for (const auto& [dbName, dbCode] : existingVenues)
                 {
                     std::string normDb = NormalizeString(dbName);
-                    if (normTm == normDb ||
-                        (!normTm.empty() && normDb.find(normTm) != std::string::npos) ||
-                        (!normDb.empty() && normTm.find(normDb) != std::string::npos))
+                    if (!normTm.empty() && normTm == normDb)
                     {
                         tv.existsInDatabase = true;
                         tv.existingVenueCode = dbCode;
