@@ -242,16 +242,17 @@ namespace omnisphere::services
         return escaped.str();
     }
 
-    std::vector<TicketmasterVenue> TicketmasterSettingsService::PreviewVenues(
+    TicketmasterVenuePage TicketmasterSettingsService::PreviewVenues(
         const std::string& city,
         const std::string& countryCode,
+        int page,
         int size) const
     {
-        std::vector<TicketmasterVenue> results;
+        TicketmasterVenuePage resultPage;
         auto settingsOpt = GetSettings(true);
         if (!settingsOpt.has_value() || !settingsOpt->isActive || settingsOpt->apiKey.empty())
         {
-            return results;
+            return resultPage;
         }
 
         auto settings = settingsOpt.value();
@@ -266,11 +267,13 @@ namespace omnisphere::services
         std::string version = settings.apiVersion.empty() ? "v2" : settings.apiVersion;
         std::string targetCity = !city.empty() ? city : settings.defaultCity.value_or("Ciudad de México");
         std::string targetCountry = !countryCode.empty() ? countryCode : (!settings.defaultCountryCode.empty() ? settings.defaultCountryCode : "MX");
-        int targetSize = (size <= 0 || size > 50) ? 20 : size;
+        int targetPage = (page < 0) ? 0 : page;
+        int targetSize = (size <= 0 || size > 200) ? 20 : size;
 
         std::string target = "/discovery/" + version + "/venues.json?apikey=" + settings.apiKey +
                              "&countryCode=" + targetCountry +
                              "&city=" + UrlEncode(targetCity) +
+                             "&page=" + std::to_string(targetPage) +
                              "&size=" + std::to_string(targetSize) +
                              "&sort=relevance,desc";
 
@@ -295,7 +298,7 @@ namespace omnisphere::services
             if (!SSL_set_tlsext_host_name(stream.native_handle(), host.c_str()))
             {
                 std::cerr << "[Ticketmaster::PreviewVenues] Error SSL_set_tlsext_host_name para " << host << std::endl;
-                return results;
+                return resultPage;
             }
 
             auto const endpoints = resolver.resolve(host, "443");
@@ -327,13 +330,13 @@ namespace omnisphere::services
         catch (const std::exception& ex)
         {
             std::cerr << "[Ticketmaster::PreviewVenues EXCEPCION HTTP] " << ex.what() << std::endl;
-            return results;
+            return resultPage;
         }
 
         if (status != 200 || responseBody.empty())
         {
             std::cerr << "[Ticketmaster::PreviewVenues] Fallo en la llamada: HTTP Status " << status << std::endl;
-            return results;
+            return resultPage;
         }
 
         // Leer lugares ya registrados en nuestra base de datos para comparar / unir
@@ -345,20 +348,40 @@ namespace omnisphere::services
             if (!jsonVal.is_object())
             {
                 std::cerr << "[Ticketmaster::PreviewVenues] El JSON raíz no es un objeto válido" << std::endl;
-                return results;
+                return resultPage;
             }
             auto const& obj = jsonVal.as_object();
+
+            // Parsear metadatos de paginación del bloque "page"
+            if (obj.contains("page") && obj.at("page").is_object())
+            {
+                auto const& pObj = obj.at("page").as_object();
+                if (pObj.contains("totalElements") && pObj.at("totalElements").is_number())
+                    resultPage.pageInfo.totalElements = static_cast<int>(pObj.at("totalElements").to_number<int64_t>());
+                if (pObj.contains("totalPages") && pObj.at("totalPages").is_number())
+                    resultPage.pageInfo.totalPages = static_cast<int>(pObj.at("totalPages").to_number<int64_t>());
+                if (pObj.contains("number") && pObj.at("number").is_number())
+                    resultPage.pageInfo.pageNumber = static_cast<int>(pObj.at("number").to_number<int64_t>());
+                if (pObj.contains("size") && pObj.at("size").is_number())
+                    resultPage.pageInfo.pageSize = static_cast<int>(pObj.at("size").to_number<int64_t>());
+            }
+            else
+            {
+                resultPage.pageInfo.pageNumber = targetPage;
+                resultPage.pageInfo.pageSize = targetSize;
+            }
+
             if (!obj.contains("_embedded") || !obj.at("_embedded").is_object())
             {
                 std::cout << "[Ticketmaster::PreviewVenues] La respuesta no contiene '_embedded' (0 recintos encontrados)" << std::endl;
-                return results;
+                return resultPage;
             }
 
             auto const& embedded = obj.at("_embedded").as_object();
             if (!embedded.contains("venues") || !embedded.at("venues").is_array())
             {
                 std::cout << "[Ticketmaster::PreviewVenues] No se encontró el arreglo 'venues' en '_embedded'" << std::endl;
-                return results;
+                return resultPage;
             }
 
             auto const& venuesArr = embedded.at("venues").as_array();
@@ -412,7 +435,7 @@ namespace omnisphere::services
                     }
                 }
 
-                results.push_back(tv);
+                resultPage.items.push_back(tv);
             }
         }
         catch (const std::exception& ex)
@@ -420,6 +443,6 @@ namespace omnisphere::services
             std::cerr << "[TicketmasterSettingsService::PreviewVenues Parse Exception] " << ex.what() << std::endl;
         }
 
-        return results;
+        return resultPage;
     }
 }
