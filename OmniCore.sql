@@ -1232,6 +1232,8 @@ INSERT INTO "Permissions" ("Code", "Name", "Description", "ModuleCode", "IsActiv
 ('ROUTE_VENUE_CREATE', 'Registrar Destino', 'Permite dar de alta nuevos destinos y recintos', 'MOD_VENUES', true, 'system'),
 ('ROUTE_VENUE_UPDATE', 'Modificar Destino', 'Permite editar dirección, ciudad y nombre del destino', 'MOD_VENUES', true, 'system'),
 ('ROUTE_VENUE_DELETE', 'Eliminar Destino', 'Permite eliminar destinos registrados', 'MOD_VENUES', true, 'system'),
+('ROUTE_VENUE_TM_SEARCH', 'Explorar Ticketmaster (Lugares)', 'Permite buscar recintos en Ticketmaster Discovery', 'MOD_VENUES', true, 'system'),
+('ROUTE_VENUE_TM_SYNC', 'Sincronizar Lugares Ticketmaster', 'Permite aceptar e importar recintos de Ticketmaster a destinos locales', 'MOD_VENUES', true, 'system'),
 
 -- 05. Orígenes y Paradas (Points)
 ('ROUTE_POINT_VIEW', 'Consultar Paradas', 'Permite consultar puntos de abordaje y paradas', 'MOD_POINTS', true, 'system'),
@@ -1250,6 +1252,8 @@ INSERT INTO "Permissions" ("Code", "Name", "Description", "ModuleCode", "IsActiv
 ('ROUTE_EVENT_CREATE', 'Crear Evento', 'Permite dar de alta nuevos conciertos o festivales', 'MOD_EVENTS', true, 'system'),
 ('ROUTE_EVENT_UPDATE', 'Editar Evento', 'Permite actualizar datos, fecha o imagen del evento', 'MOD_EVENTS', true, 'system'),
 ('ROUTE_EVENT_DELETE', 'Eliminar Evento', 'Permite retirar eventos del sistema', 'MOD_EVENTS', true, 'system'),
+('ROUTE_EVENT_TM_SEARCH', 'Explorar Ticketmaster (Eventos)', 'Permite buscar y previsualizar eventos de Ticketmaster Discovery', 'MOD_EVENTS', true, 'system'),
+('ROUTE_EVENT_TM_SYNC', 'Sincronizar Eventos Ticketmaster', 'Permite aceptar e importar eventos de Ticketmaster a la cartelera', 'MOD_EVENTS', true, 'system'),
 
 -- 08. Configuración General
 ('CORE_CONFIG_UPDATE', 'Actualizar Configuración', 'Permite ajustar parámetros generales y políticas', 'MOD_SETTINGS', true, 'system'),
@@ -1282,6 +1286,7 @@ INSERT INTO "Permissions" ("Code", "Name", "Description", "ModuleCode", "IsActiv
 -- 13. Notificaciones e Integraciones
 ('CORE_INTEGRATION_STRIPE', 'Configurar Stripe', 'Permite configurar API keys y webhooks de cobros', 'MOD_INTEGRATIONS', true, 'system'),
 ('CORE_INTEGRATION_WHATSAPP', 'Configurar WhatsApp', 'Permite editar tokens y plantillas de Meta Cloud', 'MOD_INTEGRATIONS', true, 'system'),
+('CORE_INTEGRATION_TICKETMASTER', 'Configurar Ticketmaster', 'Permite configurar API keys y ajustes de Ticketmaster Discovery', 'MOD_INTEGRATIONS', true, 'system'),
 ('CORE_INTEGRATION_TEST', 'Pruebas de Diagnóstico', 'Permite enviar mensajes y cobros de prueba', 'MOD_INTEGRATIONS', true, 'system'),
 ('CORE_NOTIF_STAFF', 'Notificaciones a Personal', 'Permite configurar alertas de salida a operadores', 'MOD_INTEGRATIONS', true, 'system'),
 
