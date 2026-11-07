@@ -429,6 +429,46 @@ namespace omnisphere::services
                     }
                 }
 
+                std::string venueState = "";
+                if (vObj.contains("state") && vObj.at("state").is_object())
+                {
+                    auto const& stObj = vObj.at("state").as_object();
+                    if (stObj.contains("name") && stObj.at("name").is_string())
+                    {
+                        venueState = std::string(stObj.at("name").as_string());
+                    }
+                }
+
+                // Si se configuró una ciudad objetivo específica (ej. "Ciudad de México")
+                // y la búsqueda no tiene keyword libre, validar que el recinto pertenezca a la ciudad o estado
+                if (keyword.empty() && !targetCity.empty() && targetCity != "All")
+                {
+                    std::string normTarget = NormalizeString(targetCity);
+                    std::string normCity = NormalizeString(tv.city);
+                    std::string normState = NormalizeString(venueState);
+
+                    bool matchesTarget = (normCity.find(normTarget) != std::string::npos ||
+                                          normTarget.find(normCity) != std::string::npos ||
+                                          normState.find(normTarget) != std::string::npos ||
+                                          normTarget.find(normState) != std::string::npos);
+
+                    // Casos especiales CDMX / México / Estado de México
+                    if (!matchesTarget && (normTarget.find("mexico") != std::string::npos || normTarget.find("cdmx") != std::string::npos))
+                    {
+                        if (normCity.find("mexico") != std::string::npos || normCity.find("cdmx") != std::string::npos ||
+                            normState.find("mexico") != std::string::npos || normState.find("cdmx") != std::string::npos)
+                        {
+                            matchesTarget = true;
+                        }
+                    }
+
+                    if (!matchesTarget)
+                    {
+                        // Descartar recintos que Ticketmaster mezcla de otros estados lejanos (ej. Acapulco, Rosarito, Zapopan)
+                        continue;
+                    }
+                }
+
                 // Comparar contra venues de nuestra base de datos (por similitud de nombre)
                 std::string normTm = NormalizeString(tv.name);
                 for (const auto& [dbName, dbCode] : existingVenues)
