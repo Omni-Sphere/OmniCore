@@ -274,16 +274,19 @@ namespace omnisphere::services
         std::string target = "/discovery/" + version + "/venues.json?apikey=" + settings.apiKey +
                              "&countryCode=" + targetCountry +
                              "&page=" + std::to_string(targetPage) +
-                             "&size=" + std::to_string(targetSize) +
-                             "&sort=relevance,desc";
+                             "&size=" + std::to_string(targetSize);
 
         if (!keyword.empty())
         {
             target += "&keyword=" + UrlEncode(keyword);
         }
-        else if (!targetCity.empty() && targetCity != "All")
+        else
         {
-            target += "&city=" + UrlEncode(targetCity);
+            target += "&sort=name,asc";
+            if (!targetCity.empty() && targetCity != "All")
+            {
+                target += "&city=" + UrlEncode(targetCity);
+            }
         }
 
         std::cout << "\n=======================================================\n";
