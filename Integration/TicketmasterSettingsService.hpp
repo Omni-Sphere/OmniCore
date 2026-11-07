@@ -55,6 +55,6 @@ namespace omnisphere::services
         std::optional<omnisphere::models::TicketmasterSettings> GetSettings(bool decryptKeys = false) const;
         bool SaveSettings(const omnisphere::models::TicketmasterSettings& settings, const std::vector<std::string>& mutationFields = {}) const;
         TicketmasterTestIntegrationResult TestIntegration() const;
-        TicketmasterVenuePage PreviewVenues(const std::string& city = "Ciudad de México", const std::string& countryCode = "MX", int page = 0, int size = 20) const;
+        TicketmasterVenuePage PreviewVenues(const std::string& city = "Ciudad de México", const std::string& countryCode = "MX", const std::string& keyword = "", int page = 0, int size = 20) const;
     };
 }

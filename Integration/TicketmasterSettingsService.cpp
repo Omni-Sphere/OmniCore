@@ -245,6 +245,7 @@ namespace omnisphere::services
     TicketmasterVenuePage TicketmasterSettingsService::PreviewVenues(
         const std::string& city,
         const std::string& countryCode,
+        const std::string& keyword,
         int page,
         int size) const
     {
@@ -272,10 +273,18 @@ namespace omnisphere::services
 
         std::string target = "/discovery/" + version + "/venues.json?apikey=" + settings.apiKey +
                              "&countryCode=" + targetCountry +
-                             "&city=" + UrlEncode(targetCity) +
                              "&page=" + std::to_string(targetPage) +
                              "&size=" + std::to_string(targetSize) +
                              "&sort=relevance,desc";
+
+        if (!keyword.empty())
+        {
+            target += "&keyword=" + UrlEncode(keyword);
+        }
+        else if (!targetCity.empty() && targetCity != "All")
+        {
+            target += "&city=" + UrlEncode(targetCity);
+        }
 
         std::cout << "\n=======================================================\n";
         std::cout << "[Ticketmaster::PreviewVenues] INICIANDO PETICION EXTERNA\n";
