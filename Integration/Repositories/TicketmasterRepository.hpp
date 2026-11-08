@@ -21,5 +21,6 @@ namespace omnisphere::repositories
         bool Create(const omnisphere::models::TicketmasterSettings& settings, const std::vector<std::string>& mutationFields = {}) const;
         bool Update(const omnisphere::models::TicketmasterSettings& settings, const std::vector<std::string>& mutationFields = {}) const;
         std::vector<std::pair<std::string, std::string>> GetExistingVenues() const; // returns pair<Name, Code>
+        std::vector<std::pair<std::string, std::string>> GetExistingEvents() const; // returns pair<Name, Code>
     };
 }

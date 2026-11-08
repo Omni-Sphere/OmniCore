@@ -495,4 +495,301 @@ namespace omnisphere::services
 
         return resultPage;
     }
+
+    TicketmasterEventPage TicketmasterSettingsService::PreviewEvents(
+        const std::string& city,
+        const std::string& countryCode,
+        const std::string& classification,
+        const std::string& keyword,
+        int page,
+        int size) const
+    {
+        TicketmasterEventPage resultPage;
+        auto settingsOpt = GetSettings(true);
+        if (!settingsOpt.has_value() || !settingsOpt->isActive || settingsOpt->apiKey.empty())
+        {
+            return resultPage;
+        }
+
+        auto settings = settingsOpt.value();
+        std::string host = "app.ticketmaster.com";
+        std::string baseUrl = settings.apiBaseUrl;
+        auto schemePos = baseUrl.find("://");
+        if (schemePos != std::string::npos) baseUrl = baseUrl.substr(schemePos + 3);
+        auto slashPos = baseUrl.find('/');
+        if (slashPos != std::string::npos) host = baseUrl.substr(0, slashPos);
+        else if (!baseUrl.empty()) host = baseUrl;
+
+        std::string version = settings.apiVersion.empty() ? "v2" : settings.apiVersion;
+        std::string targetCity = !city.empty() ? city : settings.defaultCity.value_or("Ciudad de México");
+        std::string targetCountry = !countryCode.empty() ? countryCode : (!settings.defaultCountryCode.empty() ? settings.defaultCountryCode : "MX");
+        std::string targetClassification = !classification.empty() ? classification : settings.defaultClassification.value_or("Music");
+        int targetPage = (page < 0) ? 0 : page;
+        int targetSize = (size <= 0 || size > 200) ? 20 : size;
+
+        std::string target = "/discovery/" + version + "/events.json?apikey=" + settings.apiKey +
+                             "&countryCode=" + targetCountry +
+                             "&page=" + std::to_string(targetPage) +
+                             "&size=" + std::to_string(targetSize) +
+                             "&sort=date,asc";
+
+        if (!keyword.empty())
+        {
+            target += "&keyword=" + UrlEncode(keyword);
+        }
+        else if (!targetCity.empty() && targetCity != "All")
+        {
+            target += "&city=" + UrlEncode(targetCity);
+        }
+
+        if (!targetClassification.empty() && targetClassification != "All")
+        {
+            target += "&classificationName=" + UrlEncode(targetClassification);
+        }
+
+        std::cout << "\n=======================================================\n";
+        std::cout << "[Ticketmaster::PreviewEvents] INICIANDO PETICION EXTERNA\n";
+        std::cout << "Host: " << host << ":443\n";
+        std::cout << "Target: " << target << "\n";
+        std::cout << "=======================================================\n" << std::endl;
+
+        std::string responseBody;
+        int status = 0;
+        try
+        {
+            boost::asio::io_context ioc;
+            boost::asio::ssl::context sslCtx(boost::asio::ssl::context::tlsv12_client);
+            sslCtx.set_default_verify_paths();
+
+            boost::asio::ip::tcp::resolver resolver(ioc);
+            boost::asio::ssl::stream<boost::asio::ip::tcp::socket> stream(ioc, sslCtx);
+
+            if (!SSL_set_tlsext_host_name(stream.native_handle(), host.c_str()))
+            {
+                std::cerr << "[Ticketmaster::PreviewEvents] Error SSL_set_tlsext_host_name para " << host << std::endl;
+                return resultPage;
+            }
+
+            auto const endpoints = resolver.resolve(host, "443");
+            boost::asio::connect(stream.next_layer(), endpoints.begin(), endpoints.end());
+            stream.handshake(boost::asio::ssl::stream_base::client);
+
+            boost::beast::http::request<boost::beast::http::empty_body> req{boost::beast::http::verb::get, target, 11};
+            req.set(boost::beast::http::field::host, host);
+            req.set(boost::beast::http::field::user_agent, "OmniSphere-C++/1.0");
+            req.set(boost::beast::http::field::accept, "application/json");
+            req.prepare_payload();
+
+            boost::beast::http::write(stream, req);
+
+            boost::beast::flat_buffer buffer;
+            boost::beast::http::response<boost::beast::http::dynamic_body> response;
+            boost::beast::http::read(stream, buffer, response);
+
+            status = static_cast<int>(response.result_int());
+            responseBody = boost::beast::buffers_to_string(response.body().data());
+
+            std::cout << "\n=======================================================\n";
+            std::cout << "[Ticketmaster::PreviewEvents] RESPUESTA RECIBIDA\n";
+            std::cout << "Status HTTP: " << status << "\n";
+            std::cout << "Body Preview (primeros 500 chars):\n" 
+                      << responseBody.substr(0, 500) << "\n";
+            std::cout << "=======================================================\n" << std::endl;
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[Ticketmaster::PreviewEvents EXCEPCION HTTP] " << ex.what() << std::endl;
+            return resultPage;
+        }
+
+        if (status != 200 || responseBody.empty())
+        {
+            std::cerr << "[Ticketmaster::PreviewEvents] Fallo en la llamada: HTTP Status " << status << std::endl;
+            return resultPage;
+        }
+
+        auto existingEvents = m_repository ? m_repository->GetExistingEvents() : std::vector<std::pair<std::string, std::string>>{};
+
+        try
+        {
+            auto jsonVal = boost::json::parse(responseBody);
+            if (!jsonVal.is_object())
+            {
+                std::cerr << "[Ticketmaster::PreviewEvents] El JSON raíz no es un objeto válido" << std::endl;
+                return resultPage;
+            }
+            auto const& obj = jsonVal.as_object();
+
+            if (obj.contains("page") && obj.at("page").is_object())
+            {
+                auto const& pObj = obj.at("page").as_object();
+                if (pObj.contains("totalElements") && pObj.at("totalElements").is_number())
+                    resultPage.pageInfo.totalElements = static_cast<int>(pObj.at("totalElements").to_number<int64_t>());
+                if (pObj.contains("totalPages") && pObj.at("totalPages").is_number())
+                    resultPage.pageInfo.totalPages = static_cast<int>(pObj.at("totalPages").to_number<int64_t>());
+                if (pObj.contains("number") && pObj.at("number").is_number())
+                    resultPage.pageInfo.pageNumber = static_cast<int>(pObj.at("number").to_number<int64_t>());
+                if (pObj.contains("size") && pObj.at("size").is_number())
+                    resultPage.pageInfo.pageSize = static_cast<int>(pObj.at("size").to_number<int64_t>());
+            }
+            else
+            {
+                resultPage.pageInfo.pageNumber = targetPage;
+                resultPage.pageInfo.pageSize = targetSize;
+            }
+
+            if (!obj.contains("_embedded") || !obj.at("_embedded").is_object())
+            {
+                std::cout << "[Ticketmaster::PreviewEvents] La respuesta no contiene '_embedded' (0 eventos)" << std::endl;
+                return resultPage;
+            }
+
+            auto const& embedded = obj.at("_embedded").as_object();
+            if (!embedded.contains("events") || !embedded.at("events").is_array())
+            {
+                std::cout << "[Ticketmaster::PreviewEvents] No se encontró el arreglo 'events' en '_embedded'" << std::endl;
+                return resultPage;
+            }
+
+            auto const& eventsArr = embedded.at("events").as_array();
+            std::cout << "[Ticketmaster::PreviewEvents] Eventos parseados: " << eventsArr.size() << std::endl;
+            for (auto const& itemVal : eventsArr)
+            {
+                if (!itemVal.is_object()) continue;
+                auto const& eObj = itemVal.as_object();
+
+                TicketmasterEvent te;
+                if (eObj.contains("id") && eObj.at("id").is_string())
+                    te.id = std::string(eObj.at("id").as_string());
+                if (eObj.contains("name") && eObj.at("name").is_string())
+                    te.title = std::string(eObj.at("name").as_string());
+                if (eObj.contains("url") && eObj.at("url").is_string())
+                    te.url = std::string(eObj.at("url").as_string());
+
+                // Imagen
+                if (eObj.contains("images") && eObj.at("images").is_array())
+                {
+                    auto const& imgs = eObj.at("images").as_array();
+                    for (auto const& imgVal : imgs)
+                    {
+                        if (!imgVal.is_object()) continue;
+                        auto const& imgObj = imgVal.as_object();
+                        if (imgObj.contains("url") && imgObj.at("url").is_string())
+                        {
+                            std::string imgUrl = std::string(imgObj.at("url").as_string());
+                            std::string ratio = imgObj.contains("ratio") && imgObj.at("ratio").is_string() ? std::string(imgObj.at("ratio").as_string()) : "";
+                            int width = imgObj.contains("width") && imgObj.at("width").is_number() ? static_cast<int>(imgObj.at("width").to_number<int64_t>()) : 0;
+                            
+                            if (te.imageUrl.empty() || (ratio == "16_9" && width >= 1000))
+                            {
+                                te.imageUrl = imgUrl;
+                                if (ratio == "16_9" && width >= 1000) break;
+                            }
+                        }
+                    }
+                }
+
+                // Fecha
+                if (eObj.contains("dates") && eObj.at("dates").is_object())
+                {
+                    auto const& datesObj = eObj.at("dates").as_object();
+                    if (datesObj.contains("start") && datesObj.at("start").is_object())
+                    {
+                        auto const& startObj = datesObj.at("start").as_object();
+                        if (startObj.contains("dateTime") && startObj.at("dateTime").is_string())
+                        {
+                            te.date = std::string(startObj.at("dateTime").as_string());
+                        }
+                        else if (startObj.contains("localDate") && startObj.at("localDate").is_string())
+                        {
+                            te.date = std::string(startObj.at("localDate").as_string());
+                        }
+                    }
+                }
+
+                // Categoría
+                if (eObj.contains("classifications") && eObj.at("classifications").is_array())
+                {
+                    auto const& classArr = eObj.at("classifications").as_array();
+                    if (!classArr.empty() && classArr[0].is_object())
+                    {
+                        auto const& c0 = classArr[0].as_object();
+                        if (c0.contains("genre") && c0.at("genre").is_object())
+                        {
+                            auto const& gObj = c0.at("genre").as_object();
+                            if (gObj.contains("name") && gObj.at("name").is_string())
+                            {
+                                te.category = std::string(gObj.at("name").as_string());
+                            }
+                        }
+                        if (te.category.empty() && c0.contains("segment") && c0.at("segment").is_object())
+                        {
+                            auto const& sObj = c0.at("segment").as_object();
+                            if (sObj.contains("name") && sObj.at("name").is_string())
+                            {
+                                te.category = std::string(sObj.at("name").as_string());
+                            }
+                        }
+                    }
+                }
+                if (te.category.empty()) te.category = "Música";
+
+                // Venue info
+                if (eObj.contains("_embedded") && eObj.at("_embedded").is_object())
+                {
+                    auto const& embVen = eObj.at("_embedded").as_object();
+                    if (embVen.contains("venues") && embVen.at("venues").is_array())
+                    {
+                        auto const& vArr = embVen.at("venues").as_array();
+                        if (!vArr.empty() && vArr[0].is_object())
+                        {
+                            auto const& v0 = vArr[0].as_object();
+                            if (v0.contains("name") && v0.at("name").is_string())
+                            {
+                                te.venueName = std::string(v0.at("name").as_string());
+                            }
+                            if (v0.contains("city") && v0.at("city").is_object())
+                            {
+                                auto const& cityObj = v0.at("city").as_object();
+                                if (cityObj.contains("name") && cityObj.at("name").is_string())
+                                {
+                                    te.venueCity = std::string(cityObj.at("name").as_string());
+                                }
+                            }
+                            if (v0.contains("address") && v0.at("address").is_object())
+                            {
+                                auto const& addrObj = v0.at("address").as_object();
+                                if (addrObj.contains("line1") && addrObj.at("line1").is_string())
+                                {
+                                    te.venueAddress = std::string(addrObj.at("line1").as_string());
+                                }
+                            }
+                        }
+                    }
+                }
+                if (te.venueCity.empty()) te.venueCity = targetCity;
+
+                // Comparar contra eventos de nuestra BD por igualdad exacta normalizada
+                std::string normTm = NormalizeString(te.title);
+                for (const auto& [dbName, dbCode] : existingEvents)
+                {
+                    std::string normDb = NormalizeString(dbName);
+                    if (!normTm.empty() && normTm == normDb)
+                    {
+                        te.existsInDatabase = true;
+                        te.existingEventCode = dbCode;
+                        break;
+                    }
+                }
+
+                resultPage.items.push_back(te);
+            }
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "[TicketmasterSettingsService::PreviewEvents Parse Exception] " << ex.what() << std::endl;
+        }
+
+        return resultPage;
+    }
 }
