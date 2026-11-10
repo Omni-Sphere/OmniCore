@@ -23,7 +23,7 @@ namespace omnisphere::repositories
                 FROM "NotificationTypeConfigs"
                 ORDER BY "Entry" ASC
             )";
-            auto dt = conn->Run(sql);
+            auto dt = conn->FetchResults(sql);
             return omnisphere::types::DataTableToModels<omnisphere::models::NotificationTypeConfig>(dt);
         }
         catch (const std::exception& ex)
@@ -46,7 +46,7 @@ namespace omnisphere::repositories
                 WHERE "Code" = ?
                 LIMIT 1
             )";
-            auto dt = conn->RunPrepared(sql, { omnisphere::types::MakeSQLParam(code) });
+            auto dt = conn->FetchPrepared(sql, { omnisphere::types::MakeSQLParam(code) });
             if (!dt.IsEmpty())
             {
                 return omnisphere::types::FromDataRow<omnisphere::models::NotificationTypeConfig>(dt[0]);
@@ -175,10 +175,12 @@ namespace omnisphere::repositories
                 WHERE u."IsActive" = true AND (ur."RoleCode" = 'ADMIN' OR rp."PermissionCode" = ?)
             )";
 
-            auto dt = conn->RunPrepared(sql, { omnisphere::types::MakeSQLParam(permissionCode) });
+            auto dt = conn->FetchPrepared(sql, { omnisphere::types::MakeSQLParam(permissionCode) });
             std::vector<std::string> users;
-            for (const auto& row : dt)
+            size_t count = dt.RowsCount();
+            for (size_t i = 0; i < count; ++i)
             {
+                const auto& row = dt[i];
                 auto codeOpt = row["Code"].GetOptional<std::string>();
                 if (codeOpt.has_value() && !codeOpt->empty())
                 {
@@ -217,7 +219,7 @@ namespace omnisphere::repositories
 
             sql += " ORDER BY n.\"CreateDate\" DESC LIMIT ? ";
 
-            auto dt = conn->RunPrepared(sql, {
+            auto dt = conn->FetchPrepared(sql, {
                 omnisphere::types::MakeSQLParam(userCode),
                 omnisphere::types::MakeSQLParam(limit <= 0 ? 50 : limit)
             });
@@ -243,7 +245,7 @@ namespace omnisphere::repositories
                 WHERE "UserCode" = ? AND "IsRead" = false
             )";
 
-            auto dt = conn->RunPrepared(sql, { omnisphere::types::MakeSQLParam(userCode) });
+            auto dt = conn->FetchPrepared(sql, { omnisphere::types::MakeSQLParam(userCode) });
             if (!dt.IsEmpty())
             {
                 return dt[0]["Count"].GetOptional<int>().value_or(0);

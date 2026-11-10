@@ -63,6 +63,8 @@ add_library(OmniCore SHARED
     Notification/Repositories/WhatsAppRepository.cpp
     Notification/WhatsAppWebhookHandler.cpp
     Notification/WhatsAppWebhookRouter.cpp
+    Notification/SystemNotificationService.cpp
+    Notification/Repositories/SystemNotificationRepository.cpp
     Payment/StripeService.cpp
     Payment/Repositories/StripeRepository.cpp
     Payment/StripeWebhookHandler.cpp

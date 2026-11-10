@@ -1,7 +1,7 @@
 #pragma once
 #include "Notification/Repositories/SystemNotificationRepository.hpp"
 #include <OmniCore/Authorization/Models/SecurityContext.hpp>
-#include <OmniCore/Authorization/AuthorizationMacros.hpp>
+#include <OmniCore/Authorization/Authorization.hpp>
 #include <functional>
 #include <memory>
 #include <vector>
@@ -15,12 +15,19 @@ namespace omnisphere::services
     {
     private:
         std::shared_ptr<omnisphere::repositories::SystemNotificationRepository> m_repo;
+        std::shared_ptr<omnisphere::services::Authorization> m_authService;
         // Callback para disparar el deliver de GraphQL / SSE
         std::function<void(const omnisphere::models::AppNotification&)> m_onNotificationDispatched;
 
     public:
-        explicit SystemNotificationService(std::shared_ptr<omnisphere::repositories::SystemNotificationRepository> repo);
-        explicit SystemNotificationService(std::shared_ptr<omnisphere::data::DatabasePool> dbPool);
+        explicit SystemNotificationService(
+            std::shared_ptr<omnisphere::repositories::SystemNotificationRepository> repo,
+            std::shared_ptr<omnisphere::services::Authorization> authService = nullptr
+        );
+        explicit SystemNotificationService(
+            std::shared_ptr<omnisphere::data::DatabasePool> dbPool,
+            std::shared_ptr<omnisphere::services::Authorization> authService = nullptr
+        );
 
         void SetDispatchCallback(std::function<void(const omnisphere::models::AppNotification&)> cb);
 

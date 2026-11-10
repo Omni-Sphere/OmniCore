@@ -1,15 +1,21 @@
 #include "Notification/SystemNotificationService.hpp"
+#include <OmniCore/Authorization/AuthGuard.hpp>
 #include <iostream>
 
 namespace omnisphere::services
 {
-    SystemNotificationService::SystemNotificationService(std::shared_ptr<omnisphere::repositories::SystemNotificationRepository> repo)
-        : m_repo(std::move(repo))
+    SystemNotificationService::SystemNotificationService(
+        std::shared_ptr<omnisphere::repositories::SystemNotificationRepository> repo,
+        std::shared_ptr<omnisphere::services::Authorization> authService)
+        : m_repo(std::move(repo)), m_authService(std::move(authService))
     {
     }
 
-    SystemNotificationService::SystemNotificationService(std::shared_ptr<omnisphere::data::DatabasePool> dbPool)
-        : m_repo(std::make_shared<omnisphere::repositories::SystemNotificationRepository>(std::move(dbPool)))
+    SystemNotificationService::SystemNotificationService(
+        std::shared_ptr<omnisphere::data::DatabasePool> dbPool,
+        std::shared_ptr<omnisphere::services::Authorization> authService)
+        : m_repo(std::make_shared<omnisphere::repositories::SystemNotificationRepository>(std::move(dbPool))),
+          m_authService(std::move(authService))
     {
     }
 
