@@ -207,6 +207,7 @@ INSERT INTO "Identities" ("Domain", "Prefix1", "CurrentSequence") VALUES
 ('Ticket', 'TCK', 0),
 ('NotificationContact', 'NTC', 0),
 ('NotificationSetting', 'NTS', 0),
+('Notification', 'NTF', 0),
 ('Reservation', 'RSV', 0),
 ('PaymentMethod', 'PMT', 4),
 ('WhatsAppSettings', 'WAS', 0),
@@ -430,6 +431,65 @@ CREATE TABLE IF NOT EXISTS "NotificationSettings" (
     CONSTRAINT "CHK_NotificationSettings_Code" CHECK (LENGTH(TRIM("Code")) > 0),
     CONSTRAINT "CHK_NotificationSettings_OwnerWhatsapp" CHECK (LENGTH(TRIM("OwnerWhatsapp")) >= 7)
 );
+
+-- 15.1 Notificaciones en Tiempo Real & Pendientes (SSE / GraphQL)
+CREATE TABLE IF NOT EXISTS "NotificationTypeConfigs" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(50) NOT NULL UNIQUE,
+    "Name" VARCHAR(100) NOT NULL,
+    "Description" TEXT,
+    "ModuleCode" VARCHAR(50) NOT NULL,
+    "RequiredPermission" VARCHAR(100) NOT NULL,
+    "IsEnabled" BOOLEAN NOT NULL DEFAULT true,
+    "RolesAllowed" TEXT,
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'SYSTEM',
+    "CreateDate" TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "LastUpdatedBy" VARCHAR(50),
+    "UpdateDate" TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "UQ_NotificationTypeConfigs_Code" UNIQUE ("Code")
+);
+
+CREATE TABLE IF NOT EXISTS "Notifications" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(50) NOT NULL UNIQUE,
+    "TypeCode" VARCHAR(50) NOT NULL,
+    "Title" VARCHAR(200) NOT NULL,
+    "Message" TEXT NOT NULL,
+    "ReferenceId" VARCHAR(100),
+    "MetadataJson" TEXT,
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'SYSTEM',
+    "CreateDate" TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT "UQ_Notifications_Code" UNIQUE ("Code"),
+    CONSTRAINT "FK_Notifications_TypeCode" FOREIGN KEY ("TypeCode") REFERENCES "NotificationTypeConfigs"("Code") ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS "NotificationRecipients" (
+    "Entry" SERIAL PRIMARY KEY,
+    "NotificationCode" VARCHAR(50) NOT NULL,
+    "UserCode" VARCHAR(50) NOT NULL,
+    "IsRead" BOOLEAN NOT NULL DEFAULT false,
+    "ReadDate" TIMESTAMP WITHOUT TIME ZONE,
+    CONSTRAINT "UQ_Notification_User" UNIQUE ("NotificationCode", "UserCode"),
+    CONSTRAINT "FK_NotificationRecipients_Notification" FOREIGN KEY ("NotificationCode") REFERENCES "Notifications"("Code") ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS "IX_NotificationRecipients_User_Unread" 
+ON "NotificationRecipients" ("UserCode") WHERE "IsRead" = false;
+
+CREATE INDEX IF NOT EXISTS "IX_Notifications_CreateDate" 
+ON "Notifications" ("CreateDate" DESC);
+
+-- Seed inicial de tipos de notificación
+INSERT INTO "NotificationTypeConfigs" 
+    ("Code", "Name", "Description", "ModuleCode", "RequiredPermission", "IsEnabled")
+VALUES 
+    ('RESERVATION_CREATED_WEB', 'Nueva Reservación (Web)', 'Alerta cuando un cliente reserva en línea desde la web', 'MOD_RESERVATIONS', 'ROUTE_RESERVATION_VIEW', true),
+    ('RESERVATION_CREATED_MANUAL', 'Nueva Reservación (Manual / Taquilla)', 'Alerta cuando un operador registra una reserva manual en taquilla', 'MOD_RESERVATIONS', 'ROUTE_RESERVATION_VIEW', true),
+    ('RESERVATION_CREATED', 'Nueva Reservación (General)', 'Alerta genérica cuando se genera una reserva en el sistema', 'MOD_RESERVATIONS', 'ROUTE_RESERVATION_VIEW', true),
+    ('PAYMENT_RECEIPT_UPLOADED', 'Comprobante de Pago Subido', 'Alerta cuando un pasajero carga comprobante de transferencia', 'MOD_RESERVATIONS', 'ROUTE_RESERVATION_PAY', true),
+    ('RESERVATION_CANCELLED', 'Cancelación de Reserva', 'Alerta cuando una reserva se cancela o se liberan asientos', 'MOD_RESERVATIONS', 'ROUTE_RESERVATION_CANCEL', true)
+ON CONFLICT ("Code") DO NOTHING;
+
 
 -- 16. Reservations
 CREATE TABLE IF NOT EXISTS "Reservations" (
@@ -1289,6 +1349,7 @@ INSERT INTO "Permissions" ("Code", "Name", "Description", "ModuleCode", "IsActiv
 ('CORE_INTEGRATION_TICKETMASTER', 'Configurar Ticketmaster', 'Permite configurar API keys y ajustes de Ticketmaster Discovery', 'MOD_INTEGRATIONS', true, 'system'),
 ('CORE_INTEGRATION_TEST', 'Pruebas de Diagnóstico', 'Permite enviar mensajes y cobros de prueba', 'MOD_INTEGRATIONS', true, 'system'),
 ('CORE_NOTIF_STAFF', 'Notificaciones a Personal', 'Permite configurar alertas de salida a operadores', 'MOD_INTEGRATIONS', true, 'system'),
+('CORE_NOTIF_CONFIG', 'Configurar Alertas del Sistema', 'Permite activar o desactivar eventos y permisos de notificaciones', 'MOD_INTEGRATIONS', true, 'system'),
 
 -- 14. Planes y Membresías
 ('CORE_MEMBERSHIP_MANAGE', 'Administrar Planes', 'Permite crear o modificar beneficios y membresías', 'MOD_MEMBERSHIPS', true, 'system'),
