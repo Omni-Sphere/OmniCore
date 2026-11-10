@@ -1387,3 +1387,43 @@ ON CONFLICT ("RoleCode", "ModuleCode") DO UPDATE SET "IsActive" = true;
 -- Access Control & Permissions catalog seeded. No default roles created.
 
 
+
+-- -----------------------------------------------------------------------------
+-- Company Master / Corporate Identity & Branding
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS "Company" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(50) NOT NULL UNIQUE,
+    "Name" VARCHAR(200) NOT NULL,
+    "CommercialName" VARCHAR(200),
+    "Address" VARCHAR(300),
+    "Address2" VARCHAR(300),
+    "City" INT,
+    "State" INT,
+    "ZipCode" INT,
+    "Country" INT,
+    "TaxID" VARCHAR(50),
+    "Currency" INT NOT NULL DEFAULT 1,
+    "Phone1" VARCHAR(50),
+    "Phone2" VARCHAR(50),
+    "Email" VARCHAR(100),
+    "WebSite" VARCHAR(150),
+    "FacebookProfile" VARCHAR(150),
+    "InstagramProfile" VARCHAR(150),
+    "XProfile" VARCHAR(150),
+    "LogoFile" VARCHAR(255),
+    "PrimaryColor" VARCHAR(30) DEFAULT '#45a6df',
+    "SecondaryColor" VARCHAR(30) DEFAULT '#F2A65A',
+    "PaletteJson" TEXT DEFAULT '{"primary":"#45a6df","secondary":"#2d77b4","tertiary":"#20436a","accent":"#95c0d8","white":"#ffffff","secondary1":"#F2A65A","secondary2":"#E97845","secondary3":"#20436a","secondary4":"#D96C5F"}',
+    "IsActive" BOOLEAN NOT NULL DEFAULT TRUE,
+    "CreatedBy" INT NOT NULL DEFAULT 1,
+    "CreateDate" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" INT,
+    "UpdateDate" TIMESTAMPTZ
+);
+
+INSERT INTO "Company" (
+    "Entry", "Code", "Name", "CommercialName", "Address", "TaxID", "Currency", "Phone1", "Email", "WebSite", "PrimaryColor", "SecondaryColor", "PaletteJson", "IsActive", "CreatedBy"
+) VALUES (
+    1, 'COMP1', 'OmniRoute Logistics S.A. de C.V.', 'OmniRoute Express', 'Av. Insurgentes Sur 1602, Crédito Constructor, Benito Juárez, CDMX', 'XAXX010101000', 1, '+52 55 1234 5678', 'contacto@omniroute.com', 'https://omniroute.com', '#45a6df', '#F2A65A', '{"primary":"#45a6df","secondary":"#2d77b4","tertiary":"#20436a","accent":"#95c0d8","white":"#ffffff","secondary1":"#F2A65A","secondary2":"#E97845","secondary3":"#20436a","secondary4":"#D96C5F"}', true, 1
+) ON CONFLICT ("Entry") DO NOTHING;

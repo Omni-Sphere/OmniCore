@@ -95,6 +95,8 @@ add_library(OmniCore SHARED
     Feedback/Repositories/FeedbackRepository.cpp
     FAQ/FAQService.cpp
     FAQ/Repositories/FAQRepository.cpp
+    Company/Company.cpp
+    Company/Repositories/Company.cpp
 )
 
 # --- Resolución de dependencias Omni ---
@@ -247,6 +249,10 @@ set(
     FAQ/DTOs
     FAQ/Models
     FAQ/Repositories
+    Company
+    Company/DTOs
+    Company/Models
+    Company/Repositories
 )
 
 foreach(DIR ${HEADER_DIRS})
