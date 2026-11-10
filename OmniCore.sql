@@ -1373,10 +1373,10 @@ ON CONFLICT ("Code") DO UPDATE SET
     "IsActive" = true;
 
 -- Conceder todos los permisos al rol ADMIN
-INSERT INTO "RolePermissions" ("RoleCode", "PermissionCode", "IsActive", "CreatedBy")
-SELECT 'ADMIN', "Code", true, 'system'
+INSERT INTO "RolePermissions" ("RoleCode", "PermissionCode", "ModuleCode", "IsActive", "CreatedBy")
+SELECT 'ADMIN', "Code", "ModuleCode", true, 'system'
 FROM "Permissions"
-ON CONFLICT ("RoleCode", "PermissionCode") DO UPDATE SET "IsActive" = true;
+ON CONFLICT ("RoleCode", "PermissionCode") DO UPDATE SET "ModuleCode" = EXCLUDED."ModuleCode", "IsActive" = true;
 
 -- Conceder todos los módulos al rol ADMIN
 INSERT INTO "RoleModules" ("RoleCode", "ModuleCode", "IsActive", "CreatedBy")
