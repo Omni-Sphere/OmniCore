@@ -7,7 +7,6 @@
 #include <vector>
 #include <string>
 #include <optional>
-#include <nlohmann/json.hpp>
 
 namespace omnisphere::services
 {
@@ -37,7 +36,7 @@ namespace omnisphere::services
             const std::string& title,
             const std::string& message,
             const std::optional<std::string>& referenceId = std::nullopt,
-            const nlohmann::json& metadata = nlohmann::json::object(),
+            const std::string& metadataJson = "{}",
             const std::string& createdBy = "SYSTEM"
         );
 

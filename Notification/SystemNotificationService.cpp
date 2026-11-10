@@ -29,7 +29,7 @@ namespace omnisphere::services
         const std::string& title,
         const std::string& message,
         const std::optional<std::string>& referenceId,
-        const nlohmann::json& metadata,
+        const std::string& metadataJson,
         const std::string& createdBy)
     {
         if (!m_repo) return false;
@@ -49,7 +49,7 @@ namespace omnisphere::services
         }
 
         // 2. Crear el registro maestro de la notificación en BD
-        std::string metaStr = metadata.is_null() ? "{}" : metadata.dump();
+        std::string metaStr = metadataJson.empty() ? "{}" : metadataJson;
         std::string notifCode = m_repo->CreateNotification(typeCode, title, message, referenceId, metaStr, createdBy);
         if (notifCode.empty())
         {
