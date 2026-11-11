@@ -97,6 +97,9 @@ add_library(OmniCore SHARED
     FAQ/Repositories/FAQRepository.cpp
     Company/Company.cpp
     Company/Repositories/Company.cpp
+    Company/CompanyBrandingService.cpp
+    Company/Repositories/CompanyBrandingRepository.cpp
+    Company/Repositories/CompanyPortalFeatureRepository.cpp
 )
 
 # --- Resolución de dependencias Omni ---

@@ -1732,3 +1732,71 @@ INSERT INTO "Company" (
     "PrimaryColor" = COALESCE(EXCLUDED."PrimaryColor", "Company"."PrimaryColor"),
     "SecondaryColor" = COALESCE(EXCLUDED."SecondaryColor", "Company"."SecondaryColor"),
     "PaletteJson" = COALESCE(EXCLUDED."PaletteJson", "Company"."PaletteJson");
+
+
+-- -----------------------------------------------------------------------------
+-- Company Branding & Portal Features (Identidad Corporativa y Beneficios)
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS "CompanyBranding" (
+    "Entry" SERIAL PRIMARY KEY,
+    "CompanyEntry" INT NOT NULL DEFAULT 1 UNIQUE,
+    "LogoFile" VARCHAR(255),
+    "Slogan" VARCHAR(255),
+    "SloganDescription" TEXT,
+
+    -- Paleta de Colores Principales (Brand Guidelines)
+    "PrimaryColor" VARCHAR(30) NOT NULL DEFAULT '#45a6df',
+    "PrimaryContainerColor" VARCHAR(30) NOT NULL DEFAULT '#2d77b4',
+    "PrimaryDarkColor" VARCHAR(30) NOT NULL DEFAULT '#20436a',
+    "PrimaryLightColor" VARCHAR(30) NOT NULL DEFAULT '#95c0d8',
+
+    -- Paleta de Colores Secundarios
+    "SecondaryAmberColor" VARCHAR(30) NOT NULL DEFAULT '#F2A65A',
+    "SecondaryOrangeColor" VARCHAR(30) NOT NULL DEFAULT '#E97845',
+    "SecondaryNavyColor" VARCHAR(30) NOT NULL DEFAULT '#20436a',
+    "SecondaryCoralColor" VARCHAR(30) NOT NULL DEFAULT '#D96C5F',
+
+    "IsActive" BOOLEAN NOT NULL DEFAULT TRUE,
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
+    "CreateDate" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" VARCHAR(50),
+    "UpdateDate" TIMESTAMPTZ,
+    CONSTRAINT "FK_CompanyBranding_Company" FOREIGN KEY ("CompanyEntry") REFERENCES "Company"("Entry") ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS "CompanyPortalFeatures" (
+    "Entry" SERIAL PRIMARY KEY,
+    "Code" VARCHAR(50) NOT NULL UNIQUE,
+    "CompanyEntry" INT NOT NULL DEFAULT 1,
+    "Title" VARCHAR(150) NOT NULL,
+    "Description" TEXT,
+    "Icon" VARCHAR(60) NOT NULL DEFAULT 'stars',
+    "Color" VARCHAR(30) NOT NULL DEFAULT 'primary',
+    "SortOrder" INT NOT NULL DEFAULT 0,
+    "IsActive" BOOLEAN NOT NULL DEFAULT TRUE,
+    "CreatedBy" VARCHAR(50) NOT NULL DEFAULT 'system',
+    "CreateDate" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUpdatedBy" VARCHAR(50),
+    "UpdateDate" TIMESTAMPTZ,
+    CONSTRAINT "FK_CompanyPortalFeatures_Company" FOREIGN KEY ("CompanyEntry") REFERENCES "Company"("Entry") ON DELETE CASCADE
+);
+
+INSERT INTO "CompanyBranding" (
+    "Entry", "CompanyEntry", "LogoFile", "Slogan", "SloganDescription",
+    "PrimaryColor", "PrimaryContainerColor", "PrimaryDarkColor", "PrimaryLightColor",
+    "SecondaryAmberColor", "SecondaryOrangeColor", "SecondaryNavyColor", "SecondaryCoralColor",
+    "IsActive", "CreatedBy"
+) VALUES (
+    1, 1, '', 'Viaja Seguro y Cómodo a tus Conciertos Favoritos',
+    'Plataforma líder en transporte colectivo directo a festivales y conciertos de la CDMX. Traslados puntuales de ida y vuelta con puntos de salida estratégicos.',
+    '#45a6df', '#2d77b4', '#20436a', '#95c0d8',
+    '#F2A65A', '#E97845', '#20436a', '#D96C5F',
+    true, 'system'
+) ON CONFLICT ("CompanyEntry") DO NOTHING;
+
+INSERT INTO "CompanyPortalFeatures" ("Code", "CompanyEntry", "Title", "Description", "Icon", "Color", "SortOrder", "IsActive", "CreatedBy")
+VALUES
+    ('FEAT-001', 1, 'Puntos Estratégicos', '+15 rutas con salida y retorno directo en CDMX y EdoMex.', 'location_on', 'primary', 1, true, 'system'),
+    ('FEAT-002', 1, 'Viaje 100% Seguro', 'Unidades en excelente estado y choferes auditados.', 'verified_user', 'emerald', 2, true, 'system'),
+    ('FEAT-003', 1, 'Puntualidad', 'Salidas programadas y espera segura post-evento.', 'schedule', 'amber', 3, true, 'system')
+ON CONFLICT ("Code") DO NOTHING;
