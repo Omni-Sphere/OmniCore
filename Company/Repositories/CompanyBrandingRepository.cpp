@@ -40,13 +40,27 @@ bool CompanyBrandingRepository::EnsureDefaultExists(int companyEntry) const {
       }
     }
 
+    // Inicializar heredando el LogoFile existente de la tabla Company si está presente
+    std::string initialLogo = "";
+    std::string companySql = "SELECT \"LogoFile\" FROM \"Company\" WHERE \"Entry\" = ? LIMIT 1";
+    omnisphere::types::DataTable cDt;
+    if (m_dbPool) {
+      auto conn = m_dbPool->Acquire();
+      cDt = conn->FetchPrepared(companySql, params);
+    } else if (m_legacyDb) {
+      cDt = m_legacyDb->FetchPrepared(companySql, params);
+    }
+    if (!cDt.IsEmpty() && cDt[0]["LogoFile"].GetOptional<std::string>().has_value()) {
+      initialLogo = cDt[0]["LogoFile"].GetOptional<std::string>().value();
+    }
+
     std::string insertSql =
       "INSERT INTO \"CompanyBranding\" ("
       "\"CompanyEntry\", \"LogoFile\", \"Slogan\", \"SloganDescription\", "
       "\"PrimaryColor\", \"PrimaryContainerColor\", \"PrimaryDarkColor\", \"PrimaryLightColor\", "
       "\"SecondaryAmberColor\", \"SecondaryOrangeColor\", \"SecondaryNavyColor\", \"SecondaryCoralColor\", "
       "\"IsActive\", \"CreatedBy\") "
-      "VALUES (?, '', 'Viaja Seguro y Cómodo a tus Conciertos Favoritos', "
+      "VALUES (?, ?, 'Viaja Seguro y Cómodo a tus Conciertos Favoritos', "
       "'Plataforma líder en transporte colectivo directo a festivales y conciertos de la CDMX. Traslados puntuales de ida y vuelta con puntos de salida estratégicos.', "
       "'#45a6df', '#2d77b4', '#20436a', '#95c0d8', "
       "'#F2A65A', '#E97845', '#20436a', '#D96C5F', true, 'system') "
@@ -54,6 +68,7 @@ bool CompanyBrandingRepository::EnsureDefaultExists(int companyEntry) const {
 
     std::vector<omnisphere::types::SQLParam> insertParams;
     insertParams.push_back(omnisphere::types::MakeSQLParam(companyEntry));
+    insertParams.push_back(omnisphere::types::MakeSQLParam(initialLogo));
 
     if (m_dbPool) {
       auto conn = m_dbPool->Acquire();
