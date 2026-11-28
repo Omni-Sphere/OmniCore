@@ -266,7 +266,8 @@ CREATE TABLE IF NOT EXISTS "Events" (
     CONSTRAINT "CHK_Events_IsPromoted" CHECK ("IsPromoted" IN (true, false)),
     CONSTRAINT "CHK_Events_IsUpcoming" CHECK ("IsUpcoming" IN (true, false)),
     CONSTRAINT "CHK_Events_CommingSoon" CHECK ("CommingSoon" IN (true, false)),
-    CONSTRAINT "CHK_Events_IsActive" CHECK ("IsActive" IN (true, false))
+    CONSTRAINT "CHK_Events_IsActive" CHECK ("IsActive" IN (true, false)),
+    CONSTRAINT "CHK_Events_Not_Promoted_And_Presale" CHECK (NOT ("IsPromoted" = true AND "CommingSoon" = true))
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS "UQ_Events_Name_Active" ON "Events" (LOWER(TRIM("Name"))) WHERE "IsActive" = true AND "IsCanceled" = false;

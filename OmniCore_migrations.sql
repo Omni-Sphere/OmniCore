@@ -265,7 +265,8 @@ CREATE TABLE IF NOT EXISTS "Events" (
     CONSTRAINT "CHK_Events_IsPromoted" CHECK ("IsPromoted" IN (true, false)),
     CONSTRAINT "CHK_Events_IsUpcoming" CHECK ("IsUpcoming" IN (true, false)),
     CONSTRAINT "CHK_Events_CommingSoon" CHECK ("CommingSoon" IN (true, false)),
-    CONSTRAINT "CHK_Events_IsActive" CHECK ("IsActive" IN (true, false))
+    CONSTRAINT "CHK_Events_IsActive" CHECK ("IsActive" IN (true, false)),
+    CONSTRAINT "CHK_Events_Not_Promoted_And_Presale" CHECK (NOT ("IsPromoted" = true AND "CommingSoon" = true))
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS "UQ_Events_Name_Active" ON "Events" (LOWER(TRIM("Name"))) WHERE "IsActive" = true AND "IsCanceled" = false;
@@ -1800,3 +1801,18 @@ VALUES
     ('FEAT-002', 1, 'Viaje 100% Seguro', 'Unidades en excelente estado y choferes auditados.', 'verified_user', 'emerald', 2, true, 'system'),
     ('FEAT-003', 1, 'Puntualidad', 'Salidas programadas y espera segura post-evento.', 'schedule', 'amber', 3, true, 'system')
 ON CONFLICT ("Code") DO NOTHING;
+
+-- Migration: Enforce that an Event cannot be simultaneously Promoted and Presale/CommingSoon
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'CHK_Events_Not_Promoted_And_Presale'
+    ) THEN
+        -- If any existing record has both set to true, reconcile by unsetting CommingSoon if Promoted
+        UPDATE "Events" SET "CommingSoon" = false WHERE "IsPromoted" = true AND "CommingSoon" = true;
+        
+        ALTER TABLE "Events" 
+            ADD CONSTRAINT "CHK_Events_Not_Promoted_And_Presale" 
+            CHECK (NOT ("IsPromoted" = true AND "CommingSoon" = true));
+    END IF;
+END $$;
